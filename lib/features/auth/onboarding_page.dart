@@ -48,8 +48,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               child: PageView.builder(
                 controller: _controller,
                 itemCount: slides.length,
-                onPageChanged: (index) =>
-                    setState(() => _currentIndex = index),
+                onPageChanged: (index) => setState(() => _currentIndex = index),
                 itemBuilder: (context, index) =>
                     _SlideView(slide: slides[index]),
               ),
@@ -80,9 +79,7 @@ class _DotsIndicator extends StatelessWidget {
             width: i == currentIndex ? 18 : 7,
             height: 7,
             decoration: BoxDecoration(
-              color: i == currentIndex
-                  ? AppColors.primary
-                  : AppColors.border,
+              color: i == currentIndex ? AppColors.primary : AppColors.border,
               borderRadius: BorderRadius.circular(999),
             ),
           ),
@@ -160,7 +157,8 @@ class _SlidePreview extends StatelessWidget {
                         color: AppColors.surface.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(slide.icon, size: 20, color: AppColors.surface),
+                      child:
+                          Icon(slide.icon, size: 20, color: AppColors.surface),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -302,8 +300,7 @@ class _AuthBottomArea extends StatelessWidget {
           const SizedBox(height: 6),
           TextButton(
             key: const ValueKey('email-start-button'),
-            onPressed: () =>
-                Navigator.of(context).pushNamed(AppRoutes.signup),
+            onPressed: () => Navigator.of(context).pushNamed(AppRoutes.signup),
             child: Text(
               '이메일로 시작하기',
               style: AppTextStyles.body.copyWith(

@@ -147,17 +147,6 @@ class Policy {
   final IconData icon;
 }
 
-/// 서버 users.gender(MALE/FEMALE/OTHER)와 1:1 대응하는 회원 성별.
-enum Gender { male, female, other }
-
-extension GenderExtension on Gender {
-  String get label => switch (this) {
-        Gender.male => '남성',
-        Gender.female => '여성',
-        Gender.other => '기타',
-      };
-}
-
 enum PlaceType { goodPrice, publicFacility, publicParking }
 
 extension PlaceTypeExtension on PlaceType {

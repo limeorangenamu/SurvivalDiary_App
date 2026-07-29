@@ -33,22 +33,6 @@ AI 코딩 도구(ChatGPT Codex, Claude Code 등)가 이 저장소에서 작업�
 7. **한국어**: UI 문자열·주석 모두 한국어. 코드 식별자는 영어.
 8. **기능 구현 금지 (현 단계)**: 이 저장소는 뷰 분배용이다. 상태관리·API·DB 도입은 해당 이슈 담당자가 진행한다.
 9. 변경 후 반드시 `flutter analyze` 무경고를 확인한다. `analysis_options.yaml` 이 `prefer_const_constructors` 를 켜둔 상태다.
-10. **깃 공유 규칙**: 아래 `2-1. 깃 공유 규칙` 절을 반드시 따른다.
-
-### 2-1. 깃 공유 규칙
-
-모든 SurvivalDiary 저장소는 `SurvivalDiary_App`과 동일한 깃 공유 규칙을 사용한다.
-
-- 브랜치는 `{이름}/{타입}/{작업명}` 형식으로 만든다. 예: `kimin/feat/login-jwt`
-- 브랜치의 `{타입}`은 커밋 접두사와 동일하게 `feat`, `fix`, `docs`, `refactor`, `chore` 등을 사용한다.
-- 커밋 메시지는 Conventional Commits 형식을 사용한다.
-  - 예: `feat: 로그인 API 구현`
-  - 예: `docs: 스키마 명세 갱신`
-- 관련 이슈가 있으면 커밋 본문이나 제목 끝에 `(#5)`처럼 참조한다.
-- `main` 브랜치에 직접 커밋하지 않는다. 모든 변경은 PR로만 머지한다.
-- PR 본문에는 `개요`, `작업 내용`, `테스트 방법`을 반드시 작성한다.
-- 브랜치는 기능 단위로 짧게 유지하고, PR 머지 후 삭제한다.
-- `kimin/feat`처럼 상위 경로와 같은 이름의 브랜치가 이미 있으면 하위 브랜치를 만들 수 없다. 이는 Git ref 충돌이므로 항상 `{이름}/{타입}/{작업명}` 3단 전체 경로로 브랜치를 만든다.
 
 ---
 
@@ -181,8 +165,6 @@ Flutter에는 CSS가 없다. DOM·셀렉터·스타일시트가 존재하지 않
 | 라우트 상수 | 화면 | 인자 |
 |---|---|---|
 | `root` (`/`) | `RootShell` (하단 네비 5탭) | — |
-| `onboarding` | 첫 진입 온보딩 (슬라이드 + SNS 로그인) — **기본 시작 라우트** | — |
-| `signup` | 이메일 회원가입 폼 | — |
 | `notification` | 알림 목록 | — |
 | `dailySummary` | 오늘의 요약 상세 | — |
 | `budgetSetting` | 사용 가능 금액 설정 | — |
@@ -240,7 +222,6 @@ Flutter에는 CSS가 없다. DOM·셀렉터·스타일시트가 존재하지 않
 ### 동작하는 것 (UI 로컬 state 수준)
 
 - 하단 네비 5탭 전환, 모든 상세 화면 push/pop
-- 온보딩 슬라이드, 회원가입 폼 입력 검증 (서버 SignupRequest 규칙과 동일) → **가입 요청은 스낵바만 표시 후 홈 이동**
 - 지출 등록 폼: 카테고리 선택, 텍스트 입력, 날짜 피커 → **저장은 스낵바만 표시**
 - 정책 "관심 없음" → 목록에서 실제 제거 + 실행취소 스낵바 (메모리상)
 - 지도: 장소 유형 필터링, 거리순/가격순 정렬, 핀 선택 → 하단 카드 전환 (실제 동작)
@@ -294,3 +275,15 @@ Android 실행은 `android/` 스캐폴딩이 필요하다. 로컬 환경 이슈�
 라벨 체계: 우선순위 `P0`/`P1`/`P2` + 흐름 `flow:diary`/`flow:policy`/`flow:map`/`flow:housing`/`flow:community` + `common`.
 
 `P0`(#1–4)은 다른 모든 작업의 선행 조건이다. 기능 이슈에 착수하기 전 해당 흐름의 P0가 끝났는지 확인한다.
+
+---
+
+## Git branch ownership rule
+
+- Jade Cohen / ligr00vefe@naver.com 작업자는 `kimin`으로 식별한다.
+- 모든 작업 브랜치는 반드시 `{name}/{type}/{task}` 형식을 사용한다.
+- kimin 작업 브랜치는 반드시 `kimin/{type}/{task}` 형식을 사용한다.
+- 허용 예시: `kimin/feat/signup-ui`, `kimin/fix/auth-route`, `kimin/chore/initial-app-snapshot`.
+- `main`에는 절대 직접 커밋하거나 직접 push하지 않는다.
+- 모든 변경 사항은 작업 브랜치에 push한 뒤 PR로만 `main`에 반영한다.
+- 커밋 메시지는 Conventional Commits 형식을 사용한다. 예: `feat: add email signup ui`.

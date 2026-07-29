@@ -17,6 +17,7 @@ android/key.properties
 # IDE
 .idea/
 .vscode/
+.claude/
 *.iml
 
 # 운영체제
