@@ -1,13 +1,65 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:project_survival_diary/app.dart';
 import 'package:project_survival_diary/core/router/app_routes.dart';
 import 'package:project_survival_diary/core/theme/app_colors.dart';
 import 'package:project_survival_diary/core/theme/app_theme.dart';
+import 'package:project_survival_diary/features/auth/data/auth_api_client.dart';
+import 'package:project_survival_diary/features/auth/data/signup_request.dart';
 import 'package:project_survival_diary/features/community/post_write_page.dart';
 import 'package:project_survival_diary/features/map/housing_region_page.dart';
 
 void main() {
+  test('email signup api sends backend signup payload', () async {
+    late Map<String, dynamic> payload;
+    final client = AuthApiClient(
+      baseUrl: 'http://localhost:8080',
+      client: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/auth/signup');
+        payload = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({'success': true, 'data': null}),
+          201,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+    await client.signup(
+      SignupRequest(
+        email: 'kimin@example.com',
+        password: 'password1234',
+        name: 'kimin',
+        birthDate: DateTime(2000, 3, 15),
+        gender: 'OTHER',
+        region: '서울',
+      ),
+    );
+
+    expect(payload['email'], 'kimin@example.com');
+    expect(payload['password'], 'password1234');
+    expect(payload['name'], 'kimin');
+    expect(payload['birthDate'], '2000-03-15');
+    expect(payload['gender'], 'OTHER');
+    expect(payload['region'], '서울');
+  });
+
+  testWidgets('온보딩 이메일 시작 버튼이 회원가입 화면을 연다', (tester) async {
+    await tester.pumpWidget(const SurvivalDiaryApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('email-start-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('signup-email-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('signup-submit-button')), findsOneWidget);
+  });
+
   testWidgets('앱 첫 실행 시 온보딩 슬라이드와 SNS 로그인 버튼이 나타난다', (tester) async {
     await tester.pumpWidget(const SurvivalDiaryApp());
     await tester.pumpAndSettle();
@@ -35,7 +87,8 @@ void main() {
   });
 
   testWidgets('앱 실행 시 홈 인사말과 하단 5개 탭이 나타난다', (tester) async {
-    await tester.pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
+    await tester
+        .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.pumpAndSettle();
 
     expect(find.text('안녕하세요, 생존러님! 👋'), findsOneWidget);
@@ -45,7 +98,8 @@ void main() {
   });
 
   testWidgets('하단 네비게이션으로 정책 탭을 연다', (tester) async {
-    await tester.pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
+    await tester
+        .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.tap(find.byKey(const ValueKey('bottom-policy')));
     await tester.pumpAndSettle();
 
@@ -63,7 +117,8 @@ void main() {
   });
 
   testWidgets('일기 탭의 자동 등록과 직접 입력을 전환한다', (tester) async {
-    await tester.pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
+    await tester
+        .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.tap(find.byKey(const ValueKey('bottom-diary')));
     await tester.pumpAndSettle();
 
@@ -80,7 +135,8 @@ void main() {
   });
 
   testWidgets('정책 관심 없음과 실행취소가 동작한다', (tester) async {
-    await tester.pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
+    await tester
+        .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.tap(find.byKey(const ValueKey('bottom-policy')));
     await tester.pumpAndSettle();
 
@@ -110,7 +166,8 @@ void main() {
   });
 
   testWidgets('지도 주거지 카테고리에만 실거래 지역 메뉴가 나타난다', (tester) async {
-    await tester.pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
+    await tester
+        .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.tap(find.byKey(const ValueKey('bottom-map')));
     await tester.pumpAndSettle();
 
@@ -149,7 +206,8 @@ void main() {
   });
 
   testWidgets('요청한 홈·일기·정책·커뮤니티 UI가 표시된다', (tester) async {
-    await tester.pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
+    await tester
+        .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.pumpAndSettle();
 
     final notificationButton = tester.widget<IconButton>(
@@ -185,7 +243,8 @@ void main() {
   testWidgets('좁은 세로 화면에서 5개 주요 탭에 overflow가 없다', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 568));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
+    await tester
+        .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.pumpAndSettle();
     final initialException = tester.takeException();
     expect(
