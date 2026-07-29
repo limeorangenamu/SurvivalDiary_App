@@ -275,3 +275,15 @@ Android 실행은 `android/` 스캐폴딩이 필요하다. 로컬 환경 이슈�
 라벨 체계: 우선순위 `P0`/`P1`/`P2` + 흐름 `flow:diary`/`flow:policy`/`flow:map`/`flow:housing`/`flow:community` + `common`.
 
 `P0`(#1–4)은 다른 모든 작업의 선행 조건이다. 기능 이슈에 착수하기 전 해당 흐름의 P0가 끝났는지 확인한다.
+
+---
+
+## Git branch ownership rule
+
+- Jade Cohen / ligr00vefe@naver.com 작업자는 `kimin`으로 식별한다.
+- 모든 작업 브랜치는 반드시 `{name}/{type}/{task}` 형식을 사용한다.
+- kimin 작업 브랜치는 반드시 `kimin/{type}/{task}` 형식을 사용한다.
+- 허용 예시: `kimin/feat/signup-ui`, `kimin/fix/auth-route`, `kimin/chore/initial-app-snapshot`.
+- `main`에는 절대 직접 커밋하거나 직접 push하지 않는다.
+- 모든 변경 사항은 작업 브랜치에 push한 뒤 PR로만 `main`에 반영한다.
+- 커밋 메시지는 Conventional Commits 형식을 사용한다. 예: `feat: add email signup ui`.
