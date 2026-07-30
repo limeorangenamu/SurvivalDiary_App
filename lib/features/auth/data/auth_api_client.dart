@@ -5,6 +5,62 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/app_config.dart';
 import 'signup_request.dart';
 
+class AuthTokens {
+  const AuthTokens({
+    required this.accessToken,
+    required this.refreshToken,
+    required this.tokenType,
+    required this.expiresInSeconds,
+  });
+
+  factory AuthTokens.fromJson(Map<String, dynamic> json) => AuthTokens(
+        accessToken: json['accessToken'] as String,
+        refreshToken: json['refreshToken'] as String,
+        tokenType: json['tokenType'] as String? ?? 'Bearer',
+        expiresInSeconds: (json['expiresInSeconds'] as num?)?.toInt() ?? 0,
+      );
+
+  final String accessToken;
+  final String refreshToken;
+  final String tokenType;
+  final int expiresInSeconds;
+}
+
+class CurrentUser {
+  const CurrentUser({
+    required this.id,
+    required this.email,
+    required this.name,
+    required this.phone,
+    required this.birthDate,
+    required this.gender,
+    required this.interests,
+  });
+
+  factory CurrentUser.fromJson(Map<String, dynamic> json) {
+    final rawInterest = json['signupInterest'];
+    return CurrentUser(
+      id: (json['userId'] as num).toInt(),
+      email: json['email'] as String,
+      name: json['name'] as String,
+      phone: json['phone'] as String? ?? '',
+      birthDate: json['birthDate'] as String? ?? '',
+      gender: json['gender'] as String? ?? '',
+      interests: rawInterest is String && rawInterest.isNotEmpty
+          ? rawInterest.split(',')
+          : const [],
+    );
+  }
+
+  final int id;
+  final String email;
+  final String name;
+  final String phone;
+  final String birthDate;
+  final String gender;
+  final List<String> interests;
+}
+
 class AuthApiException implements Exception {
   const AuthApiException(this.message);
 
@@ -45,6 +101,64 @@ class AuthApiClient {
     }
 
     throw AuthApiException(_errorMessage(response));
+  }
+
+  Future<AuthTokens> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await _post(
+      '/api/auth/login',
+      {'email': email, 'password': password},
+    );
+    if (response.statusCode != 200) {
+      throw AuthApiException(_errorMessage(response));
+    }
+    return AuthTokens.fromJson(_responseData(response));
+  }
+
+  Future<CurrentUser> getCurrentUser(String accessToken) async {
+    final uri = Uri.parse('$_baseUrl/api/users/me');
+    late final http.Response response;
+    try {
+      response = await _client.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken'
+        },
+      );
+    } on http.ClientException catch (error) {
+      throw AuthApiException('서버에 연결하지 못했어요.\n요청 주소: $uri\n${error.message}');
+    }
+    if (response.statusCode != 200) {
+      throw AuthApiException(_errorMessage(response));
+    }
+    return CurrentUser.fromJson(_responseData(response));
+  }
+
+  Future<http.Response> _post(String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('$_baseUrl$path');
+    try {
+      return await _client.post(
+        uri,
+        headers: const {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: jsonEncode(body),
+      );
+    } on http.ClientException catch (error) {
+      throw AuthApiException('서버에 연결하지 못했어요.\n요청 주소: $uri\n${error.message}');
+    }
+  }
+
+  Map<String, dynamic> _responseData(http.Response response) {
+    final body = jsonDecode(utf8.decode(response.bodyBytes));
+    if (body is Map<String, dynamic> && body['data'] is Map<String, dynamic>) {
+      return body['data'] as Map<String, dynamic>;
+    }
+    throw const AuthApiException('서버 응답 형식을 확인하지 못했어요.');
   }
 
   String _errorMessage(http.Response response) {
