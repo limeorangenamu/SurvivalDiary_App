@@ -4,6 +4,7 @@ class AppRoutes {
   static const root = '/';
   static const onboarding = '/onboarding';
   static const signup = '/signup';
+  static const signupSuccess = '/signup-success';
   static const notification = '/notification';
   static const dailySummary = '/daily-summary';
   static const budgetSetting = '/budget-setting';

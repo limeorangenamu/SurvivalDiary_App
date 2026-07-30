@@ -6,6 +6,7 @@ class SignupRequest {
     this.birthDate,
     this.gender,
     this.region,
+    this.signupInterests = const [],
   });
 
   final String email;
@@ -14,6 +15,7 @@ class SignupRequest {
   final DateTime? birthDate;
   final String? gender;
   final String? region;
+  final List<String> signupInterests;
 
   Map<String, dynamic> toJson() {
     return {
@@ -23,6 +25,7 @@ class SignupRequest {
       'birthDate': birthDate?.toIso8601String().split('T').first,
       'gender': gender,
       'region': region,
+      'signupInterests': signupInterests,
     };
   }
 }
