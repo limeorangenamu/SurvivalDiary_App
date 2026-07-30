@@ -102,23 +102,16 @@ void main() {
     expect(user.interests, ['LIVING_COST', 'YOUTH_POLICY']);
   });
 
-  testWidgets('온보딩 이메일 시작 버튼이 회원가입 화면을 연다', (tester) async {
+  testWidgets('온보딩 이메일 로그인 버튼이 로그인 화면을 연다', (tester) async {
     await tester.pumpWidget(const SurvivalDiaryApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('email-signup-button')));
+    expect(find.byKey(const ValueKey('email-signup-button')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('email-login-button')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('signup-name-field')), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey('signup-name-field')),
-      '하이',
-    );
-    await tester.tap(find.byKey(const ValueKey('signup-submit-button')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('signup-email-field')), findsOneWidget);
-    expect(find.byKey(const ValueKey('signup-submit-button')), findsOneWidget);
+    expect(find.byKey(const ValueKey('login-email-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('login-signup-button')), findsOneWidget);
   });
 
   testWidgets('앱 첫 실행 시 온보딩 슬라이드와 SNS 로그인 버튼이 나타난다', (tester) async {

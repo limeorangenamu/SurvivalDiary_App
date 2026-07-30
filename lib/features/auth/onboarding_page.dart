@@ -311,18 +311,6 @@ class _AuthBottomArea extends StatelessWidget {
             ),
           ),
           TextButton(
-            key: const ValueKey('email-signup-button'),
-            onPressed: () => Navigator.of(context).pushNamed(AppRoutes.signup),
-            child: Text(
-              '이메일로 회원가입',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
-          TextButton(
             key: const ValueKey('browse-without-login-button'),
             onPressed: () =>
                 Navigator.of(context).pushReplacementNamed(AppRoutes.root),
