@@ -20,8 +20,8 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
   final _formKey = GlobalKey<FormState>();
   final _ageController = TextEditingController();
 
-  String? _region;
-  String? _district;
+  PolicyRegionOption? _region;
+  PolicyDistrictOption? _district;
   PolicyEmploymentStatus? _employmentStatus;
   PolicyIncomeRange? _incomeRange;
   PolicyCategory? _category;
@@ -49,10 +49,10 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
   }
 
   Future<void> _pickRegion() async {
-    final value = await _pick<String>(
+    final value = await _pick<PolicyRegionOption>(
       title: '시·도를 선택해 주세요',
-      options: MockData.regions.keys.toList(),
-      labelBuilder: (option) => option,
+      options: MockData.policyRegions,
+      labelBuilder: (option) => option.name,
       selected: _region,
     );
     if (value != null && mounted) {
@@ -70,10 +70,13 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
     if (region == null) {
       return;
     }
-    final value = await _pick<String>(
+    if (region.districts.isEmpty) {
+      return;
+    }
+    final value = await _pick<PolicyDistrictOption>(
       title: '구·군을 선택해 주세요',
-      options: MockData.regions[region]!.keys.toList(),
-      labelBuilder: (option) => option,
+      options: region.districts,
+      labelBuilder: (option) => option.name,
       selected: _district,
     );
     if (value != null && mounted) {
@@ -131,8 +134,10 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
       AppRoutes.policyResults,
       arguments: PolicyFilterCondition(
         age: int.parse(_ageController.text),
-        region: _region!,
-        district: _district,
+        regionCode: _region!.code,
+        region: _region!.name,
+        districtCode: _district?.code,
+        district: _district?.name,
         employmentStatus: _employmentStatus!,
         incomeRange: _incomeRange,
         category: _category,
@@ -185,7 +190,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
             _SelectionField(
               key: const ValueKey('policy-region-field'),
               label: '시·도 *',
-              value: _region,
+              value: _region?.name,
               hint: '거주 지역을 선택해 주세요',
               errorText: _showSelectionErrors && _region == null
                   ? '시·도를 선택해 주세요.'
@@ -196,9 +201,13 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
             _SelectionField(
               key: const ValueKey('policy-district-field'),
               label: '구·군',
-              value: _district,
-              hint: _region == null ? '시·도를 먼저 선택해 주세요' : '구·군을 선택해 주세요',
-              enabled: _region != null,
+              value: _district?.name,
+              hint: _region == null
+                  ? '시·도를 먼저 선택해 주세요'
+                  : _region!.districts.isEmpty
+                      ? '별도 구·군 선택이 없는 지역이에요'
+                      : '구·군을 선택해 주세요',
+              enabled: _region?.districts.isNotEmpty ?? false,
               onTap: _pickDistrict,
             ),
             const SizedBox(height: 14),
@@ -305,6 +314,8 @@ class _SelectionField extends StatelessWidget {
         child: Text(
           value ?? hint,
           style: value == null ? AppTextStyles.bodyMuted : AppTextStyles.body,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );

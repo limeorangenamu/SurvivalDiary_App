@@ -156,19 +156,42 @@ extension PolicyCategoryExtension on PolicyCategory {
 class PolicyFilterCondition {
   const PolicyFilterCondition({
     required this.age,
+    required this.regionCode,
     required this.region,
     required this.employmentStatus,
+    this.districtCode,
     this.district,
     this.incomeRange,
     this.category,
   });
 
   final int age;
+  final String regionCode;
   final String region;
+  final String? districtCode;
   final String? district;
   final PolicyEmploymentStatus employmentStatus;
   final PolicyIncomeRange? incomeRange;
   final PolicyCategory? category;
+}
+
+class PolicyDistrictOption {
+  const PolicyDistrictOption({required this.code, required this.name});
+
+  final String code;
+  final String name;
+}
+
+class PolicyRegionOption {
+  const PolicyRegionOption({
+    required this.code,
+    required this.name,
+    required this.districts,
+  });
+
+  final String code;
+  final String name;
+  final List<PolicyDistrictOption> districts;
 }
 
 class Policy {
@@ -188,7 +211,7 @@ class Policy {
     required this.icon,
     required this.minAge,
     required this.maxAge,
-    required this.eligibleRegions,
+    required this.eligibleRegionCodes,
     required this.employmentStatuses,
     required this.incomeRanges,
     this.officialUrl,
@@ -210,7 +233,7 @@ class Policy {
   final IconData icon;
   final int minAge;
   final int maxAge;
-  final List<String> eligibleRegions;
+  final List<String> eligibleRegionCodes;
   final List<PolicyEmploymentStatus> employmentStatuses;
   final List<PolicyIncomeRange> incomeRanges;
   final String? officialUrl;

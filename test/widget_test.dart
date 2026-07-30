@@ -151,6 +151,7 @@ void main() {
         home: const PolicyListPage(
           condition: PolicyFilterCondition(
             age: 27,
+            regionCode: '11',
             region: '서울특별시',
             employmentStatus: PolicyEmploymentStatus.jobSeeker,
           ),
@@ -170,6 +171,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('청년 월세 지원'), findsOneWidget);
+  });
+
+  testWidgets('정책 탭을 이동해도 입력한 나이가 유지된다', (tester) async {
+    await tester
+        .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
+    await tester.tap(find.byKey(const ValueKey('bottom-policy')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('policy-age-field')),
+      '27',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('bottom-home')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bottom-policy')));
+    await tester.pumpAndSettle();
+
+    final ageField = tester.widget<TextFormField>(
+      find.byKey(const ValueKey('policy-age-field')),
+    );
+    expect(ageField.controller?.text, '27');
   });
 
   testWidgets('지역 세 단계 선택 전 실거래 조회 버튼이 비활성이다', (tester) async {
