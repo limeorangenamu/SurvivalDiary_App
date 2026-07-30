@@ -28,8 +28,8 @@ class _PolicyListPageState extends State<PolicyListPage> {
     final result = _policies.where((policy) {
       final matchesAge =
           condition.age >= policy.minAge && condition.age <= policy.maxAge;
-      final matchesRegion = policy.eligibleRegions.contains('전국') ||
-          policy.eligibleRegions.contains(condition.region);
+      final matchesRegion = policy.eligibleRegionCodes.contains('ALL') ||
+          policy.eligibleRegionCodes.contains(condition.regionCode);
       final matchesEmployment =
           policy.employmentStatuses.contains(condition.employmentStatus);
       final matchesIncome = condition.incomeRange == null ||

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:project_survival_diary/core/router/app_router.dart';
 import 'package:project_survival_diary/core/theme/app_theme.dart';
+import 'package:project_survival_diary/data/mock_data.dart';
 import 'package:project_survival_diary/data/models.dart';
 import 'package:project_survival_diary/features/policy/policy_detail_page.dart';
 import 'package:project_survival_diary/features/policy/policy_filter_page.dart';
@@ -20,6 +21,7 @@ void main() {
     WidgetTester tester, {
     String age = '27',
     String region = '서울특별시',
+    String? district,
     String employment = '구직 중',
   }) async {
     await tester.enterText(
@@ -30,11 +32,48 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text(region).last);
     await tester.pumpAndSettle();
+    if (district != null) {
+      await tester.tap(find.byKey(const ValueKey('policy-district-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(district).last);
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.byKey(const ValueKey('policy-employment-field')));
     await tester.pumpAndSettle();
     await tester.tap(find.text(employment).last);
     await tester.pumpAndSettle();
   }
+
+  test('정책 지역 조건은 전국 17개 시·도와 공식 형식 코드를 제공한다', () {
+    expect(MockData.policyRegions, hasLength(17));
+
+    final regionCodes = <String>{};
+    final districtCodes = <String>{};
+    for (final region in MockData.policyRegions) {
+      expect(region.code, matches(RegExp(r'^\d{2}$')));
+      expect(regionCodes.add(region.code), isTrue);
+      for (final district in region.districts) {
+        expect(district.code, matches(RegExp(r'^\d{5}$')));
+        expect(district.code.startsWith(region.code), isTrue);
+        expect(districtCodes.add(district.code), isTrue);
+      }
+    }
+    expect(districtCodes, hasLength(228));
+
+    final seoul = MockData.policyRegions.singleWhere(
+      (region) => region.code == '11',
+    );
+    expect(seoul.districts, hasLength(25));
+    expect(
+      seoul.districts.singleWhere((district) => district.code == '11680').name,
+      '강남구',
+    );
+
+    final sejong = MockData.policyRegions.singleWhere(
+      (region) => region.code == '36',
+    );
+    expect(sejong.districts, isEmpty);
+  });
 
   testWidgets('필수 정책 조건 누락 시 인라인 오류를 표시한다', (tester) async {
     await tester.pumpWidget(policyApp(const PolicyFilterPage()));
@@ -50,7 +89,7 @@ void main() {
 
   testWidgets('조건 입력부터 상세와 외부 이동 확인 화면까지 연결된다', (tester) async {
     await tester.pumpWidget(policyApp(const PolicyFilterPage()));
-    await selectRequiredConditions(tester);
+    await selectRequiredConditions(tester, district: '종로구');
 
     await tester.tap(find.byKey(const ValueKey('policy-search-button')));
     await tester.pumpAndSettle();
@@ -58,6 +97,7 @@ void main() {
     expect(find.text('맞춤 정책 결과'), findsOneWidget);
     expect(find.text('만 27세'), findsOneWidget);
     expect(find.text('서울특별시'), findsOneWidget);
+    expect(find.text('종로구'), findsOneWidget);
     expect(find.text('구직 중'), findsOneWidget);
     expect(find.text('청년 월세 지원'), findsOneWidget);
 
@@ -112,6 +152,7 @@ void main() {
         const PolicyListPage(
           condition: PolicyFilterCondition(
             age: 20,
+            regionCode: '11',
             region: '서울특별시',
             employmentStatus: PolicyEmploymentStatus.student,
             category: PolicyCategory.transport,
