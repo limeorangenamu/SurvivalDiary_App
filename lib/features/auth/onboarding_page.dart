@@ -299,10 +299,22 @@ class _AuthBottomArea extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           TextButton(
-            key: const ValueKey('email-start-button'),
+            key: const ValueKey('email-login-button'),
+            onPressed: () => Navigator.of(context).pushNamed(AppRoutes.login),
+            child: Text(
+              '이메일로 로그인',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('email-signup-button'),
             onPressed: () => Navigator.of(context).pushNamed(AppRoutes.signup),
             child: Text(
-              '이메일로 시작하기',
+              '이메일로 회원가입',
               style: AppTextStyles.body.copyWith(
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w700,

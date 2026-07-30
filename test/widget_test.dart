@@ -51,11 +51,62 @@ void main() {
     expect(payload['signupInterests'], ['LIVING_COST', 'YOUTH_POLICY']);
   });
 
+  test('email login returns the current user', () async {
+    final client = AuthApiClient(
+      baseUrl: 'http://localhost:8080',
+      client: MockClient((request) async {
+        if (request.url.path == '/api/auth/login') {
+          expect(request.method, 'POST');
+          return http.Response(
+            jsonEncode({
+              'success': true,
+              'data': {
+                'accessToken': 'access-token',
+                'refreshToken': 'refresh-token',
+                'tokenType': 'Bearer',
+                'expiresInSeconds': 3600,
+              },
+            }),
+            200,
+          );
+        }
+
+        expect(request.url.path, '/api/users/me');
+        expect(request.headers['authorization'], 'Bearer access-token');
+        return http.Response(
+          jsonEncode({
+            'success': true,
+            'data': {
+              'userId': 7,
+              'email': 'user@example.com',
+              'name': 'User',
+              'phone': '01012345678',
+              'birthDate': '2000-03-15',
+              'gender': 'MALE',
+              'signupInterest': 'LIVING_COST,YOUTH_POLICY',
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final tokens = await client.login(
+      email: 'user@example.com',
+      password: 'password',
+    );
+    final user = await client.getCurrentUser(tokens.accessToken);
+
+    expect(user.id, 7);
+    expect(user.name, 'User');
+    expect(user.interests, ['LIVING_COST', 'YOUTH_POLICY']);
+  });
+
   testWidgets('온보딩 이메일 시작 버튼이 회원가입 화면을 연다', (tester) async {
     await tester.pumpWidget(const SurvivalDiaryApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('email-start-button')));
+    await tester.tap(find.byKey(const ValueKey('email-signup-button')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('signup-name-field')), findsOneWidget);

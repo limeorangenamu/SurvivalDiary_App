@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/models.dart';
 import '../../features/auth/onboarding_page.dart';
+import '../../features/auth/login_page.dart';
 import '../../features/auth/signup_page.dart';
 import '../../features/auth/signup_success_page.dart';
 import '../../features/community/post_detail_page.dart';
@@ -26,6 +27,7 @@ class AppRouter {
     final page = switch (settings.name) {
       AppRoutes.root => const RootShell(),
       AppRoutes.onboarding => const OnboardingPage(),
+      AppRoutes.login => const LoginPage(),
       AppRoutes.signup => const SignupPage(),
       AppRoutes.signupSuccess => const SignupSuccessPage(),
       AppRoutes.notification => const NotificationPage(),
