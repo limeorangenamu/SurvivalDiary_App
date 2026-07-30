@@ -18,15 +18,17 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-  static const _reviewStep = 6;
+  static const _reviewStep = 7;
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _birthDateController = TextEditingController();
   final _birthDateFormatter = _BirthDateInputFormatter();
   final _nameFocusNode = FocusNode();
   final _emailFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
   final _birthDateFocusNode = FocusNode();
 
@@ -37,6 +39,7 @@ class _SignupPageState extends State<SignupPage> {
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   String? _submissionError;
+  int? _reviewEditingStep;
 
   static const _genderOptions = [
     _SignupOption(
@@ -120,9 +123,11 @@ class _SignupPageState extends State<SignupPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _phoneController.dispose();
     _birthDateController.dispose();
     _nameFocusNode.dispose();
     _emailFocusNode.dispose();
+    _phoneFocusNode.dispose();
     _passwordFocusNode.dispose();
     _birthDateFocusNode.dispose();
     super.dispose();
@@ -146,6 +151,7 @@ class _SignupPageState extends State<SignupPage> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
           name: _nameController.text.trim(),
+          phone: _phoneDigits,
           birthDate: _parseBirthDate(_birthDateDigits),
           gender: _selectedGender,
           signupInterests:
@@ -175,6 +181,10 @@ class _SignupPageState extends State<SignupPage> {
       _showError(_validationMessage(_activeStep));
       return;
     }
+    if (_reviewEditingStep != null) {
+      _finishReviewEdit();
+      return;
+    }
     if (_activeStep < _reviewStep) {
       _advanceToStep(_activeStep + 1);
     } else {
@@ -183,6 +193,10 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   void _moveBack() {
+    if (_reviewEditingStep != null) {
+      _finishReviewEdit();
+      return;
+    }
     if (_activeStep == 0) {
       Navigator.of(context).pop();
       return;
@@ -209,7 +223,10 @@ class _SignupPageState extends State<SignupPage> {
           _birthDateFocusNode.requestFocus();
           break;
         case 4:
-          _openGenderSheet(advanceAfterSelection: true);
+          _openGenderSheet(advanceAfterSelection: _reviewEditingStep == null);
+          break;
+        case 6:
+          _phoneFocusNode.requestFocus();
           break;
       }
     });
@@ -233,14 +250,16 @@ class _SignupPageState extends State<SignupPage> {
         return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
             .hasMatch(_emailController.text.trim());
       case 2:
-        // TODO(kimin): 백엔드 정책 확정 후 비밀번호 복잡도 검사를 다시 연결합니다.
         return _passwordController.text.isNotEmpty;
       case 3:
+        // TODO(kimin): 백엔드 정책 확정 후 비밀번호 복잡도 검사를 다시 연결합니다.
         return _parseBirthDate(_birthDateDigits) != null;
       case 4:
         return _selectedGender != null;
       case 5:
         return _selectedInterests.isNotEmpty;
+      case 6:
+        return _phoneDigits.length >= 10 && _phoneDigits.length <= 11;
       case _reviewStep:
         return _firstInvalidStep() == null;
       default:
@@ -255,12 +274,14 @@ class _SignupPageState extends State<SignupPage> {
       case 1:
         return '올바른 이메일 주소를 입력해 주세요.';
       case 2:
-        return '비밀번호를 입력해 주세요.';
+        return '전화번호를 숫자만 입력해 주세요.';
       case 3:
-        return '생년월일 숫자 8자리를 입력해 주세요.';
+        return '비밀번호를 입력해 주세요.';
       case 4:
-        return '성별을 선택해 주세요.';
+        return '생년월일 숫자 8자리를 입력해 주세요.';
       case 5:
+        return '성별을 선택해 주세요.';
+      case 6:
         return '관심사를 1개 이상 선택해 주세요.';
       default:
         return '입력값을 다시 확인해 주세요.';
@@ -286,6 +307,9 @@ class _SignupPageState extends State<SignupPage> {
 
   String get _birthDateDigits =>
       _birthDateController.text.replaceAll(RegExp(r'\D'), '');
+
+  String get _phoneDigits =>
+      _phoneController.text.replaceAll(RegExp(r'\D'), '');
 
   String get _displayName {
     final name = _nameController.text.trim();
@@ -352,6 +376,10 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
     setState(() => _selectedGender = selected.value);
+    if (_reviewEditingStep != null) {
+      _finishReviewEdit();
+      return;
+    }
     if (advanceAfterSelection && _activeStep == 4) {
       _advanceToStep(5);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -385,13 +413,31 @@ class _SignupPageState extends State<SignupPage> {
         ..clear()
         ..addAll(selected);
     });
+    if (_reviewEditingStep != null) {
+      _finishReviewEdit();
+      return;
+    }
     if (advanceAfterSelection && _activeStep == 5) {
-      _advanceToStep(_reviewStep);
+      _advanceToStep(6);
     }
   }
 
   void _editStep(int step) {
+    setState(() => _reviewEditingStep = step);
     _advanceToStep(step);
+  }
+
+  void _editInterests() {
+    setState(() => _reviewEditingStep = 5);
+    _openInterestSheet();
+  }
+
+  void _finishReviewEdit() {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _reviewEditingStep = null;
+      _activeStep = _reviewStep;
+    });
   }
 
   @override
@@ -416,7 +462,7 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                   const Spacer(),
                   Text(
-                    '${(_activeStep + 1).clamp(1, _reviewStep + 1)}/7',
+                    '${(_activeStep + 1).clamp(1, _reviewStep + 1)}/8',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.textTertiary,
                       fontWeight: FontWeight.w800,
@@ -609,10 +655,31 @@ class _SignupPageState extends State<SignupPage> {
             onTap: _openInterestSheet,
           ),
         );
+      case 6:
+        return _QuestionSection(
+          title: '전화번호를 알려주세요',
+          subtitle: '숫자만 입력해 주세요. 앱에서는 전화번호를 자동으로 가져오지 않습니다.',
+          child: _LargeTextField(
+            key: const ValueKey('signup-phone-field'),
+            label: '전화번호',
+            hintText: '01012345678',
+            controller: _phoneController,
+            focusNode: _phoneFocusNode,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.telephoneNumber],
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(11),
+            ],
+            onSubmitted: (_) => _activeStep == 6 ? _moveNext() : null,
+          ),
+        );
       default:
         return _ReviewPanel(
           name: _displayName,
           email: _emailController.text.trim(),
+          phone: _phoneController.text,
           birthDate: _birthDateController.text,
           gender: _genderSummary.isEmpty ? '미선택' : _genderSummary,
           interestSummary: _interestSummary,
@@ -621,8 +688,9 @@ class _SignupPageState extends State<SignupPage> {
           onEditEmail: () => _editStep(1),
           onEditPassword: () => _editStep(2),
           onEditBirthDate: () => _editStep(3),
-          onEditGender: _openGenderSheet,
-          onEditInterests: _openInterestSheet,
+          onEditGender: () => _editStep(4),
+          onEditInterests: _editInterests,
+          onEditPhone: () => _editStep(6),
         );
     }
   }
@@ -1053,12 +1121,14 @@ class _ReviewPanel extends StatelessWidget {
   const _ReviewPanel({
     required this.name,
     required this.email,
+    required this.phone,
     required this.birthDate,
     required this.gender,
     required this.interestSummary,
     required this.allInterests,
     required this.onEditName,
     required this.onEditEmail,
+    required this.onEditPhone,
     required this.onEditPassword,
     required this.onEditBirthDate,
     required this.onEditGender,
@@ -1067,12 +1137,14 @@ class _ReviewPanel extends StatelessWidget {
 
   final String name;
   final String email;
+  final String phone;
   final String birthDate;
   final String gender;
   final String interestSummary;
   final String allInterests;
   final VoidCallback onEditName;
   final VoidCallback onEditEmail;
+  final VoidCallback onEditPhone;
   final VoidCallback onEditPassword;
   final VoidCallback onEditBirthDate;
   final VoidCallback onEditGender;
@@ -1091,6 +1163,7 @@ class _ReviewPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 52),
+        _ReviewRow(label: '전화번호', value: phone, onTap: onEditPhone),
         _ReviewRow(
           label: '관심사',
           value: interestSummary.isEmpty ? '미선택' : interestSummary,
