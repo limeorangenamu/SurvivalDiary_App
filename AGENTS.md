@@ -7,8 +7,7 @@
 
 - Repository: `https://github.com/limeorangenamu/SurvivalDiary_App`
 - Scope: Flutter mobile application only. Keep backend and web frontend changes in their respective repositories.
-- Jade Cohen / `ligr00vefe@naver.com` work is owned by `kimin`.
-- Create every work branch as `{name}/{type}/{task}`. For this owner, use `kimin/{type}/{task}`; for example, `kimin/feat/email-signup-api`.
+- Create every work branch as `{name}/{type}/{task}` using the actual owner name; for example, `alex/feat/email-signup-api`.
 - Use Conventional Commit messages such as `feat: complete email signup flow`.
 - Never commit or push directly to `main`. Push the work branch to this repository and open a pull request targeting `main`.
 - Before delivery, run `flutter analyze` and the relevant Flutter tests.
@@ -286,7 +285,6 @@ Android ?ㅽ뻾? `android/` ?ㅼ틦?대뵫???꾩슂?섎떎. 濡쒖뺄 ?섍꼍 
 
 ## 9. ?댁뒋 ?몃옒而?
 
-?묒뾽 ?⑥쐞??GitHub ?댁뒋濡?遺꾨같?섏뼱 ?덈떎 (`ligr00vefe/project_survival_diary_demo`, 29嫄?.
 ?쇰꺼 泥닿퀎: ?곗꽑?쒖쐞 `P0`/`P1`/`P2` + ?먮쫫 `flow:diary`/`flow:policy`/`flow:map`/`flow:housing`/`flow:community` + `common`.
 
 `P0`(#1??)? ?ㅻⅨ 紐⑤뱺 ?묒뾽???좏뻾 議곌굔?대떎. 湲곕뒫 ?댁뒋??李⑹닔?섍린 ???대떦 ?먮쫫??P0媛 ?앸궗?붿? ?뺤씤?쒕떎.
@@ -295,10 +293,7 @@ Android ?ㅽ뻾? `android/` ?ㅼ틦?대뵫???꾩슂?섎떎. 濡쒖뺄 ?섍꼍 
 
 ## Git branch ownership rule
 
-- Jade Cohen / ligr00vefe@naver.com ?묒뾽?먮뒗 `kimin`?쇰줈 ?앸퀎?쒕떎.
 - 紐⑤뱺 ?묒뾽 釉뚮옖移섎뒗 諛섎뱶??`{name}/{type}/{task}` ?뺤떇???ъ슜?쒕떎.
-- kimin ?묒뾽 釉뚮옖移섎뒗 諛섎뱶??`kimin/{type}/{task}` ?뺤떇???ъ슜?쒕떎.
-- ?덉슜 ?덉떆: `kimin/feat/signup-ui`, `kimin/fix/auth-route`, `kimin/chore/initial-app-snapshot`.
 - `main`?먮뒗 ?덈? 吏곸젒 而ㅻ컠?섍굅??吏곸젒 push?섏? ?딅뒗??
 - 紐⑤뱺 蹂寃??ы빆? ?묒뾽 釉뚮옖移섏뿉 push????PR濡쒕쭔 `main`??諛섏쁺?쒕떎.
 - 而ㅻ컠 硫붿떆吏??Conventional Commits ?뺤떇???ъ슜?쒕떎. ?? `feat: add email signup ui`.
