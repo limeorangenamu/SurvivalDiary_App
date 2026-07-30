@@ -119,32 +119,102 @@ class MonthlyCompare {
   final int current;
 }
 
+enum PolicyEmploymentStatus { employed, jobSeeker, unemployed, student }
+
+extension PolicyEmploymentStatusExtension on PolicyEmploymentStatus {
+  String get label => switch (this) {
+        PolicyEmploymentStatus.employed => '재직 중',
+        PolicyEmploymentStatus.jobSeeker => '구직 중',
+        PolicyEmploymentStatus.unemployed => '미취업',
+        PolicyEmploymentStatus.student => '학생',
+      };
+}
+
+enum PolicyIncomeRange { below50, below100, below150, noLimit }
+
+extension PolicyIncomeRangeExtension on PolicyIncomeRange {
+  String get label => switch (this) {
+        PolicyIncomeRange.below50 => '중위소득 50% 이하',
+        PolicyIncomeRange.below100 => '중위소득 100% 이하',
+        PolicyIncomeRange.below150 => '중위소득 150% 이하',
+        PolicyIncomeRange.noLimit => '소득 무관',
+      };
+}
+
+enum PolicyCategory { housing, employment, asset, culture, transport }
+
+extension PolicyCategoryExtension on PolicyCategory {
+  String get label => switch (this) {
+        PolicyCategory.housing => '주거',
+        PolicyCategory.employment => '취업',
+        PolicyCategory.asset => '자산형성',
+        PolicyCategory.culture => '문화',
+        PolicyCategory.transport => '교통',
+      };
+}
+
+class PolicyFilterCondition {
+  const PolicyFilterCondition({
+    required this.age,
+    required this.region,
+    required this.employmentStatus,
+    this.district,
+    this.incomeRange,
+    this.category,
+  });
+
+  final int age;
+  final String region;
+  final String? district;
+  final PolicyEmploymentStatus employmentStatus;
+  final PolicyIncomeRange? incomeRange;
+  final PolicyCategory? category;
+}
+
 class Policy {
   const Policy({
     required this.id,
     required this.category,
+    required this.categoryType,
     required this.title,
     required this.summary,
     required this.supportAmount,
+    required this.supportText,
     required this.deadline,
     required this.target,
     required this.agency,
     required this.applyMethod,
     required this.documents,
     required this.icon,
+    required this.minAge,
+    required this.maxAge,
+    required this.eligibleRegions,
+    required this.employmentStatuses,
+    required this.incomeRanges,
+    this.officialUrl,
+    this.contact,
   });
 
   final String id;
   final String category;
+  final PolicyCategory categoryType;
   final String title;
   final String summary;
-  final int supportAmount;
-  final String deadline;
+  final int? supportAmount;
+  final String supportText;
+  final String? deadline;
   final String target;
   final String agency;
   final String applyMethod;
   final List<String> documents;
   final IconData icon;
+  final int minAge;
+  final int maxAge;
+  final List<String> eligibleRegions;
+  final List<PolicyEmploymentStatus> employmentStatuses;
+  final List<PolicyIncomeRange> incomeRanges;
+  final String? officialUrl;
+  final String? contact;
 }
 
 enum PlaceType { goodPrice, publicFacility, publicParking }

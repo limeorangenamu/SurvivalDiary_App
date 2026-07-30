@@ -1,20 +1,40 @@
 import 'package:flutter/material.dart';
 
+import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
-import '../../data/models.dart';
+import '../../data/mock_data.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/empty_state_view.dart';
 
 class PolicyDetailPage extends StatelessWidget {
-  const PolicyDetailPage({super.key, required this.policy});
+  const PolicyDetailPage({super.key, required this.policyId});
 
-  final Policy policy;
+  final String policyId;
 
   @override
   Widget build(BuildContext context) {
+    final policy = MockData.policyById(policyId);
+    if (policy == null) {
+      return const Scaffold(
+        appBar: _PolicyDetailAppBar(),
+        body: EmptyStateView(
+          icon: Icons.find_in_page_outlined,
+          title: '정책 정보를 찾을 수 없어요',
+          description: '목록으로 돌아가 다른 정책을 선택해 주세요.',
+        ),
+      );
+    }
+
+    final supportAmount = policy.supportAmount;
+    final supportAmountLabel = supportAmount == null
+        ? '지원 내용 확인'
+        : Formatters.compactAmount(supportAmount);
+    final deadlineLabel = policy.deadline ?? '신청 기간 확인 필요';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('정책 상세')),
+      appBar: const _PolicyDetailAppBar(),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
         children: [
@@ -43,17 +63,19 @@ class PolicyDetailPage extends StatelessWidget {
                 Text(policy.summary, style: AppTextStyles.bodyMuted),
                 const SizedBox(height: 18),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: _SummaryValue(
                         label: '예상 지원액',
-                        value: Formatters.compactAmount(policy.supportAmount),
+                        value: supportAmountLabel,
                       ),
                     ),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _SummaryValue(
                         label: '신청 기한',
-                        value: policy.deadline,
+                        value: deadlineLabel,
                       ),
                     ),
                   ],
@@ -62,6 +84,12 @@ class PolicyDetailPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
+          _InfoSection(
+            icon: Icons.payments_outlined,
+            title: '지원 내용',
+            content: policy.supportText,
+          ),
+          const SizedBox(height: 10),
           _InfoSection(
             icon: Icons.person_outline_rounded,
             title: '지원 대상',
@@ -79,6 +107,14 @@ class PolicyDetailPage extends StatelessWidget {
             title: '신청 방법',
             content: policy.applyMethod,
           ),
+          if (policy.contact != null) ...[
+            const SizedBox(height: 10),
+            _InfoSection(
+              icon: Icons.support_agent_rounded,
+              title: '문의처',
+              content: policy.contact!,
+            ),
+          ],
           const SizedBox(height: 10),
           AppCard(
             child: Column(
@@ -138,10 +174,17 @@ class PolicyDetailPage extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: FilledButton(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('신청 안내는 목업 화면이에요.')),
+                  key: const ValueKey('policy-application-guide-button'),
+                  onPressed: policy.officialUrl == null
+                      ? null
+                      : () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.policyExternalLinkConfirm,
+                            arguments: policy.id,
+                          ),
+                  child: Text(
+                    policy.officialUrl == null ? '공식 링크 준비 중' : '신청 안내 보기',
                   ),
-                  child: const Text('신청 안내 보기'),
                 ),
               ),
             ],
@@ -149,6 +192,19 @@ class PolicyDetailPage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _PolicyDetailAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
+  const _PolicyDetailAppBar();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(title: const Text('정책 상세'));
   }
 }
 
