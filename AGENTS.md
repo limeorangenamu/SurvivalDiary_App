@@ -1,255 +1,270 @@
-# AGENTS.md — 생존일기 (Survival Diary)
+﻿# Project identity
 
-AI 코딩 도구(ChatGPT Codex, Claude Code 등)가 이 저장소에서 작업할 때 참조하는 정본 문서.
-사람이 읽는 개요는 `README.md`, 이 문서는 **작업 규칙과 구조**에 집중한다.
+- Survival Diary helps users record spending, manage budgets, discover saving opportunities, explore youth and living-policy information, and share practical money-saving knowledge through community features.
+- Reference screenshots may be used for interaction patterns, motion, spacing, and layout while keeping implementation aligned with Survival Diary's economy, saving, policy, and household-budget purpose.
+
+## Repository and delivery rules
+
+- Repository: `https://github.com/limeorangenamu/SurvivalDiary_App`
+- Scope: Flutter mobile application only. Keep backend and web frontend changes in their respective repositories.
+- Jade Cohen / `ligr00vefe@naver.com` work is owned by `kimin`.
+- Create every work branch as `{name}/{type}/{task}`. For this owner, use `kimin/{type}/{task}`; for example, `kimin/feat/email-signup-api`.
+- Use Conventional Commit messages such as `feat: complete email signup flow`.
+- Never commit or push directly to `main`. Push the work branch to this repository and open a pull request targeting `main`.
+- Before delivery, run `flutter analyze` and the relevant Flutter tests.
+
+# AGENTS.md ???앹〈?쇨린 (Survival Diary)
+
+AI 肄붾뵫 ?꾧뎄(ChatGPT Codex, Claude Code ??媛 ????μ냼?먯꽌 ?묒뾽????李몄“?섎뒗 ?뺣낯 臾몄꽌.
+?щ엺???쎈뒗 媛쒖슂??`README.md`, ??臾몄꽌??**?묒뾽 洹쒖튃怨?援ъ“**??吏묒쨷?쒕떎.
 
 ---
 
-## 1. 프로젝트 정의
+## 1. ?꾨줈?앺듃 ?뺤쓽
 
-| 항목 | 내용 |
+| ??ぉ | ?댁슜 |
 |---|---|
-| 서비스 | 청년의 경제적 자립을 지원하는 생활금융 앱 |
-| 핵심 기능 | 절약 정보 · 나이/자금상황별 정부 정책 추천 · 커뮤니티 · 가계부 |
-| 차별 기능 | 결제 **푸시 알림을 감지**해 자동으로 가계부에 기록하고, 월 지출 계획·절약 개선안을 추천 |
-| 현재 상태 | **UI 프로토타입 (뷰 단만 존재). 백엔드·영속화·인증 전부 없음** |
-| 스택 | Flutter 3.44+ / Dart 3.12+ |
-| 외부 의존성 | 없음 (`cupertino_icons` 만) — 차트·지도까지 직접 구현 |
+| ?쒕퉬??| 泥?뀈??寃쎌젣???먮┰??吏?먰븯???앺솢湲덉쑖 ??|
+| ?듭떖 湲곕뒫 | ?덉빟 ?뺣낫 쨌 ?섏씠/?먭툑?곹솴蹂??뺣? ?뺤콉 異붿쿇 쨌 而ㅻ??덊떚 쨌 媛怨꾨? |
+| 李⑤퀎 湲곕뒫 | 寃곗젣 **?몄떆 ?뚮┝??媛먯?**???먮룞?쇰줈 媛怨꾨???湲곕줉?섍퀬, ??吏異?怨꾪쉷쨌?덉빟 媛쒖꽑?덉쓣 異붿쿇 |
+| ?꾩옱 ?곹깭 | **UI ?꾨줈?좏???(酉??⑤쭔 議댁옱). 諛깆뿏?쑣룹쁺?랁솕쨌?몄쬆 ?꾨? ?놁쓬** |
+| ?ㅽ깮 | Flutter 3.44+ / Dart 3.12+ |
+| ?몃? ?섏〈??| ?놁쓬 (`cupertino_icons` 留? ??李⑦듃쨌吏?꾧퉴吏 吏곸젒 援ы쁽 |
 
-패키지명은 `project_survival_diary` 다. 폴더명이 `project_survival_diary_demo` 로 바뀌었지만
-`pubspec.yaml` 의 `name:` 은 변경하지 않았다. **패키지명을 바꾸지 말 것** (android namespace·applicationId 연쇄 수정 발생).
-
----
-
-## 2. 작업 규칙 (필수 준수)
-
-1. **색상은 `AppColors` 상수만 사용.** 화면 파일에 `Color(0x...)` 리터럴 금지.
-   투명도가 필요하면 새 상수를 추가하지 말고 `AppColors.primary.withValues(alpha: 0.14)` 로 파생시킨다.
-2. **텍스트는 `AppTextStyles` 사용.** 변형은 `.copyWith()` 로만. 화면에서 `TextStyle(...)` 직접 생성 지양.
-3. **화면 추가 순서**: `AppRoutes` 에 상수 등록 → `AppRouter.onGenerateRoute` 에 연결 → 페이지 파일 생성.
-4. **데이터는 `MockData` 에만 둔다.** 화면 파일에 더미 상수를 새로 만들지 말 것.
-5. **외부 패키지 추가는 사전 합의 필요.** 현재 의존성 0을 유지 중이다.
-6. **import 규칙**: `lib/` 내부는 상대 경로. `package:project_survival_diary/...` 는 `test/` 에서만.
-7. **한국어**: UI 문자열·주석 모두 한국어. 코드 식별자는 영어.
-8. **기능 구현 금지 (현 단계)**: 이 저장소는 뷰 분배용이다. 상태관리·API·DB 도입은 해당 이슈 담당자가 진행한다.
-9. 변경 후 반드시 `flutter analyze` 무경고를 확인한다. `analysis_options.yaml` 이 `prefer_const_constructors` 를 켜둔 상태다.
+?⑦궎吏紐낆? `project_survival_diary` ?? ?대뜑紐낆씠 `project_survival_diary_demo` 濡?諛붾뚯뿀吏留?
+`pubspec.yaml` ??`name:` ? 蹂寃쏀븯吏 ?딆븯?? **?⑦궎吏紐낆쓣 諛붽씀吏 留?寃?* (android namespace쨌applicationId ?곗뇙 ?섏젙 諛쒖깮).
 
 ---
 
-## 3. 디렉터리 구조
+## 2. ?묒뾽 洹쒖튃 (?꾩닔 以??
+
+1. **?됱긽? `AppColors` ?곸닔留??ъ슜.** ?붾㈃ ?뚯씪??`Color(0x...)` 由ы꽣??湲덉?.
+   ?щ챸?꾧? ?꾩슂?섎㈃ ???곸닔瑜?異붽??섏? 留먭퀬 `AppColors.primary.withValues(alpha: 0.14)` 濡??뚯깮?쒗궓??
+2. **?띿뒪?몃뒗 `AppTextStyles` ?ъ슜.** 蹂?뺤? `.copyWith()` 濡쒕쭔. ?붾㈃?먯꽌 `TextStyle(...)` 吏곸젒 ?앹꽦 吏??
+3. **?붾㈃ 異붽? ?쒖꽌**: `AppRoutes` ???곸닔 ?깅줉 ??`AppRouter.onGenerateRoute` ???곌껐 ???섏씠吏 ?뚯씪 ?앹꽦.
+4. **?곗씠?곕뒗 `MockData` ?먮쭔 ?붾떎.** ?붾㈃ ?뚯씪???붾? ?곸닔瑜??덈줈 留뚮뱾吏 留?寃?
+5. **?몃? ?⑦궎吏 異붽????ъ쟾 ?⑹쓽 ?꾩슂.** ?꾩옱 ?섏〈??0???좎? 以묒씠??
+6. **import 洹쒖튃**: `lib/` ?대????곷? 寃쎈줈. `package:project_survival_diary/...` ??`test/` ?먯꽌留?
+7. **?쒓뎅??*: UI 臾몄옄?는룹＜??紐⑤몢 ?쒓뎅?? 肄붾뱶 ?앸퀎?먮뒗 ?곸뼱.
+8. **湲곕뒫 援ы쁽 湲덉? (???④퀎)**: ????μ냼??酉?遺꾨같?⑹씠?? ?곹깭愿由?텮PI쨌DB ?꾩엯? ?대떦 ?댁뒋 ?대떦?먭? 吏꾪뻾?쒕떎.
+9. 蹂寃???諛섎뱶??`flutter analyze` 臾닿꼍怨좊? ?뺤씤?쒕떎. `analysis_options.yaml` ??`prefer_const_constructors` 瑜?耳쒕몦 ?곹깭??
+
+---
+
+## 3. ?붾젆?곕━ 援ъ“
 
 ```
 lib/
-├─ main.dart                          진입점 (SystemChrome 설정 + runApp)
-├─ app.dart                           MaterialApp · 테마 · 라우터 · textScaler 제한
-├─ core/
-│  ├─ theme/app_colors.dart           컬러 토큰 (단일 소스)
-│  ├─ theme/app_text_styles.dart      타이포 스케일
-│  ├─ theme/app_theme.dart            ThemeData (컴포넌트 기본값)
-│  ├─ router/app_routes.dart          라우트 이름 상수
-│  ├─ router/app_router.dart          onGenerateRoute 테이블
-│  └─ utils/formatters.dart           금액·날짜 포매터 (intl 미사용)
-├─ data/
-│  ├─ models.dart                     모델 + enum extension (label/icon/color)
-│  └─ mock_data.dart                  전 화면 더미 데이터
-├─ shared/widgets/                    기능 간 공용 위젯
-└─ features/<기능>/
-   ├─ *_page.dart                     화면 1개 = 파일 1개
-   └─ widgets/                        해당 기능 전용 위젯
+?쒋? main.dart                          吏꾩엯??(SystemChrome ?ㅼ젙 + runApp)
+?쒋? app.dart                           MaterialApp 쨌 ?뚮쭏 쨌 ?쇱슦??쨌 textScaler ?쒗븳
+?쒋? core/
+?? ?쒋? theme/app_colors.dart           而щ윭 ?좏겙 (?⑥씪 ?뚯뒪)
+?? ?쒋? theme/app_text_styles.dart      ??댄룷 ?ㅼ???
+?? ?쒋? theme/app_theme.dart            ThemeData (而댄룷?뚰듃 湲곕낯媛?
+?? ?쒋? router/app_routes.dart          ?쇱슦???대쫫 ?곸닔
+?? ?쒋? router/app_router.dart          onGenerateRoute ?뚯씠釉?
+?? ?붴? utils/formatters.dart           湲덉븸쨌?좎쭨 ?щℓ??(intl 誘몄궗??
+?쒋? data/
+?? ?쒋? models.dart                     紐⑤뜽 + enum extension (label/icon/color)
+?? ?붴? mock_data.dart                  ???붾㈃ ?붾? ?곗씠??
+?쒋? shared/widgets/                    湲곕뒫 媛?怨듭슜 ?꾩젽
+?붴? features/<湲곕뒫>/
+   ?쒋? *_page.dart                     ?붾㈃ 1媛?= ?뚯씪 1媛?
+   ?붴? widgets/                        ?대떦 湲곕뒫 ?꾩슜 ?꾩젽
 ```
 
-`features/` 하위 폴더가 담당자 분배 단위다. 기능 간 위젯 공유가 필요하면 `shared/widgets/` 로 올린다.
+`features/` ?섏쐞 ?대뜑媛 ?대떦??遺꾨같 ?⑥쐞?? 湲곕뒫 媛??꾩젽 怨듭쑀媛 ?꾩슂?섎㈃ `shared/widgets/` 濡??щ┛??
 
 ---
 
-## 4. 디자인 토큰
+## 4. ?붿옄???좏겙
 
-### 4-1. 컬러 — `core/theme/app_colors.dart`
+### 4-1. 而щ윭 ??`core/theme/app_colors.dart`
 
-`AppColors._()` private 생성자로 인스턴스화를 막은 순수 네임스페이스 클래스. 전부 `static const`.
+`AppColors._()` private ?앹꽦?먮줈 ?몄뒪?댁뒪?붾? 留됱? ?쒖닔 ?ㅼ엫?ㅽ럹?댁뒪 ?대옒?? ?꾨? `static const`.
 
-| 그룹 | 상수 | 값 | 용도 |
+| 洹몃９ | ?곸닔 | 媛?| ?⑸룄 |
 |---|---|---|---|
-| 브랜드 | `primary` | `#17A67C` | 주 버튼, 강조, 선택 상태 |
-| | `primaryDark` | `#0E8763` | 예산 카드 그라디언트 끝 |
-| | `primaryDeep` | `#0B6B4F` | soft 배경 위 텍스트 |
-| | `primarySoft` | `#E6F5EF` | 강조 영역 배경, 태그 |
-| 표면 | `scaffold` | `#F6F7F8` | 화면 배경 |
-| | `surface` | `#FFFFFF` | 카드·AppBar·바텀네비 |
-| | `surfaceAlt` | `#F7F8F9` | 비활성 입력, 보조 칩 |
-| | `border` | `#ECEEF0` | 카드 1px 테두리 |
-| | `divider` | `#F1F2F4` | 구분선, 차트 그리드 |
-| 텍스트 | `textPrimary` | `#1A1D1F` | 본문·제목 |
-| | `textSecondary` | `#6F767E` | 보조 설명 |
-| | `textTertiary` | `#9EA3A8` | 비활성, 아이콘 |
-| 상태 | `danger` / `dangerSoft` | `#E5484D` / `#FDECEC` | 한도 초과, 증가 지표 |
-| | `warning` / `warningSoft` | `#F5A524` / `#FFF6E5` | 한도 임박, 별점 |
-| | `info` | `#3E9AE0` | 현재 위치, 리포트 |
-| 카테고리 | `categoryFood` | `#FF6B6B` | 식비 |
-| | `categoryCafe` | `#EE6C9C` | 카페 |
-| | `categoryTransport` | `#3FA9D8` | 교통 |
-| | `categoryShopping` | `#FFC145` | 쇼핑 |
-| | `categoryEtc` | `#9EA3A8` | 기타 |
-| 지도 핀 | `pinGoodPrice` / `pinPublic` / `pinParking` | 착한가격업소 / 공공시설 / 공영주차장 |
+| 釉뚮옖??| `primary` | `#17A67C` | 二?踰꾪듉, 媛뺤“, ?좏깮 ?곹깭 |
+| | `primaryDark` | `#0E8763` | ?덉궛 移대뱶 洹몃씪?붿뼵????|
+| | `primaryDeep` | `#0B6B4F` | soft 諛곌꼍 ???띿뒪??|
+| | `primarySoft` | `#E6F5EF` | 媛뺤“ ?곸뿭 諛곌꼍, ?쒓렇 |
+| ?쒕㈃ | `scaffold` | `#F6F7F8` | ?붾㈃ 諛곌꼍 |
+| | `surface` | `#FFFFFF` | 移대뱶쨌AppBar쨌諛뷀??ㅻ퉬 |
+| | `surfaceAlt` | `#F7F8F9` | 鍮꾪솢???낅젰, 蹂댁“ 移?|
+| | `border` | `#ECEEF0` | 移대뱶 1px ?뚮몢由?|
+| | `divider` | `#F1F2F4` | 援щ텇?? 李⑦듃 洹몃━??|
+| ?띿뒪??| `textPrimary` | `#1A1D1F` | 蹂몃Ц쨌?쒕ぉ |
+| | `textSecondary` | `#6F767E` | 蹂댁“ ?ㅻ챸 |
+| | `textTertiary` | `#9EA3A8` | 鍮꾪솢?? ?꾩씠肄?|
+| ?곹깭 | `danger` / `dangerSoft` | `#E5484D` / `#FDECEC` | ?쒕룄 珥덇낵, 利앷? 吏??|
+| | `warning` / `warningSoft` | `#F5A524` / `#FFF6E5` | ?쒕룄 ?꾨컯, 蹂꾩젏 |
+| | `info` | `#3E9AE0` | ?꾩옱 ?꾩튂, 由ы룷??|
+| 移댄뀒怨좊━ | `categoryFood` | `#FF6B6B` | ?앸퉬 |
+| | `categoryCafe` | `#EE6C9C` | 移댄럹 |
+| | `categoryTransport` | `#3FA9D8` | 援먰넻 |
+| | `categoryShopping` | `#FFC145` | ?쇳븨 |
+| | `categoryEtc` | `#9EA3A8` | 湲고? |
+| 吏??? | `pinGoodPrice` / `pinPublic` / `pinParking` | 李⑺븳媛寃⑹뾽??/ 怨듦났?쒖꽕 / 怨듭쁺二쇱감??|
 
-카테고리 색은 화면에서 직접 참조하지 않고 **`ExpenseCategory` enum extension** 을 경유한다:
+移댄뀒怨좊━ ?됱? ?붾㈃?먯꽌 吏곸젒 李몄“?섏? ?딄퀬 **`ExpenseCategory` enum extension** ??寃쎌쑀?쒕떎:
 
 ```dart
-Icon(category.icon, color: category.color)   // label / icon / color 를 enum이 함께 보유
+Icon(category.icon, color: category.color)   // label / icon / color 瑜?enum???④퍡 蹂댁쑀
 ```
 
-카테고리를 추가·변경할 때는 `models.dart` 의 enum 과 extension 만 수정하면 전 화면에 반영된다.
+移댄뀒怨좊━瑜?異붽?쨌蹂寃쏀븷 ?뚮뒗 `models.dart` ??enum 怨?extension 留??섏젙?섎㈃ ???붾㈃??諛섏쁺?쒕떎.
 
-**하드코딩 예외 (의도된 것 — 확장하지 말 것)**
+**?섎뱶肄붾뵫 ?덉쇅 (?섎룄??寃????뺤옣?섏? 留?寃?**
 
-| 위치 | 이유 |
+| ?꾩튂 | ?댁쑀 |
 |---|---|
-| `mock_data.dart` 아바타·썸네일 색 | 테마가 아니라 **데이터**. 실서비스에선 이미지 URL로 교체 |
-| `map_canvas.dart` 배경·블록·도로 | 지도 SDK 교체 시 파일 통째로 삭제될 목업 전용 |
-| `pig_mascot.dart`, `saving_tip_card.dart` 마스코트 배경 | 이미지 에셋 교체 예정 자리표시자 |
+| `mock_data.dart` ?꾨컮?쨌?몃꽕????| ?뚮쭏媛 ?꾨땲??**?곗씠??*. ?ㅼ꽌鍮꾩뒪?먯꽑 ?대?吏 URL濡?援먯껜 |
+| `map_canvas.dart` 諛곌꼍쨌釉붾줉쨌?꾨줈 | 吏??SDK 援먯껜 ???뚯씪 ?듭㎏濡???젣??紐⑹뾽 ?꾩슜 |
+| `pig_mascot.dart`, `saving_tip_card.dart` 留덉뒪肄뷀듃 諛곌꼍 | ?대?吏 ?먯뀑 援먯껜 ?덉젙 ?먮━?쒖떆??|
 
-### 4-2. 타이포 — `core/theme/app_text_styles.dart`
+### 4-2. ??댄룷 ??`core/theme/app_text_styles.dart`
 
-| 상수 | 크기 / 굵기 | 용도 |
+| ?곸닔 | ?ш린 / 援듦린 | ?⑸룄 |
 |---|---|---|
-| `display` | 32 / w800 | 미사용 예비 |
-| `title` | 22 / w700 | 화면 대제목, 큰 금액 |
-| `sectionTitle` | 16 / w700 | 섹션 헤더, 카드 제목 |
-| `body` | 14 / w500 | 본문 |
-| `bodyMuted` | 14 / w500 (secondary) | 보조 본문 |
-| `caption` | 12 / w500 (secondary) | 라벨, 설명 |
-| `captionTiny` | 11 / w500 (tertiary) | 메타 정보, 해시태그 |
-| `amount` | 18 / w700 | 금액 강조 |
-| `button` | 15 / w700 (white) | 버튼 라벨 |
+| `display` | 32 / w800 | 誘몄궗???덈퉬 |
+| `title` | 22 / w700 | ?붾㈃ ??쒕ぉ, ??湲덉븸 |
+| `sectionTitle` | 16 / w700 | ?뱀뀡 ?ㅻ뜑, 移대뱶 ?쒕ぉ |
+| `body` | 14 / w500 | 蹂몃Ц |
+| `bodyMuted` | 14 / w500 (secondary) | 蹂댁“ 蹂몃Ц |
+| `caption` | 12 / w500 (secondary) | ?쇰꺼, ?ㅻ챸 |
+| `captionTiny` | 11 / w500 (tertiary) | 硫뷀? ?뺣낫, ?댁떆?쒓렇 |
+| `amount` | 18 / w700 | 湲덉븸 媛뺤“ |
+| `button` | 15 / w700 (white) | 踰꾪듉 ?쇰꺼 |
 
-### 4-3. 형태 규칙
+### 4-3. ?뺥깭 洹쒖튃
 
-| 요소 | 값 |
+| ?붿냼 | 媛?|
 |---|---|
-| 화면 좌우 패딩 | `16` |
-| 카드 radius | `16` (`AppCard` 기본값) |
-| 버튼 · 입력필드 radius | `12` |
-| 칩 radius | `999` (완전 라운드) |
-| 예산 히어로 카드 radius | `18` |
-| 경고 배너 · 팁 카드 radius | `14` |
-| 카드 테두리 | `1px` `AppColors.border` |
-| 버튼 높이 | `52` (기본) / `44` (카드 내부) |
-| 하단 네비 높이 | `62` + SafeArea |
+| ?붾㈃ 醫뚯슦 ?⑤뵫 | `16` |
+| 移대뱶 radius | `16` (`AppCard` 湲곕낯媛? |
+| 踰꾪듉 쨌 ?낅젰?꾨뱶 radius | `12` |
+| 移?radius | `999` (?꾩쟾 ?쇱슫?? |
+| ?덉궛 ?덉뼱濡?移대뱶 radius | `18` |
+| 寃쎄퀬 諛곕꼫 쨌 ??移대뱶 radius | `14` |
+| 移대뱶 ?뚮몢由?| `1px` `AppColors.border` |
+| 踰꾪듉 ?믪씠 | `52` (湲곕낯) / `44` (移대뱶 ?대?) |
+| ?섎떒 ?ㅻ퉬 ?믪씠 | `62` + SafeArea |
 
-`app_theme.dart` 의 `ThemeData` 가 AppBar·FilledButton·InputDecoration·Divider·BottomNav 기본값을
-전역 지정하므로, 화면에서 같은 스타일을 다시 선언하지 않는다.
+`app_theme.dart` ??`ThemeData` 媛 AppBar쨌FilledButton쨌InputDecoration쨌Divider쨌BottomNav 湲곕낯媛믪쓣
+?꾩뿭 吏?뺥븯誘濡? ?붾㈃?먯꽌 媛숈? ?ㅽ??쇱쓣 ?ㅼ떆 ?좎뼵?섏? ?딅뒗??
 
-### 4-4. CSS 대응 관계 (웹 출신 기여자용)
+### 4-4. CSS ???愿怨?(??異쒖떊 湲곗뿬?먯슜)
 
-Flutter에는 CSS가 없다. DOM·셀렉터·스타일시트가 존재하지 않고 렌더 엔진이 캔버스에 직접 그린다.
+Flutter?먮뒗 CSS媛 ?녿떎. DOM쨌??됲꽣쨌?ㅽ??쇱떆?멸? 議댁옱?섏? ?딄퀬 ?뚮뜑 ?붿쭊??罹붾쾭?ㅼ뿉 吏곸젒 洹몃┛??
 
-| CSS | 이 프로젝트 |
+| CSS | ???꾨줈?앺듃 |
 |---|---|
-| `:root` 커스텀 프로퍼티 | `AppColors` / `AppTextStyles` 상수 |
-| reset + 컴포넌트 기본 스타일 | `AppTheme.light` (`ThemeData`) |
-| 재사용 클래스 | `shared/widgets/` 위젯 |
-| 캐스케이딩 / 상속 | `InheritedWidget` (`Theme.of(context)`) |
+| `:root` 而ㅼ뒪? ?꾨줈?쇳떚 | `AppColors` / `AppTextStyles` ?곸닔 |
+| reset + 而댄룷?뚰듃 湲곕낯 ?ㅽ???| `AppTheme.light` (`ThemeData`) |
+| ?ъ궗???대옒??| `shared/widgets/` ?꾩젽 |
+| 罹먯뒪耳?대뵫 / ?곸냽 | `InheritedWidget` (`Theme.of(context)`) |
 | `rgba()` / `color-mix()` | `Color.withValues(alpha:)` |
 | flexbox | `Row` / `Column` / `Expanded` / `Flexible` |
 | `position: absolute` | `Stack` / `Positioned` |
 | `flex-wrap` | `Wrap` |
 
-`web/index.html` 에 CSS를 넣을 수는 있으나 **앱 로딩 전 껍데기 페이지**에만 적용되고 위젯에는 영향이 없다.
+`web/index.html` ??CSS瑜??ｌ쓣 ?섎뒗 ?덉쑝??**??濡쒕뵫 ??猿띾뜲湲??섏씠吏**?먮쭔 ?곸슜?섍퀬 ?꾩젽?먮뒗 ?곹뼢???녿떎.
 
 ---
 
-## 5. 라우팅
+## 5. ?쇱슦??
 
-`app.dart` → `onGenerateRoute: AppRouter.onGenerateRoute`. 인자는 `settings.arguments` 로 모델을 그대로 전달한다.
+`app.dart` ??`onGenerateRoute: AppRouter.onGenerateRoute`. ?몄옄??`settings.arguments` 濡?紐⑤뜽??洹몃?濡??꾨떖?쒕떎.
 
-| 라우트 상수 | 화면 | 인자 |
+| ?쇱슦???곸닔 | ?붾㈃ | ?몄옄 |
 |---|---|---|
-| `root` (`/`) | `RootShell` (하단 네비 5탭) | — |
-| `notification` | 알림 목록 | — |
-| `dailySummary` | 오늘의 요약 상세 | — |
-| `budgetSetting` | 사용 가능 금액 설정 | — |
-| `expenseStats` | 지출 통계 | — |
-| `detectedExpenses` | 감지된 결제 전체 목록 | — |
-| `policyDetail` | 정책 상세 | `Policy` |
-| `placeDetail` | 장소 상세 | `SavingPlace` |
-| `housingRegion` | 지역 선택 | — |
-| `housingDeal` | 실거래 내역 | `String?` (지역명) |
-| `postDetail` | 게시글 상세 | `CommunityPost` |
-| `postWrite` | 글쓰기 | — |
+| `root` (`/`) | `RootShell` (?섎떒 ?ㅻ퉬 5?? | ??|
+| `notification` | ?뚮┝ 紐⑸줉 | ??|
+| `dailySummary` | ?ㅻ뒛???붿빟 ?곸꽭 | ??|
+| `budgetSetting` | ?ъ슜 媛??湲덉븸 ?ㅼ젙 | ??|
+| `expenseStats` | 吏異??듦퀎 | ??|
+| `detectedExpenses` | 媛먯???寃곗젣 ?꾩껜 紐⑸줉 | ??|
+| `policyDetail` | ?뺤콉 ?곸꽭 | `Policy` |
+| `placeDetail` | ?μ냼 ?곸꽭 | `SavingPlace` |
+| `housingRegion` | 吏???좏깮 | ??|
+| `housingDeal` | ?ㅺ굅???댁뿭 | `String?` (吏??챸) |
+| `postDetail` | 寃뚯떆湲 ?곸꽭 | `CommunityPost` |
+| `postWrite` | 湲?곌린 | ??|
 
-### 하단 네비게이션
+### ?섎떒 ?ㅻ퉬寃뚯씠??
 
-`RootShell` 이 `IndexedStack` 으로 5탭을 유지해 탭 전환 시 스크롤·입력 상태가 보존된다.
-탭 인덱스는 `AppTab` enum 순서와 1:1 대응한다.
+`RootShell` ??`IndexedStack` ?쇰줈 5??쓣 ?좎??????꾪솚 ???ㅽ겕濡ㅒ룹엯???곹깭媛 蹂댁〈?쒕떎.
+???몃뜳?ㅻ뒗 `AppTab` enum ?쒖꽌? 1:1 ??묓븳??
 
 ```
-0 홈(HomePage) · 1 일기(ExpenseAddPage) · 2 정책(PolicyListPage) · 3 지도(SavingMapPage) · 4 커뮤니티(CommunityPage)
+0 ??HomePage) 쨌 1 ?쇨린(ExpenseAddPage) 쨌 2 ?뺤콉(PolicyListPage) 쨌 3 吏??SavingMapPage) 쨌 4 而ㅻ??덊떚(CommunityPage)
 ```
 
-상세 화면은 루트 Navigator 위에 push 된다. 셸 밖에서 탭을 바꿀 때는 `RootShell.goToTab(context, index)`
-(루트까지 pop 후 탭 전환). 탭 페이지의 AppBar 뒤로가기는 `goToTab(context, 0)` 으로 홈에 돌아간다.
+?곸꽭 ?붾㈃? 猷⑦듃 Navigator ?꾩뿉 push ?쒕떎. ??諛뽰뿉????쓣 諛붽? ?뚮뒗 `RootShell.goToTab(context, index)`
+(猷⑦듃源뚯? pop ?????꾪솚). ???섏씠吏??AppBar ?ㅻ줈媛湲곕뒗 `goToTab(context, 0)` ?쇰줈 ?덉뿉 ?뚯븘媛꾨떎.
 
-`AppBottomNav` 에 `onTap` 을 주지 않으면 위 동작이 기본값이라, push 된 화면(`expenseStats`)에서도
-같은 위젯을 그대로 재사용할 수 있다.
+`AppBottomNav` ??`onTap` ??二쇱? ?딆쑝硫????숈옉??湲곕낯媛믪씠?? push ???붾㈃(`expenseStats`)?먯꽌??
+媛숈? ?꾩젽??洹몃?濡??ъ궗?⑺븷 ???덈떎.
 
 ---
 
-## 6. 모델 — `data/models.dart`
+## 6. 紐⑤뜽 ??`data/models.dart`
 
-| 모델 | 용도 |
+| 紐⑤뜽 | ?⑸룄 |
 |---|---|
-| `ExpenseCategory` (enum) | 식비/카페/교통/쇼핑/기타 + `label`·`icon`·`color` extension |
-| `BudgetSummary` | 홈 예산 요약. `weeklyProgress`·`isNearLimit`·`isOverLimit` 파생 게터 보유 |
-| `DetectedExpense` | 알림에서 감지된 결제 |
-| `Expense` | 저장된 지출 1건 |
-| `CategoryStat` | 카테고리별 통계 행 |
-| `MonthlyCompare` | 전월/당월 비교 1그룹 |
-| `Policy` | 청년 정책 |
-| `PlaceType` (enum) | 착한가격업소/공공시설/공영주차장 + `label`·`icon`·`color` |
-| `SavingPlace` | 지도 장소. `offsetX`/`offsetY` 는 목업 지도용 0~1 비율 좌표 |
-| `HousingDeal` | 부동산 실거래 1건 |
-| `CommunityPost` | 게시글 |
-| `AppNotification` | 알림 항목 |
+| `ExpenseCategory` (enum) | ?앸퉬/移댄럹/援먰넻/?쇳븨/湲고? + `label`쨌`icon`쨌`color` extension |
+| `BudgetSummary` | ???덉궛 ?붿빟. `weeklyProgress`쨌`isNearLimit`쨌`isOverLimit` ?뚯깮 寃뚰꽣 蹂댁쑀 |
+| `DetectedExpense` | ?뚮┝?먯꽌 媛먯???寃곗젣 |
+| `Expense` | ??λ맂 吏異?1嫄?|
+| `CategoryStat` | 移댄뀒怨좊━蹂??듦퀎 ??|
+| `MonthlyCompare` | ?꾩썡/?뱀썡 鍮꾧탳 1洹몃９ |
+| `Policy` | 泥?뀈 ?뺤콉 |
+| `PlaceType` (enum) | 李⑺븳媛寃⑹뾽??怨듦났?쒖꽕/怨듭쁺二쇱감??+ `label`쨌`icon`쨌`color` |
+| `SavingPlace` | 吏???μ냼. `offsetX`/`offsetY` ??紐⑹뾽 吏?꾩슜 0~1 鍮꾩쑉 醫뚰몴 |
+| `HousingDeal` | 遺?숈궛 ?ㅺ굅??1嫄?|
+| `CommunityPost` | 寃뚯떆湲 |
+| `AppNotification` | ?뚮┝ ??ぉ |
 
-모델에 `fromJson`/`toJson` 은 없다. API 연동 이슈(#4)에서 추가한다.
+紐⑤뜽??`fromJson`/`toJson` ? ?녿떎. API ?곕룞 ?댁뒋(#4)?먯꽌 異붽??쒕떎.
 
 ---
 
-## 7. 구현 / 미구현 경계
+## 7. 援ы쁽 / 誘멸뎄??寃쎄퀎
 
-**중요: 이 저장소는 화면과 페이지 전환만 있다. 비즈니스 로직·영속화·네트워크는 전무하다.**
+**以묒슂: ????μ냼???붾㈃怨??섏씠吏 ?꾪솚留??덈떎. 鍮꾩쫰?덉뒪 濡쒖쭅쨌?곸냽?붋룸꽕?몄썙?щ뒗 ?꾨Т?섎떎.**
 
-### 동작하는 것 (UI 로컬 state 수준)
+### ?숈옉?섎뒗 寃?(UI 濡쒖뺄 state ?섏?)
 
-- 하단 네비 5탭 전환, 모든 상세 화면 push/pop
-- 지출 등록 폼: 카테고리 선택, 텍스트 입력, 날짜 피커 → **저장은 스낵바만 표시**
-- 정책 "관심 없음" → 목록에서 실제 제거 + 실행취소 스낵바 (메모리상)
-- 지도: 장소 유형 필터링, 거리순/가격순 정렬, 핀 선택 → 하단 카드 전환 (실제 동작)
-- 지역 선택: 상위 변경 시 하위 초기화, 3단계 모두 선택 전까지 조회 버튼 비활성 (실제 동작)
-- 글쓰기: 카테고리/제목/내용 필수 입력 검증 (실제 동작) → **등록은 스낵바만**
-- 지출 통계 월 선택기: 표시 월만 변경 (데이터는 고정)
-- 커뮤니티 탭: 인기/최신은 동일 목록의 정순/역순, 팔로잉은 빈 상태 화면
+- ?섎떒 ?ㅻ퉬 5???꾪솚, 紐⑤뱺 ?곸꽭 ?붾㈃ push/pop
+- 吏異??깅줉 ?? 移댄뀒怨좊━ ?좏깮, ?띿뒪???낅젰, ?좎쭨 ?쇱빱 ??**??μ? ?ㅻ궢諛붾쭔 ?쒖떆**
+- ?뺤콉 "愿???놁쓬" ??紐⑸줉?먯꽌 ?ㅼ젣 ?쒓굅 + ?ㅽ뻾痍⑥냼 ?ㅻ궢諛?(硫붾え由ъ긽)
+- 吏?? ?μ냼 ?좏삎 ?꾪꽣留? 嫄곕━??媛寃⑹닚 ?뺣젹, ? ?좏깮 ???섎떒 移대뱶 ?꾪솚 (?ㅼ젣 ?숈옉)
+- 吏???좏깮: ?곸쐞 蹂寃????섏쐞 珥덇린?? 3?④퀎 紐⑤몢 ?좏깮 ?꾧퉴吏 議고쉶 踰꾪듉 鍮꾪솢??(?ㅼ젣 ?숈옉)
+- 湲?곌린: 移댄뀒怨좊━/?쒕ぉ/?댁슜 ?꾩닔 ?낅젰 寃利?(?ㅼ젣 ?숈옉) ??**?깅줉? ?ㅻ궢諛붾쭔**
+- 吏異??듦퀎 ???좏깮湲? ?쒖떆 ?붾쭔 蹂寃?(?곗씠?곕뒗 怨좎젙)
+- 而ㅻ??덊떚 ?? ?멸린/理쒖떊? ?숈씪 紐⑸줉???뺤닚/??닚, ?붾줈?됱? 鍮??곹깭 ?붾㈃
 
-### 없는 것
+### ?녿뒗 寃?
 
-로그인·회원가입 / API 통신 / 로컬 DB / 상태관리 라이브러리 / 푸시 알림 수신 /
-실제 지도 SDK / 정책 필터의 실제 필터링(선택값 저장만) / 좋아요·댓글·팔로우·신고·채팅 /
-AI 추천 / 정책 자동 신청 / 길찾기 / 예약 / 결제
+濡쒓렇?맞룻쉶?먭???/ API ?듭떊 / 濡쒖뺄 DB / ?곹깭愿由??쇱씠釉뚮윭由?/ ?몄떆 ?뚮┝ ?섏떊 /
+?ㅼ젣 吏??SDK / ?뺤콉 ?꾪꽣???ㅼ젣 ?꾪꽣留??좏깮媛???λ쭔) / 醫뗭븘?붋룸뙎湲쨌?붾줈?걔룹떊怨졖룹콈??/
+AI 異붿쿇 / ?뺤콉 ?먮룞 ?좎껌 / 湲몄갼湲?/ ?덉빟 / 寃곗젣
 
-### 교체 예정 자리표시자
+### 援먯껜 ?덉젙 ?먮━?쒖떆??
 
-| 파일 | 교체 대상 |
+| ?뚯씪 | 援먯껜 ???|
 |---|---|
-| `features/map/widgets/map_canvas.dart` | 네이버/카카오/Google 지도 SDK |
-| `features/diary/widgets/trend_line_chart.dart`, `monthly_compare_chart.dart` | 필요 시 `fl_chart` |
-| `shared/widgets/pig_mascot.dart` | `assets/images/` 디자인 에셋 |
-| `data/mock_data.dart` | Repository 구현체 |
+| `features/map/widgets/map_canvas.dart` | ?ㅼ씠踰?移댁뭅??Google 吏??SDK |
+| `features/diary/widgets/trend_line_chart.dart`, `monthly_compare_chart.dart` | ?꾩슂 ??`fl_chart` |
+| `shared/widgets/pig_mascot.dart` | `assets/images/` ?붿옄???먯뀑 |
+| `data/mock_data.dart` | Repository 援ы쁽泥?|
 
 ---
 
-## 8. 명령어
+## 8. 紐낅졊??
 
-작업 후 아래 두 개는 반드시 통과시킨다.
+?묒뾽 ???꾨옒 ??媛쒕뒗 諛섎뱶???듦낵?쒗궓??
 
 ```bash
 flutter analyze
@@ -259,31 +274,36 @@ flutter analyze
 flutter test
 ```
 
-실행:
+?ㅽ뻾:
 
 ```bash
 flutter run -d chrome
 ```
 
-Android 실행은 `android/` 스캐폴딩이 필요하다. 로컬 환경 이슈는 `README.md` 트러블슈팅 참조.
+Android ?ㅽ뻾? `android/` ?ㅼ틦?대뵫???꾩슂?섎떎. 濡쒖뺄 ?섍꼍 ?댁뒋??`README.md` ?몃윭釉붿뒋??李몄“.
 
 ---
 
-## 9. 이슈 트래커
+## 9. ?댁뒋 ?몃옒而?
 
-작업 단위는 GitHub 이슈로 분배되어 있다 (`ligr00vefe/project_survival_diary_demo`, 29건).
-라벨 체계: 우선순위 `P0`/`P1`/`P2` + 흐름 `flow:diary`/`flow:policy`/`flow:map`/`flow:housing`/`flow:community` + `common`.
+?묒뾽 ?⑥쐞??GitHub ?댁뒋濡?遺꾨같?섏뼱 ?덈떎 (`ligr00vefe/project_survival_diary_demo`, 29嫄?.
+?쇰꺼 泥닿퀎: ?곗꽑?쒖쐞 `P0`/`P1`/`P2` + ?먮쫫 `flow:diary`/`flow:policy`/`flow:map`/`flow:housing`/`flow:community` + `common`.
 
-`P0`(#1–4)은 다른 모든 작업의 선행 조건이다. 기능 이슈에 착수하기 전 해당 흐름의 P0가 끝났는지 확인한다.
+`P0`(#1??)? ?ㅻⅨ 紐⑤뱺 ?묒뾽???좏뻾 議곌굔?대떎. 湲곕뒫 ?댁뒋??李⑹닔?섍린 ???대떦 ?먮쫫??P0媛 ?앸궗?붿? ?뺤씤?쒕떎.
 
 ---
 
 ## Git branch ownership rule
 
-- Jade Cohen / ligr00vefe@naver.com 작업자는 `kimin`으로 식별한다.
-- 모든 작업 브랜치는 반드시 `{name}/{type}/{task}` 형식을 사용한다.
-- kimin 작업 브랜치는 반드시 `kimin/{type}/{task}` 형식을 사용한다.
-- 허용 예시: `kimin/feat/signup-ui`, `kimin/fix/auth-route`, `kimin/chore/initial-app-snapshot`.
-- `main`에는 절대 직접 커밋하거나 직접 push하지 않는다.
-- 모든 변경 사항은 작업 브랜치에 push한 뒤 PR로만 `main`에 반영한다.
-- 커밋 메시지는 Conventional Commits 형식을 사용한다. 예: `feat: add email signup ui`.
+- Jade Cohen / ligr00vefe@naver.com ?묒뾽?먮뒗 `kimin`?쇰줈 ?앸퀎?쒕떎.
+- 紐⑤뱺 ?묒뾽 釉뚮옖移섎뒗 諛섎뱶??`{name}/{type}/{task}` ?뺤떇???ъ슜?쒕떎.
+- kimin ?묒뾽 釉뚮옖移섎뒗 諛섎뱶??`kimin/{type}/{task}` ?뺤떇???ъ슜?쒕떎.
+- ?덉슜 ?덉떆: `kimin/feat/signup-ui`, `kimin/fix/auth-route`, `kimin/chore/initial-app-snapshot`.
+- `main`?먮뒗 ?덈? 吏곸젒 而ㅻ컠?섍굅??吏곸젒 push?섏? ?딅뒗??
+- 紐⑤뱺 蹂寃??ы빆? ?묒뾽 釉뚮옖移섏뿉 push????PR濡쒕쭔 `main`??諛섏쁺?쒕떎.
+- 而ㅻ컠 硫붿떆吏??Conventional Commits ?뺤떇???ъ슜?쒕떎. ?? `feat: add email signup ui`.
+# UI text fitting rule
+
+- ???붾㈃ ?묒뾽 ??踰꾪듉, ?낅젰 ?쇰꺼, 移대뱶 ?쒕ぉ, ?좏깮吏 ?띿뒪?멸? 醫곸? 紐⑤컮???붾㈃?먯꽌 ?댁깋?섍쾶 ?섎━嫄곕굹 ?섎룄移??딄쾶 以꾨컮轅덈릺吏 ?딅룄濡?寃利앺븳??
+- `?앸뀈?붿씪 8?먮━`泥섎읆 吏㏃? ?쇰꺼??愿꾪샇???レ옄 ?뚮Ц???⑥뼱媛 遺꾨━?섏? ?딅룄濡?臾멸뎄瑜?議곗젙?섍굅??異⑸텇???? `maxLines`, `overflow`瑜?紐낆떆?쒕떎.
+- ???붾㈃?대굹 ?쇱쓣 留뚮뱾 ?뚮뒗 ?묒? ?몃줈 ?붾㈃ 湲곗? overflow? ?띿뒪??以꾨컮轅??곹깭瑜??④퍡 ?뺤씤?쒕떎.

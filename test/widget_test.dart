@@ -36,8 +36,9 @@ void main() {
         password: 'password1234',
         name: 'kimin',
         birthDate: DateTime(2000, 3, 15),
-        gender: 'OTHER',
+        gender: 'MALE',
         region: '서울',
+        signupInterests: const ['LIVING_COST', 'YOUTH_POLICY'],
       ),
     );
 
@@ -45,8 +46,9 @@ void main() {
     expect(payload['password'], 'password1234');
     expect(payload['name'], 'kimin');
     expect(payload['birthDate'], '2000-03-15');
-    expect(payload['gender'], 'OTHER');
+    expect(payload['gender'], 'MALE');
     expect(payload['region'], '서울');
+    expect(payload['signupInterests'], ['LIVING_COST', 'YOUTH_POLICY']);
   });
 
   testWidgets('온보딩 이메일 시작 버튼이 회원가입 화면을 연다', (tester) async {
@@ -54,6 +56,14 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('email-start-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('signup-name-field')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('signup-name-field')),
+      '하이',
+    );
+    await tester.tap(find.byKey(const ValueKey('signup-submit-button')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('signup-email-field')), findsOneWidget);

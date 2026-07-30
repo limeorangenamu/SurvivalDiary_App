@@ -24,14 +24,21 @@ class AuthApiClient {
 
   Future<void> signup(SignupRequest request) async {
     final uri = Uri.parse('$_baseUrl/api/auth/signup');
-    final response = await _client.post(
-      uri,
-      headers: const {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode(request.toJson()),
-    );
+    late final http.Response response;
+    try {
+      response = await _client.post(
+        uri,
+        headers: const {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+    } on http.ClientException catch (error) {
+      throw AuthApiException(
+        '백엔드 서버에 연결하지 못했어요.\n요청 주소: $uri\n${error.message}',
+      );
+    }
 
     if (response.statusCode == 201) {
       return;
@@ -53,7 +60,7 @@ class AuthApiClient {
         }
       }
     } on FormatException {
-      // Use the status fallback below for non-JSON responses.
+      // Fall back to a status-based message for non-JSON responses.
     }
 
     if (response.statusCode == 409) {
@@ -62,6 +69,6 @@ class AuthApiClient {
     if (response.statusCode == 400) {
       return '입력한 정보를 다시 확인해 주세요.';
     }
-    return '회원가입에 실패했어요. 잠시 후 다시 시도해 주세요.';
+    return '회원가입을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.';
   }
 }
