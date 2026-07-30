@@ -5,7 +5,7 @@ import '../community/community_page.dart';
 import '../diary/expense_add_page.dart';
 import '../home/home_page.dart';
 import '../map/saving_map_page.dart';
-import '../policy/policy_list_page.dart';
+import '../policy/policy_filter_page.dart';
 
 class RootShell extends StatefulWidget {
   const RootShell({super.key});
@@ -20,7 +20,7 @@ class _RootShellState extends State<RootShell> {
   static const _pages = [
     HomePage(),
     ExpenseAddPage(),
-    PolicyListPage(),
+    PolicyFilterPage(),
     SavingMapPage(),
     CommunityPage(),
   ];

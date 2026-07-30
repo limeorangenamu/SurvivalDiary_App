@@ -15,6 +15,8 @@ import '../../features/map/housing_deal_page.dart';
 import '../../features/map/housing_region_page.dart';
 import '../../features/map/place_detail_page.dart';
 import '../../features/policy/policy_detail_page.dart';
+import '../../features/policy/policy_external_link_confirm_page.dart';
+import '../../features/policy/policy_list_page.dart';
 import '../../features/root/root_shell.dart';
 import '../theme/app_text_styles.dart';
 import 'app_routes.dart';
@@ -33,8 +35,15 @@ class AppRouter {
       AppRoutes.budgetSetting => const BudgetSettingPage(),
       AppRoutes.expenseStats => const ExpenseStatsPage(),
       AppRoutes.detectedExpenses => const DetectedExpensePage(),
-      AppRoutes.policyDetail when settings.arguments is Policy =>
-        PolicyDetailPage(policy: settings.arguments! as Policy),
+      AppRoutes.policyResults
+          when settings.arguments is PolicyFilterCondition =>
+        PolicyListPage(condition: settings.arguments! as PolicyFilterCondition),
+      AppRoutes.policyDetail when settings.arguments is String =>
+        PolicyDetailPage(policyId: settings.arguments! as String),
+      AppRoutes.policyExternalLinkConfirm when settings.arguments is String =>
+        PolicyExternalLinkConfirmPage(
+          policyId: settings.arguments! as String,
+        ),
       AppRoutes.placeDetail when settings.arguments is SavingPlace =>
         PlaceDetailPage(place: settings.arguments! as SavingPlace),
       AppRoutes.housingRegion => const HousingRegionPage(),

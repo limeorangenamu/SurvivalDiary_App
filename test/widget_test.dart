@@ -12,6 +12,8 @@ import 'package:project_survival_diary/features/auth/data/auth_api_client.dart';
 import 'package:project_survival_diary/features/auth/data/signup_request.dart';
 import 'package:project_survival_diary/features/community/post_write_page.dart';
 import 'package:project_survival_diary/features/map/housing_region_page.dart';
+import 'package:project_survival_diary/features/policy/policy_list_page.dart';
+import 'package:project_survival_diary/data/models.dart';
 
 void main() {
   test('email signup api sends backend signup payload', () async {
@@ -113,15 +115,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('bottom-policy')));
     await tester.pumpAndSettle();
 
-    expect(find.text('청년 맞춤 정책'), findsOneWidget);
-    expect(find.text('청년 월세 지원'), findsOneWidget);
-    await tester.drag(
-      find.byKey(const PageStorageKey('policy-list-scroll')),
-      const Offset(0, -600),
-    );
-    await tester.pumpAndSettle();
+    expect(find.text('청년 정책 조건'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('more-policies-button')),
+      find.byKey(const ValueKey('policy-age-field')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('policy-search-button')),
       findsOneWidget,
     );
   });
@@ -145,9 +145,18 @@ void main() {
   });
 
   testWidgets('정책 관심 없음과 실행취소가 동작한다', (tester) async {
-    await tester
-        .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
-    await tester.tap(find.byKey(const ValueKey('bottom-policy')));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const PolicyListPage(
+          condition: PolicyFilterCondition(
+            age: 27,
+            region: '서울특별시',
+            employmentStatus: PolicyEmploymentStatus.jobSeeker,
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('청년 월세 지원'), findsOneWidget);
@@ -241,7 +250,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('bottom-policy')));
     await tester.pumpAndSettle();
-    expect(find.text('신청 마감 2026.08.20'), findsOneWidget);
+    expect(find.text('내 상황에 맞는 정책을 찾아볼까요?'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('bottom-community')));
     await tester.pumpAndSettle();
