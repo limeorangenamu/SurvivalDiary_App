@@ -3,6 +3,7 @@ class AppRoutes {
 
   static const root = '/';
   static const onboarding = '/onboarding';
+  static const login = '/login';
   static const signup = '/signup';
   static const signupSuccess = '/signup-success';
   static const notification = '/notification';
