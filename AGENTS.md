@@ -9,6 +9,7 @@
 - Scope: Flutter mobile application only. Keep backend and web frontend changes in their respective repositories.
 - Create every work branch as `{name}/{type}/{task}` using the actual owner name; for example, `alex/feat/email-signup-api`.
 - Use Conventional Commit messages such as `feat: complete email signup flow`.
+- 커밋 메시지와 PR 제목·본문은 한글로 작성한다. Conventional Commit 접두사(`feat:`, `fix:`, `docs:` 등)를 사용할 때에도 접두사 뒤 작업 설명은 한글로 쓴다.
 - Never commit or push directly to `main`. Push the work branch to this repository and open a pull request targeting `main`.
 - Before delivery, run `flutter analyze` and the relevant Flutter tests.
 
