@@ -275,6 +275,9 @@ class SavingPlace {
     required this.rating,
     required this.offsetX,
     required this.offsetY,
+    required this.latitude,
+    required this.longitude,
+
   });
 
   final String id;
@@ -288,6 +291,8 @@ class SavingPlace {
   final double rating;
   final double offsetX;
   final double offsetY;
+  final double latitude;
+  final double longitude;
 }
 
 class HousingDeal {
