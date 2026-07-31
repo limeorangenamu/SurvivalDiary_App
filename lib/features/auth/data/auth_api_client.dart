@@ -53,6 +53,7 @@ class CurrentUser {
   }
 
   final int id;
+  int get userId => id;
   final String email;
   final String name;
   final String phone;

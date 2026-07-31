@@ -79,10 +79,12 @@ class AppTheme {
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
       ),
-      snackBarTheme: const SnackBarThemeData(
+      snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.textPrimary,
-        contentTextStyle: AppTextStyles.body,
+        contentTextStyle: AppTextStyles.body.copyWith(
+          color: AppColors.surface,
+        ),
         actionTextColor: AppColors.primarySoft,
       ),
     );
