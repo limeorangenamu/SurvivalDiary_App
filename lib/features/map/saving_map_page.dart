@@ -9,6 +9,9 @@ import '../../data/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/pill_chip.dart';
 import 'widgets/map_canvas.dart';
+import '../../core/services/location_service.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
+
 
 class SavingMapPage extends StatefulWidget {
   const SavingMapPage({super.key});
@@ -21,6 +24,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
   String _filter = '전체';
   int _sortIndex = 0;
   SavingPlace? _selectedPlace;
+  NaverMapController? _mapController;
 
   List<SavingPlace> get _visiblePlaces {
     if (_filter == '주거지') {
@@ -54,9 +58,38 @@ class _SavingMapPageState extends State<SavingMapPage> {
         title: const Text('절약 지도'),
         actions: [
           TextButton.icon(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('현재 위치를 기준으로 보여주고 있어요.')),
-            ),
+            onPressed: () async {
+              try {
+                final position = await LocationService().getCurrentPosition();
+
+                final controller = _mapController;
+
+                if (controller == null) {
+                  throw Exception('지도를 준비 중이에요. 잠시 후 다시 눌러주세요.');
+                }
+
+                await controller.updateCamera(
+                  NCameraUpdate.withParams(
+                    target: NLatLng(position.latitude, position.longitude),
+                    zoom: 15,
+                  )..setAnimation(
+                    duration: const Duration(milliseconds: 500),
+                  ),
+                );
+
+                if (!context.mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('현재 위치로 이동했어요.')),
+                );
+              } catch (error) {
+                if (!context.mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error.toString())),
+                );
+              }
+            },
             icon: const Icon(Icons.my_location_rounded, size: 18),
             label: const Text('내 주변'),
           ),
@@ -116,9 +149,9 @@ class _SavingMapPageState extends State<SavingMapPage> {
             height: 365,
             child: SavingMapCanvas(
               places: places,
-              selectedPlaceId: _selectedPlace?.id,
-              onPlaceSelected: (place) =>
+              onPlaceTap: (place) =>
                   setState(() => _selectedPlace = place),
+              onMapReady: (controller) => _mapController = controller,
             ),
           ),
           const SizedBox(height: 12),
