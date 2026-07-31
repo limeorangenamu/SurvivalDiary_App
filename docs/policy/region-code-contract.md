@@ -73,26 +73,60 @@ PolicyFilterCondition
   category
 ```
 
-표시 이름은 UI 요약에 사용하고 코드는 필터 및 백엔드 query parameter에 사용한다.
+표시 이름은 UI 요약에 사용하고 코드는 필터 및 백엔드 JSON 요청에 사용한다.
 
 ## 5. 백엔드 요청 계약
 
 ```http
-GET /api/policies
-  ?age=27
-  &regionCode=11
-  &districtCode=11680
-  &employmentStatus=JOB_SEEKING
+POST /api/policies/search
+Authorization: Bearer {accessToken}
+Content-Type: application/json
 ```
 
-백엔드 구현 시 다음 규칙을 유지한다.
+```json
+{
+  "age": 27,
+  "regionCode": "11",
+  "districtCode": "11680",
+  "employmentStatus": "JOB_SEEKING",
+  "incomeRange": "BELOW_100",
+  "category": "HOUSING",
+  "size": 20
+}
+```
+
+맞춤 조건에는 나이·취업·소득 정보가 포함되므로 URL 쿼리 문자열 대신 JSON 본문을 사용한다.
+정책 API는 로그인 사용자의 액세스 토큰이 필요하다.
+
+백엔드 구현은 다음 규칙을 유지한다.
 
 - `regionCode`는 필수 2자리 문자열이다.
 - `districtCode`는 선택 5자리 문자열이다.
 - `districtCode`가 전달되면 앞 2자리가 `regionCode`와 일치해야 한다.
-- 알 수 없거나 폐지된 코드는 400 입력 오류로 처리한다.
+- 형식 또는 상위 코드가 잘못되면 400 입력 오류로 처리한다.
+- 알 수 없거나 폐지된 코드 검증은 기준 자료 관리 위치를 결정한 뒤 추가한다.
 - 앱 표시 이름을 검색 조건이나 영구 식별자로 사용하지 않는다.
 - 전국 정책은 응답 데이터의 지역 범위로 표현하며 요청 코드에 `ALL`을 사용하지 않는다.
+
+목록 응답은 `PolicySummary` 항목과 다음 두 필드를 포함한다.
+
+```text
+partialResult
+  최대 3개 외부 페이지 또는 요청 개수 제한 때문에 일부 결과일 가능성
+
+checkedProviderPages
+  백엔드가 이번 요청에서 확인한 온통청년 페이지 수
+```
+
+정확하게 판정할 수 없는 정책은 누락시키지 않고
+`eligibilityStatus=CHECK_REQUIRED`와 `eligibilityReasons`로 반환한다.
+
+상세 조회는 문자열 정책 번호를 사용한다.
+
+```http
+GET /api/policies/{policyId}
+Authorization: Bearer {accessToken}
+```
 
 ## 6. 데이터 제공 방식
 
@@ -117,9 +151,13 @@ GET /api/policies/filter-options
 
 ## 8. 백엔드 개발 진입 조건
 
-다음 항목에 팀이 동의하면 백엔드 정책 검색 계약 구현을 시작할 수 있다.
+백엔드 정책 검색 계약은
+[백엔드 PR #40](https://github.com/support9938/SurvivalDiary_Backend/pull/40)에서 구현했다.
 
-- [ ] `regionCode` 2자리 및 `districtCode` 5자리 형식 승인
-- [ ] 세종특별자치시의 `districtCode = null` 처리 승인
+- [x] `regionCode` 2자리 및 `districtCode` 5자리 형식 승인
+- [x] 세종특별자치시의 `districtCode = null` 처리 승인
 - [ ] 폐지·미등록 코드의 400 오류 처리 승인
-- [ ] 앱 정적 스냅샷 유지 또는 `/filter-options` API 도입 여부 결정
+- [x] 1차 앱 정적 스냅샷 유지
+- [x] 맞춤 조건을 POST JSON으로 전달
+- [x] `PolicySummary`, `PolicyDetail` 응답 분리
+- [x] `CHECK_REQUIRED`, `partialResult` 응답 계약 반영

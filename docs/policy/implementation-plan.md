@@ -282,11 +282,28 @@ test/features/policy/...
 
 백엔드 API가 준비되면 다음 순서로 교체한다.
 
-1. 백엔드 `PolicySummary`, `PolicyDetail`, 필터 코드 계약을 확인한다.
+1. [x] 백엔드 `PolicySummary`, `PolicyDetail`, 필터 코드 계약을 확인한다.
 2. 앱 `Policy`에 `fromJson`을 추가한다.
 3. 정책 전용 API client를 추가한다.
 4. MockData 직접 참조를 repository 또는 client 호출로 교체한다.
-5. 로딩, 인증 실패, 외부 API 장애 상태를 추가한다.
-6. 실제 외부 링크 실행 범위를 별도 이슈로 확정한다.
+5. 로딩, 인증 실패, 외부 API 장애, `partialResult` 상태를 추가한다.
+6. `CHECK_REQUIRED` 정책의 확인 안내와 사유를 목록·상세 화면에 표시한다.
+7. 실제 외부 링크 실행 범위를 별도 이슈로 확정한다.
 
 API 연동 작업에서는 `API_BASE_URL` 설정을 사용하고 비밀값을 앱에 포함하지 않는다.
+
+확정된 1차 백엔드 계약:
+
+```text
+POST /api/policies/search
+  → ApiResponse<PolicySearchResponse>
+  → items: PolicySummary[]
+  → partialResult
+  → checkedProviderPages
+
+GET /api/policies/{policyId}
+  → ApiResponse<PolicyDetail>
+```
+
+두 endpoint 모두 로그인 사용자의 액세스 토큰이 필요하다.
+온통청년 인증키는 백엔드 서버에서만 관리하며 앱에는 포함하지 않는다.
