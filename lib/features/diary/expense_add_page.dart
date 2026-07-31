@@ -8,6 +8,7 @@ import '../../data/mock_data.dart';
 import '../../data/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
+import 'expense_stats_page.dart';
 import 'widgets/expense_form.dart';
 
 class ExpenseAddPage extends StatefulWidget {
@@ -20,11 +21,12 @@ class ExpenseAddPage extends StatefulWidget {
 class _ExpenseAddPageState extends State<ExpenseAddPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  int _statsRevision = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -33,25 +35,22 @@ class _ExpenseAddPageState extends State<ExpenseAddPage>
     super.dispose();
   }
 
+  void _refreshStats() {
+    setState(() => _statsRevision++);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('지출 일기'),
-        actions: [
-          IconButton(
-            tooltip: '지출 통계',
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRoutes.expenseStats),
-            icon: const Icon(Icons.insights_rounded),
-          ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.primary,
           labelColor: AppColors.primaryDeep,
           unselectedLabelColor: AppColors.textSecondary,
           tabs: const [
+            Tab(text: '지출 통계'),
             Tab(text: '자동 등록'),
             Tab(text: '직접 입력'),
           ],
@@ -59,7 +58,11 @@ class _ExpenseAddPageState extends State<ExpenseAddPage>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [_DetectedExpenseTab(), _DirectExpenseTab()],
+        children: [
+          ExpenseStatsView(key: ValueKey(_statsRevision)),
+          const _DetectedExpenseTab(),
+          _DirectExpenseTab(onExpenseSaved: _refreshStats),
+        ],
       ),
     );
   }
@@ -93,14 +96,21 @@ class _DetectedExpenseTab extends StatelessWidget {
 }
 
 class _DirectExpenseTab extends StatelessWidget {
-  const _DirectExpenseTab();
+  const _DirectExpenseTab({required this.onExpenseSaved});
+
+  final VoidCallback onExpenseSaved;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       key: const PageStorageKey('direct-tab-scroll'),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-      children: const [ExpenseForm(showTitle: false)],
+      children: [
+        ExpenseForm(
+          showTitle: false,
+          onSaved: onExpenseSaved,
+        ),
+      ],
     );
   }
 }

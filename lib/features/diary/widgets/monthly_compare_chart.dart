@@ -12,7 +12,7 @@ class MonthlyCompareChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: '전월과 당월 지출 비교 막대 차트',
+      label: '이전 기간과 선택 기간 지출 비교 막대 차트',
       child: SizedBox(
         height: 190,
         width: double.infinity,
