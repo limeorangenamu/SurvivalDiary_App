@@ -66,7 +66,7 @@ class SignupSuccessPage extends StatelessWidget {
                 child: FilledButton(
                   onPressed: () {
                     Navigator.of(context).pushNamedAndRemoveUntil(
-                      AppRoutes.root,
+                      AppRoutes.login,
                       (route) => false,
                     );
                   },

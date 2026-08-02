@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -83,17 +84,23 @@ class AuthApiClient {
     final uri = Uri.parse('$_baseUrl/api/auth/signup');
     late final http.Response response;
     try {
-      response = await _client.post(
-        uri,
-        headers: const {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(request.toJson()),
-      );
+      response = await _client
+          .post(
+            uri,
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(request.toJson()),
+          )
+          .timeout(const Duration(seconds: 10));
     } on http.ClientException catch (error) {
       throw AuthApiException(
         '백엔드 서버에 연결하지 못했어요.\n요청 주소: $uri\n${error.message}',
+      );
+    } on TimeoutException {
+      throw AuthApiException(
+        '백엔드 서버 응답이 10초 안에 오지 않았어요.\n요청 주소: $uri\n휴대폰과 PC가 같은 네트워크인지, Windows 방화벽에서 8080 포트를 허용했는지 확인해 주세요.',
       );
     }
 
@@ -122,15 +129,21 @@ class AuthApiClient {
     final uri = Uri.parse('$_baseUrl/api/users/me');
     late final http.Response response;
     try {
-      response = await _client.get(
-        uri,
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $accessToken'
-        },
-      );
+      response = await _client
+          .get(
+            uri,
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $accessToken'
+            },
+          )
+          .timeout(const Duration(seconds: 10));
     } on http.ClientException catch (error) {
       throw AuthApiException('서버에 연결하지 못했어요.\n요청 주소: $uri\n${error.message}');
+    } on TimeoutException {
+      throw AuthApiException(
+        '서버 응답이 10초 안에 오지 않았어요.\n요청 주소: $uri',
+      );
     }
     if (response.statusCode != 200) {
       throw AuthApiException(_errorMessage(response));
@@ -141,16 +154,22 @@ class AuthApiClient {
   Future<http.Response> _post(String path, Map<String, dynamic> body) async {
     final uri = Uri.parse('$_baseUrl$path');
     try {
-      return await _client.post(
-        uri,
-        headers: const {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: jsonEncode(body),
-      );
+      return await _client
+          .post(
+            uri,
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 10));
     } on http.ClientException catch (error) {
       throw AuthApiException('서버에 연결하지 못했어요.\n요청 주소: $uri\n${error.message}');
+    } on TimeoutException {
+      throw AuthApiException(
+        '서버 응답이 10초 안에 오지 않았어요.\n요청 주소: $uri',
+      );
     }
   }
 

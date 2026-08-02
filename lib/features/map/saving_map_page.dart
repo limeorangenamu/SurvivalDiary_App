@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -8,10 +7,10 @@ import '../../data/mock_data.dart';
 import '../../data/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/pill_chip.dart';
+import 'place_detail_page.dart';
 import 'widgets/map_canvas.dart';
 import '../../core/services/location_service.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
-
 
 class SavingMapPage extends StatefulWidget {
   const SavingMapPage({super.key});
@@ -25,6 +24,49 @@ class _SavingMapPageState extends State<SavingMapPage> {
   int _sortIndex = 0;
   SavingPlace? _selectedPlace;
   NaverMapController? _mapController;
+
+  Future<void> _moveToCurrentLocation({
+    bool showMessage = false,
+  }) async {
+    try {
+      // 1. 위치 서비스 활성화 여부와 권한을 확인하고,
+      //    필요하면 사용자에게 권한을 요청합니다.
+      final position = await LocationService().getCurrentPosition();
+
+      // 2. 지도 준비 전이면 카메라 이동을 하지 않습니다.
+      final controller = _mapController;
+      if (controller == null) {
+        return;
+      }
+
+      // 3. 현재 위도/경도로 지도 중심을 이동합니다.
+      await controller.updateCamera(
+        NCameraUpdate.withParams(
+          target: NLatLng(position.latitude, position.longitude),
+          zoom: 15,
+        )..setAnimation(
+            duration: const Duration(milliseconds: 500),
+          ),
+      );
+
+      // 자동 이동할 때는 보통 알림을 보이지 않습니다.
+      if (showMessage && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('현재 위치로 이동했어요.'),
+          ),
+        );
+      }
+    } catch (error) {
+      // 자동 실행 실패는 조용히 넘기고,
+      // 사용자가 직접 버튼을 눌렀을 때만 오류를 보여 줍니다.
+      if (showMessage && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    }
+  }
 
   List<SavingPlace> get _visiblePlaces {
     if (_filter == '주거지') {
@@ -50,6 +92,23 @@ class _SavingMapPageState extends State<SavingMapPage> {
     });
   }
 
+  void _showPlaceDetail(SavingPlace place) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.5,
+        maxChildSize: 0.92,
+        builder: (context, scrollController) => PlaceDetailSheet(
+          place: place,
+          scrollController: scrollController,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final places = _visiblePlaces;
@@ -57,117 +116,94 @@ class _SavingMapPageState extends State<SavingMapPage> {
       appBar: AppBar(
         title: const Text('절약 지도'),
         actions: [
-          TextButton.icon(
-            onPressed: () async {
-              try {
-                final position = await LocationService().getCurrentPosition();
-
-                final controller = _mapController;
-
-                if (controller == null) {
-                  throw Exception('지도를 준비 중이에요. 잠시 후 다시 눌러주세요.');
-                }
-
-                await controller.updateCamera(
-                  NCameraUpdate.withParams(
-                    target: NLatLng(position.latitude, position.longitude),
-                    zoom: 15,
-                  )..setAnimation(
-                    duration: const Duration(milliseconds: 500),
-                  ),
-                );
-
-                if (!context.mounted) return;
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('현재 위치로 이동했어요.')),
-                );
-              } catch (error) {
-                if (!context.mounted) return;
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(error.toString())),
-                );
-              }
+          IconButton(
+            tooltip: 'Search',
+            onPressed: () {
+              // Search UI will be added in a later step.
             },
-            icon: const Icon(Icons.my_location_rounded, size: 18),
-            label: const Text('내 주변'),
+            icon: const Icon(Icons.search_rounded),
           ),
         ],
       ),
-      body: ListView(
-        key: const PageStorageKey('map-scroll'),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+      body: Stack(
         children: [
-          SizedBox(
-            height: 40,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (final filter in const [
-                  '전체',
-                  '착한가격업소',
-                  '공공시설',
-                  '공영주차장',
-                  '주거지',
-                ])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 7),
-                    child: PillChip(
-                      label: filter,
-                      selected: _filter == filter,
-                      onTap: () => _changeFilter(filter),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(
-                Icons.location_on_rounded,
-                size: 18,
-                color: AppColors.info,
-              ),
-              const SizedBox(width: 4),
-              const Expanded(
-                child: Text('서울 강남구 역삼동', style: AppTextStyles.caption),
-              ),
-              SortToggle(
-                options: const ['거리순', '가격순'],
-                selectedIndex: _sortIndex,
-                onChanged: (value) => setState(() {
-                  _sortIndex = value;
-                  _selectedPlace = null;
-                }),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 365,
+          Positioned.fill(
             child: SavingMapCanvas(
               places: places,
-              onPlaceTap: (place) =>
-                  setState(() => _selectedPlace = place),
-              onMapReady: (controller) => _mapController = controller,
+              onPlaceTap: (place) {
+                setState(() => _selectedPlace = place);
+              },
+              onMapReady: (controller) {
+                _mapController = controller;
+                _moveToCurrentLocation();
+              },
             ),
           ),
-          const SizedBox(height: 12),
-          if (_selectedPlace != null)
-            _SelectedPlaceCard(
-              place: _selectedPlace!,
-              onTap: () => Navigator.pushNamed(
-                context,
-                AppRoutes.placeDetail,
-                arguments: _selectedPlace,
+          Positioned(
+            top: 12,
+            left: 16,
+            right: 16,
+            child: SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (final filter in const [
+                    '전체',
+                    '착한가격업소',
+                    '공공시설',
+                    '공영주차장',
+                    '주거지',
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 7),
+                      child: PillChip(
+                        label: filter,
+                        selected: _filter == filter,
+                        onTap: () => _changeFilter(filter),
+                      ),
+                    ),
+                ],
               ),
-            )
-          else if (_filter == '주거지')
-            _HousingSummaryCard(
-              onTap: () =>
-                  Navigator.pushNamed(context, AppRoutes.housingRegion),
+            ),
+          ),
+          Positioned(
+            top: 68,
+            left: 16,
+            right: 16,
+            child: AppCard(
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.location_on_rounded,
+                    size: 18,
+                    color: AppColors.info,
+                  ),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: Text('서울 강남구 역삼동', style: AppTextStyles.caption),
+                  ),
+                  SortToggle(
+                    options: const ['거리순', '가격순'],
+                    selectedIndex: _sortIndex,
+                    onChanged: (value) => setState(() {
+                      _sortIndex = value;
+                      _selectedPlace = null;
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_selectedPlace != null)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: _SelectedPlaceCard(
+                place: _selectedPlace!,
+                onTap: () => _showPlaceDetail(_selectedPlace!),
+              ),
             ),
         ],
       ),
