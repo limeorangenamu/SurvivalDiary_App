@@ -161,8 +161,8 @@ void main() {
       find.byKey(const ValueKey('policy-application-guide-button')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('공식 페이지 이동'), findsOneWidget);
-    expect(find.text('외부 공식 사이트로 이동할까요?'), findsOneWidget);
+    expect(find.text('신청 사이트 이동'), findsOneWidget);
+    expect(find.text('신청 사이트로 이동할까요?'), findsOneWidget);
     expect(find.text('https://example.com/policies/policy-1'), findsOneWidget);
   });
 
@@ -233,6 +233,26 @@ void main() {
       find.byKey(const ValueKey('policy-application-guide-button')),
     );
     expect(button.onPressed, isNull);
+    expect(find.text('온라인 신청 링크 없음'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('policy-reference-link-0')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.byKey(const ValueKey('policy-reference-link-0')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('policy-reference-link-0')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('참고 링크 이동'), findsOneWidget);
+    expect(find.text('정책 안내 페이지로 이동할까요?'), findsOneWidget);
+    expect(
+      find.text('https://example.com/references/policy-5'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('API 실패를 더미 정책으로 숨기지 않고 재시도한다', (tester) async {
@@ -371,6 +391,9 @@ PolicyApiClient _policyApiClient() {
           _policyDetailJson(
             policyId: policyId,
             nullable: policyId == 'policy-5',
+            referenceUrls: policyId == 'policy-5'
+                ? ['https://example.com/references/policy-5']
+                : const [],
           ),
         );
       }
@@ -402,6 +425,7 @@ Map<String, dynamic> _policySummaryJson({
 Map<String, dynamic> _policyDetailJson({
   required String policyId,
   bool nullable = false,
+  List<String> referenceUrls = const [],
 }) {
   return {
     'policyId': policyId,
@@ -418,7 +442,7 @@ Map<String, dynamic> _policyDetailJson({
     'applicationMethod': '공식 사이트에서 온라인 신청',
     'documents': nullable ? <String>[] : ['신분증', '소득 확인 서류'],
     'officialUrl': nullable ? null : 'https://example.com/policies/$policyId',
-    'referenceUrls': <String>[],
+    'referenceUrls': referenceUrls,
   };
 }
 

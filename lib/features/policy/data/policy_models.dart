@@ -151,14 +151,18 @@ class PolicyDetailArguments {
   final List<String> eligibilityReasons;
 }
 
+enum PolicyExternalLinkType { application, reference }
+
 class PolicyExternalLinkArguments {
   const PolicyExternalLinkArguments({
     required this.title,
-    required this.officialUrl,
+    required this.url,
+    required this.type,
   });
 
   final String title;
-  final String officialUrl;
+  final String url;
+  final PolicyExternalLinkType type;
 }
 
 String _requiredString(Map<String, dynamic> json, String key) {

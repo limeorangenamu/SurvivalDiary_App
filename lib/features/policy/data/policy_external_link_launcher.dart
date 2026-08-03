@@ -27,7 +27,7 @@ class PolicyExternalLinkLauncher {
     final uri = Uri.tryParse(rawUrl.trim());
     if (!_isAllowed(uri)) {
       throw const PolicyExternalLinkException(
-        '공식 사이트 주소가 올바르지 않아요. 정책 상세에서 기관 정보를 확인해 주세요.',
+        '정책 링크 주소가 올바르지 않아요. 정책 상세에서 기관 정보를 확인해 주세요.',
         type: PolicyExternalLinkErrorType.invalidUrl,
       );
     }
