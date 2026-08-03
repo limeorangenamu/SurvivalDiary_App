@@ -27,11 +27,65 @@ class PolicyApiException implements Exception {
 
 class PolicyApiClient {
   PolicyApiClient({http.Client? client, String? baseUrl})
-      : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
+    : _client = client ?? http.Client(),
+      _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final http.Client _client;
   final String _baseUrl;
+
+  Future<PolicyPreference> getPolicyPreference({
+    required String accessToken,
+  }) async {
+    final response = await _send(
+      () => _client.get(
+        Uri.parse('$_baseUrl/api/users/me/policy-preferences'),
+        headers: _headers(accessToken),
+      ),
+      fallbackMessage: '저장된 정책 조건을 불러오지 못했어요.',
+    );
+
+    try {
+      return PolicyPreference.fromJson(_responseData(response));
+    } on FormatException {
+      throw const PolicyApiException(
+        '서버의 정책 조건 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    } on TypeError {
+      throw const PolicyApiException(
+        '서버의 정책 조건 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    }
+  }
+
+  Future<PolicyPreference> savePolicyPreference({
+    required String accessToken,
+    required PolicyFilterCondition condition,
+  }) async {
+    final response = await _send(
+      () => _client.put(
+        Uri.parse('$_baseUrl/api/users/me/policy-preferences'),
+        headers: _headers(accessToken, hasBody: true),
+        body: jsonEncode(_preferenceBody(condition)),
+      ),
+      fallbackMessage: '정책 기본 조건을 저장하지 못했어요.',
+    );
+
+    try {
+      return PolicyPreference.fromJson(_responseData(response));
+    } on FormatException {
+      throw const PolicyApiException(
+        '서버의 정책 조건 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    } on TypeError {
+      throw const PolicyApiException(
+        '서버의 정책 조건 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    }
+  }
 
   Future<PolicySearchResult> searchPolicies({
     required String accessToken,
@@ -67,9 +121,7 @@ class PolicyApiClient {
   }) async {
     final response = await _send(
       () => _client.get(
-        Uri.parse(
-          '$_baseUrl/api/policies/${Uri.encodeComponent(policyId)}',
-        ),
+        Uri.parse('$_baseUrl/api/policies/${Uri.encodeComponent(policyId)}'),
         headers: _headers(accessToken),
       ),
       fallbackMessage: '정책 상세를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.',
@@ -171,6 +223,35 @@ class PolicyApiClient {
           PolicyCategory.transport => 'TRANSPORT',
         },
       'size': 20,
+    };
+  }
+
+  Map<String, dynamic> _preferenceBody(PolicyFilterCondition condition) {
+    return {
+      'regionCode': condition.regionCode,
+      if (condition.districtCode != null)
+        'districtCode': condition.districtCode,
+      'employmentStatus': switch (condition.employmentStatus) {
+        PolicyEmploymentStatus.employed => 'EMPLOYED',
+        PolicyEmploymentStatus.jobSeeker => 'JOB_SEEKING',
+        PolicyEmploymentStatus.unemployed => 'UNEMPLOYED',
+        PolicyEmploymentStatus.student => 'STUDENT',
+      },
+      if (condition.incomeRange != null)
+        'incomeRange': switch (condition.incomeRange!) {
+          PolicyIncomeRange.below50 => 'BELOW_50',
+          PolicyIncomeRange.below100 => 'BELOW_100',
+          PolicyIncomeRange.below150 => 'BELOW_150',
+          PolicyIncomeRange.noLimit => 'NO_LIMIT',
+        },
+      if (condition.category != null)
+        'category': switch (condition.category!) {
+          PolicyCategory.housing => 'HOUSING',
+          PolicyCategory.employment => 'EMPLOYMENT',
+          PolicyCategory.asset => 'ASSET',
+          PolicyCategory.culture => 'CULTURE',
+          PolicyCategory.transport => 'TRANSPORT',
+        },
     };
   }
 

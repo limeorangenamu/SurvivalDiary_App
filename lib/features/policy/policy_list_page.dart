@@ -20,13 +20,15 @@ class PolicyListPage extends StatefulWidget {
     required this.condition,
     PolicyApiClient? apiClient,
     PolicyAccessTokenProvider? accessTokenProvider,
-  })  : apiClient = apiClient ?? PolicyApiClient(),
-        accessTokenProvider =
-            accessTokenProvider ?? (() => AuthSession.instance.accessToken);
+    this.onEditCondition,
+  }) : apiClient = apiClient ?? PolicyApiClient(),
+       accessTokenProvider =
+           accessTokenProvider ?? (() => AuthSession.instance.accessToken);
 
   final PolicyFilterCondition condition;
   final PolicyApiClient apiClient;
   final PolicyAccessTokenProvider accessTokenProvider;
+  final VoidCallback? onEditCondition;
 
   @override
   State<PolicyListPage> createState() => _PolicyListPageState();
@@ -66,12 +68,22 @@ class _PolicyListPageState extends State<PolicyListPage> {
     });
   }
 
+  void _editCondition() {
+    final onEditCondition = widget.onEditCondition;
+    if (onEditCondition != null) {
+      onEditCondition();
+      return;
+    }
+    Navigator.pop(context);
+  }
+
   List<PolicySummary> get _visiblePolicies {
     final result = [..._policies];
     if (_sortIndex == 1) {
       result.sort(
-        (a, b) => _deadlineSortValue(a.applicationPeriodText)
-            .compareTo(_deadlineSortValue(b.applicationPeriodText)),
+        (a, b) => _deadlineSortValue(
+          a.applicationPeriodText,
+        ).compareTo(_deadlineSortValue(b.applicationPeriodText)),
       );
     } else if (_sortIndex == 2) {
       result.sort((a, b) {
@@ -147,6 +159,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
             conditionLabels: _conditionLabels,
             sortIndex: _sortIndex,
             onSortChanged: (value) => setState(() => _sortIndex = value),
+            onEditCondition: _editCondition,
           ),
           Expanded(
             child: FutureBuilder<PolicySearchResult>(
@@ -170,7 +183,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
                     title: '조건에 맞는 정책이 없어요',
                     description: '조건을 조금 넓히면 더 많은 지원 정책을 볼 수 있어요.',
                     actionLabel: '조건 수정',
-                    onAction: () => Navigator.pop(context),
+                    onAction: _editCondition,
                   );
                 }
                 return Column(
@@ -220,11 +233,13 @@ class _ConditionHeader extends StatelessWidget {
     required this.conditionLabels,
     required this.sortIndex,
     required this.onSortChanged,
+    required this.onEditCondition,
   });
 
   final List<String> conditionLabels;
   final int sortIndex;
   final ValueChanged<int> onSortChanged;
+  final VoidCallback onEditCondition;
 
   @override
   Widget build(BuildContext context) {
@@ -245,7 +260,7 @@ class _ConditionHeader extends StatelessWidget {
                     ),
                     TextButton(
                       key: const ValueKey('policy-edit-condition-button'),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: onEditCondition,
                       child: const Text('조건 수정'),
                     ),
                   ],
@@ -347,22 +362,22 @@ class _PolicyCard extends StatelessWidget {
   final VoidCallback onTap;
 
   Color get _categoryColor => switch (policy.categoryType) {
-        PolicyCategory.housing => AppColors.categoryFood,
-        PolicyCategory.employment => AppColors.info,
-        PolicyCategory.asset => AppColors.warning,
-        PolicyCategory.culture => AppColors.categoryCafe,
-        PolicyCategory.transport => AppColors.categoryTransport,
-        null => AppColors.categoryEtc,
-      };
+    PolicyCategory.housing => AppColors.categoryFood,
+    PolicyCategory.employment => AppColors.info,
+    PolicyCategory.asset => AppColors.warning,
+    PolicyCategory.culture => AppColors.categoryCafe,
+    PolicyCategory.transport => AppColors.categoryTransport,
+    null => AppColors.categoryEtc,
+  };
 
   IconData get _categoryIcon => switch (policy.categoryType) {
-        PolicyCategory.housing => Icons.home_work_outlined,
-        PolicyCategory.employment => Icons.work_outline_rounded,
-        PolicyCategory.asset => Icons.savings_outlined,
-        PolicyCategory.culture => Icons.palette_outlined,
-        PolicyCategory.transport => Icons.directions_bus_outlined,
-        null => Icons.policy_outlined,
-      };
+    PolicyCategory.housing => Icons.home_work_outlined,
+    PolicyCategory.employment => Icons.work_outline_rounded,
+    PolicyCategory.asset => Icons.savings_outlined,
+    PolicyCategory.culture => Icons.palette_outlined,
+    PolicyCategory.transport => Icons.directions_bus_outlined,
+    null => Icons.policy_outlined,
+  };
 
   String get _supportLabel {
     final amount = policy.supportAmount;

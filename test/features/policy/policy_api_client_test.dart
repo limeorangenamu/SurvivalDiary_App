@@ -8,6 +8,75 @@ import 'package:project_survival_diary/features/policy/data/policy_api_client.da
 import 'package:project_survival_diary/features/policy/data/policy_models.dart';
 
 void main() {
+  test('저장된 기본 조건이 없으면 saved false 응답을 변환한다', () async {
+    late http.Request capturedRequest;
+    final client = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        capturedRequest = request;
+        return _successResponse({
+          'saved': false,
+          'age': 26,
+          'regionCode': null,
+          'districtCode': null,
+          'employmentStatus': null,
+          'incomeRange': null,
+          'category': null,
+        });
+      }),
+    );
+
+    final preference = await client.getPolicyPreference(
+      accessToken: 'access-token',
+    );
+
+    expect(capturedRequest.method, 'GET');
+    expect(
+      capturedRequest.url.path,
+      '/api/users/me/policy-preferences',
+    );
+    expect(preference.saved, isFalse);
+    expect(preference.age, 26);
+    expect(preference.regionCode, isNull);
+  });
+
+  test('기본 조건 저장 시 전체 선택 항목은 요청에서 생략한다', () async {
+    late http.Request capturedRequest;
+    final client = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        capturedRequest = request;
+        return _successResponse({
+          'saved': true,
+          'age': 26,
+          'regionCode': '11',
+          'districtCode': null,
+          'employmentStatus': 'JOB_SEEKING',
+          'incomeRange': null,
+          'category': null,
+        });
+      }),
+    );
+
+    final preference = await client.savePolicyPreference(
+      accessToken: 'access-token',
+      condition: _condition,
+    );
+
+    expect(capturedRequest.method, 'PUT');
+    expect(
+      capturedRequest.url.path,
+      '/api/users/me/policy-preferences',
+    );
+    expect(jsonDecode(capturedRequest.body), {
+      'regionCode': '11',
+      'employmentStatus': 'JOB_SEEKING',
+    });
+    expect(preference.saved, isTrue);
+    expect(preference.incomeRange, isNull);
+    expect(preference.category, isNull);
+  });
+
   test('검색 조건과 액세스 토큰을 백엔드 계약 형식으로 전송한다', () async {
     late http.Request capturedRequest;
     final client = PolicyApiClient(

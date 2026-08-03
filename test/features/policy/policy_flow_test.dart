@@ -58,6 +58,13 @@ void main() {
     );
   }
 
+  Widget policyFilterPage({PolicyApiClient? client}) {
+    return PolicyFilterPage(
+      apiClient: client ?? apiClient,
+      accessTokenProvider: () => 'test-access-token',
+    );
+  }
+
   Future<void> selectRequiredConditions(
     WidgetTester tester, {
     String age = '27',
@@ -116,20 +123,77 @@ void main() {
     expect(sejong.districts, isEmpty);
   });
 
-  testWidgets('필수 정책 조건 누락 시 인라인 오류를 표시한다', (tester) async {
-    await tester.pumpWidget(policyApp(const PolicyFilterPage()));
+  testWidgets('저장된 기본 조건이 있으면 정책 목록을 자동으로 조회한다', (tester) async {
+    final requestedPaths = <String>[];
+    final savedPreferenceClient = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        requestedPaths.add('${request.method} ${request.url.path}');
+        if (request.method == 'GET') {
+          return _successResponse({
+            'saved': true,
+            'age': 27,
+            'regionCode': '11',
+            'districtCode': '11110',
+            'employmentStatus': 'JOB_SEEKING',
+            'incomeRange': null,
+            'category': null,
+          });
+        }
+        return _successResponse({
+          'items': [_policySummaryJson()],
+          'partialResult': false,
+          'checkedProviderPages': 1,
+        });
+      }),
+    );
+
+    await tester.pumpWidget(
+      policyApp(
+        policyFilterPage(client: savedPreferenceClient),
+        client: savedPreferenceClient,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(requestedPaths, [
+      'GET /api/users/me/policy-preferences',
+      'POST /api/policies/search',
+    ]);
+    expect(find.text('맞춤 정책 결과'), findsOneWidget);
+    expect(find.text('청년 월세 지원'), findsOneWidget);
+    expect(find.text('만 27세'), findsOneWidget);
+    expect(find.text('서울특별시'), findsOneWidget);
+    expect(find.text('종로구'), findsOneWidget);
+  });
+
+  testWidgets('회원 나이는 자동 입력하고 누락된 필수 조건 오류를 표시한다', (tester) async {
+    await tester.pumpWidget(policyApp(policyFilterPage()));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('policy-search-button')));
     await tester.pump();
 
-    expect(find.text('나이를 입력해 주세요.'), findsOneWidget);
+    final ageField = tester.widget<TextFormField>(
+      find.byKey(const ValueKey('policy-age-field')),
+    );
+    expect(ageField.controller?.text, '27');
+    final editableAge = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('policy-age-field')),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(editableAge.readOnly, isTrue);
+    expect(find.text('나이를 입력해 주세요.'), findsNothing);
     expect(find.text('시·도를 선택해 주세요.'), findsOneWidget);
     expect(find.text('취업 상태를 선택해 주세요.'), findsOneWidget);
     expect(find.text('맞춤 정책 결과'), findsNothing);
   });
 
   testWidgets('조건 입력부터 실제 목록·상세 응답과 외부 확인 화면까지 연결된다', (tester) async {
-    await tester.pumpWidget(policyApp(const PolicyFilterPage()));
+    await tester.pumpWidget(policyApp(policyFilterPage()));
+    await tester.pumpAndSettle();
     await selectRequiredConditions(tester, district: '종로구');
 
     await tester.tap(find.byKey(const ValueKey('policy-search-button')));
@@ -167,10 +231,10 @@ void main() {
   });
 
   testWidgets('서버가 빈 목록을 반환하면 빈 결과를 표시한다', (tester) async {
-    await tester.pumpWidget(policyApp(const PolicyFilterPage()));
+    await tester.pumpWidget(policyApp(policyFilterPage()));
+    await tester.pumpAndSettle();
     await selectRequiredConditions(
       tester,
-      age: '39',
       employment: '재직 중',
     );
 
@@ -357,18 +421,46 @@ PolicyApiClient _policyApiClient() {
   return PolicyApiClient(
     baseUrl: 'http://test.example',
     client: MockClient((request) async {
+      if (request.method == 'GET' &&
+          request.url.path == '/api/users/me/policy-preferences') {
+        return _successResponse({
+          'saved': false,
+          'age': 27,
+          'regionCode': null,
+          'districtCode': null,
+          'employmentStatus': null,
+          'incomeRange': null,
+          'category': null,
+        });
+      }
+
+      if (request.method == 'PUT' &&
+          request.url.path == '/api/users/me/policy-preferences') {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        return _successResponse({
+          'saved': true,
+          'age': 27,
+          'regionCode': body['regionCode'],
+          'districtCode': body['districtCode'],
+          'employmentStatus': body['employmentStatus'],
+          'incomeRange': body['incomeRange'],
+          'category': body['category'],
+        });
+      }
+
       if (request.method == 'POST' &&
           request.url.path == '/api/policies/search') {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
-        final items = body['age'] == 39
+        final returnsEmpty = body['employmentStatus'] == 'EMPLOYED';
+        final items = returnsEmpty
             ? <Map<String, dynamic>>[]
             : body['category'] == 'TRANSPORT'
                 ? [_policySummaryJson(policyId: 'policy-5', nullable: true)]
                 : [_policySummaryJson()];
         return _successResponse({
           'items': items,
-          'partialResult': body['age'] != 39,
-          'checkedProviderPages': body['age'] == 39 ? 1 : 3,
+          'partialResult': !returnsEmpty,
+          'checkedProviderPages': returnsEmpty ? 1 : 3,
         });
       }
 
