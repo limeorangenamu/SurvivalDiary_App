@@ -399,7 +399,6 @@ docs/policy/implementation-plan.md
 
 - 액세스 토큰은 현재 메모리에만 보관하므로 앱을 다시 시작하면 재로그인이 필요하다.
 - `applicationPeriodText`가 제공처 원문이므로 모든 날짜 표현을 정확하게 정렬하지 못할 수 있다.
-- 실제 외부 브라우저 열기는 이번 단계에 포함하지 않았다.
 - 검색 조건 저장, 페이지 추가 조회, 관심 없음 서버 저장은 별도 설계가 필요하다.
 
 ## 11. 실제 서버 통합 확인
@@ -426,3 +425,68 @@ flutter run --dart-define=API_BASE_URL=http://서버주소:8080
 ```
 
 `API_BASE_URL`에는 공개 가능한 서버 주소만 넣으며 온통청년 인증키나 로그인 토큰은 넣지 않는다.
+
+## 12. 정책 공식 사이트 외부 브라우저 연결
+
+### 단계 1. 실행 방식 결정
+
+- [x] Flutter 공식 `url_launcher` 패키지를 사용한다.
+- [x] 앱 내부 웹뷰가 아니라 `LaunchMode.externalApplication`으로 휴대폰 기본 브라우저를 연다.
+- [x] 정책 기능 전용 실행 클래스로 플랫폼 호출을 화면에서 분리한다.
+
+### 단계 2. URL 보안 검증
+
+- [x] 서버 검증과 별개로 앱에서도 URL을 다시 검사한다.
+- [x] `http`와 `https` 스킴만 허용한다.
+- [x] 호스트가 없는 주소를 차단한다.
+- [x] 사용자 정보가 포함된 혼동 가능 주소를 차단한다.
+- [x] `javascript:`, `file:` 같은 스킴은 플랫폼에 전달하지 않는다.
+- [x] 실패 메시지나 로그에 전체 URL과 인증 정보를 출력하지 않는다.
+
+### 단계 3. 확인 화면 연결
+
+- [x] 목업 스낵바를 실제 외부 브라우저 실행으로 교체한다.
+- [x] 사용자가 앱을 벗어나 기본 브라우저로 이동한다는 안내를 표시한다.
+- [x] 실행 중 버튼을 비활성화해 중복 요청을 막는다.
+- [x] 실행이 거절되거나 플랫폼 예외가 발생하면 한국어 오류를 표시한다.
+- [x] 성공 후 사용자가 앱으로 돌아오면 기존 정책 상세 흐름을 유지한다.
+
+### 단계 4. 자동 검증
+
+- [x] 유효한 HTTPS 주소가 외부 애플리케이션 모드로 전달되는지 테스트한다.
+- [x] 허용되지 않은 스킴이 실행 전에 차단되는지 테스트한다.
+- [x] 브라우저 실행 실패가 기능 오류로 변환되는지 테스트한다.
+- [x] 실행 중 중복 입력 방지와 실패 안내를 위젯 테스트한다.
+- [x] 기존 정책 API·화면 테스트를 포함해 관련 테스트 18개가 통과한다.
+- [x] `flutter analyze`에서 이번 정책 변경 문제는 없다.
+  - 최신 `main`의 `saving_map_page.dart`에 기존 `_HousingSummaryCard` 경고 1건이 남아 있다.
+- [ ] 실제 기기 브라우저 이동 확인은 사용자가 수행한다.
+
+### 데이터 흐름
+
+```text
+PolicyDetail.officialUrl
+  → PolicyExternalLinkArguments
+  → PolicyExternalLinkConfirmPage
+  → PolicyExternalLinkLauncher URL 재검증
+  → url_launcher의 LaunchMode.externalApplication
+  → 휴대폰 기본 브라우저
+  → 실패 시 앱에서 한국어 안내
+```
+
+### 생성·수정 파일
+
+```text
+pubspec.yaml
+pubspec.lock
+lib/features/policy/data/policy_external_link_launcher.dart
+lib/features/policy/policy_external_link_confirm_page.dart
+test/features/policy/policy_external_link_test.dart
+docs/policy/implementation-plan.md
+```
+
+### 남은 위험과 후속 작업
+
+- 기기에 브라우저가 없거나 운영체제가 실행을 거부하면 오류 안내만 제공한다.
+- 외부 공식 사이트의 장애, 로그인, 신청 과정은 앱이 제어할 수 없다.
+- 현재 외부 링크 실행은 정책 기능 전용이며 다른 기능의 공통 서비스로 승격하지 않는다.

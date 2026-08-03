@@ -3,12 +3,49 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_card.dart';
+import 'data/policy_external_link_launcher.dart';
 import 'data/policy_models.dart';
 
-class PolicyExternalLinkConfirmPage extends StatelessWidget {
-  const PolicyExternalLinkConfirmPage({super.key, required this.arguments});
+class PolicyExternalLinkConfirmPage extends StatefulWidget {
+  PolicyExternalLinkConfirmPage({
+    super.key,
+    required this.arguments,
+    PolicyExternalLinkLauncher? launcher,
+  }) : launcher = launcher ?? PolicyExternalLinkLauncher();
 
   final PolicyExternalLinkArguments arguments;
+  final PolicyExternalLinkLauncher launcher;
+
+  @override
+  State<PolicyExternalLinkConfirmPage> createState() =>
+      _PolicyExternalLinkConfirmPageState();
+}
+
+class _PolicyExternalLinkConfirmPageState
+    extends State<PolicyExternalLinkConfirmPage> {
+  bool _isOpening = false;
+
+  Future<void> _openOfficialSite() async {
+    if (_isOpening) {
+      return;
+    }
+    setState(() => _isOpening = true);
+
+    try {
+      await widget.launcher.open(widget.arguments.officialUrl);
+    } on PolicyExternalLinkException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isOpening = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +67,7 @@ class PolicyExternalLinkConfirmPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '${arguments.title} 신청 조건과 최신 공고는 주관 기관의 '
+            '${widget.arguments.title} 신청 조건과 최신 공고는 주관 기관의 '
             '공식 사이트에서 최종 확인해 주세요.',
             style: AppTextStyles.bodyMuted,
             textAlign: TextAlign.center,
@@ -42,7 +79,10 @@ class PolicyExternalLinkConfirmPage extends StatelessWidget {
               children: [
                 const Text('이동할 주소', style: AppTextStyles.caption),
                 const SizedBox(height: 6),
-                Text(arguments.officialUrl, style: AppTextStyles.body),
+                Text(
+                  widget.arguments.officialUrl,
+                  style: AppTextStyles.body,
+                ),
               ],
             ),
           ),
@@ -57,8 +97,8 @@ class PolicyExternalLinkConfirmPage extends StatelessWidget {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '현재는 화면 흐름을 확인하는 목업 단계로, '
-                    '버튼을 눌러도 실제 브라우저는 열리지 않습니다.',
+                    '버튼을 누르면 생존일기를 벗어나 휴대폰의 기본 브라우저로 이동합니다. '
+                    '신청 조건과 최신 공고를 공식 사이트에서 다시 확인해 주세요.',
                     style: AppTextStyles.caption,
                   ),
                 ),
@@ -68,11 +108,18 @@ class PolicyExternalLinkConfirmPage extends StatelessWidget {
           const SizedBox(height: 24),
           FilledButton.icon(
             key: const ValueKey('policy-open-external-button'),
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('외부 브라우저 연결은 다음 단계에서 제공해요.')),
-            ),
-            icon: const Icon(Icons.open_in_new_rounded),
-            label: const Text('공식 사이트 열기'),
+            onPressed: _isOpening ? null : _openOfficialSite,
+            icon: _isOpening
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.surface,
+                    ),
+                  )
+                : const Icon(Icons.open_in_new_rounded),
+            label: Text(_isOpening ? '브라우저 여는 중' : '공식 사이트 열기'),
           ),
           const SizedBox(height: 8),
           TextButton(
