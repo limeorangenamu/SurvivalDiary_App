@@ -18,6 +18,7 @@ import '../../features/map/place_detail_page.dart';
 import '../../features/policy/policy_detail_page.dart';
 import '../../features/policy/policy_external_link_confirm_page.dart';
 import '../../features/policy/policy_list_page.dart';
+import '../../features/policy/data/policy_models.dart';
 import '../../features/root/root_shell.dart';
 import '../theme/app_text_styles.dart';
 import 'app_routes.dart';
@@ -40,11 +41,14 @@ class AppRouter {
       AppRoutes.policyResults
           when settings.arguments is PolicyFilterCondition =>
         PolicyListPage(condition: settings.arguments! as PolicyFilterCondition),
-      AppRoutes.policyDetail when settings.arguments is String =>
-        PolicyDetailPage(policyId: settings.arguments! as String),
-      AppRoutes.policyExternalLinkConfirm when settings.arguments is String =>
+      AppRoutes.policyDetail when settings.arguments is PolicyDetailArguments =>
+        PolicyDetailPage(
+          arguments: settings.arguments! as PolicyDetailArguments,
+        ),
+      AppRoutes.policyExternalLinkConfirm
+          when settings.arguments is PolicyExternalLinkArguments =>
         PolicyExternalLinkConfirmPage(
-          policyId: settings.arguments! as String,
+          arguments: settings.arguments! as PolicyExternalLinkArguments,
         ),
       AppRoutes.placeDetail when settings.arguments is SavingPlace =>
         PlaceDetailPage(place: settings.arguments! as SavingPlace),

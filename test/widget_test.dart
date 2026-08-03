@@ -12,8 +12,6 @@ import 'package:project_survival_diary/features/auth/data/auth_api_client.dart';
 import 'package:project_survival_diary/features/auth/data/signup_request.dart';
 import 'package:project_survival_diary/features/community/post_write_page.dart';
 import 'package:project_survival_diary/features/map/housing_region_page.dart';
-import 'package:project_survival_diary/features/policy/policy_list_page.dart';
-import 'package:project_survival_diary/data/models.dart';
 
 void main() {
   test('email signup api sends backend signup payload', () async {
@@ -186,35 +184,6 @@ void main() {
 
     expect(find.byKey(const ValueKey('expense-title-field')), findsOneWidget);
     expect(find.byKey(const ValueKey('expense-save-button')), findsOneWidget);
-  });
-
-  testWidgets('정책 관심 없음과 실행취소가 동작한다', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: const PolicyListPage(
-          condition: PolicyFilterCondition(
-            age: 27,
-            regionCode: '11',
-            region: '서울특별시',
-            employmentStatus: PolicyEmploymentStatus.jobSeeker,
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('청년 월세 지원'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('policy-menu-policy-1')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('관심 없음'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('청년 월세 지원'), findsNothing);
-    await tester.tap(find.text('실행취소'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('청년 월세 지원'), findsOneWidget);
   });
 
   testWidgets('정책 탭을 이동해도 입력한 나이가 유지된다', (tester) async {

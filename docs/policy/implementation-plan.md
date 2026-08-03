@@ -3,9 +3,10 @@
 ## 1. 문서 목적
 
 이 문서는 Flutter 앱의 청년정책 기능을 단계별로 구현하기 위한 실행 계획이다.
-현재 앱 이슈 범위에 맞춰 **1차 구현은 MockData 기반 UI 흐름만 완성**하고, 실제 백엔드 API 연동은 후속 단계로 남긴다.
+1차로 MockData 기반 UI 흐름을 완성했고, 2차로 실제 백엔드 API 목록·상세 조회를 연결했다.
 
-- 기준일: 2026-07-30
+- 최초 작성일: 2026-07-30
+- 최근 갱신일: 2026-08-03
 - 대상 저장소: `limeorangenamu/SurvivalDiary_App`
 - 관련 이슈:
   - [#8 청년정책 조건 입력 화면 구성](https://github.com/limeorangenamu/SurvivalDiary_App/issues/8)
@@ -13,16 +14,16 @@
 
 ## 구현 결과
 
-- 작업 브랜치: `limeorangenamu/feat/policy-filter-flow`
-- 구현 상태: 앱 이슈 #8, #9의 MockData 기반 1차 범위 완료
+- 1차 작업 브랜치: `limeorangenamu/feat/policy-filter-flow`
+- 2차 작업 브랜치: `limeorangenamu/feat/policy-api-integration`
+- 구현 상태: 앱 이슈 #8, #9의 UI 흐름 및 실제 정책 목록·상세 API 연동 완료
 - 지역 조건: 전국 17개 시·도와 시·군·구 선택 및 공식 코드 분리 완료
-- 검증 결과:
-  - `dart analyze` 통과
-  - `flutter test --no-pub` 전체 20개 테스트 통과
-- 실제 API 연동, 조건 저장, 외부 브라우저 실행은 후속 단계로 유지
+- API 연동: 인증된 사용자의 조건을 `POST /api/policies/search`로 전송하고 정책 ID로 상세 조회
+- 정책 API·화면 테스트: 13개 통과
+- 조건 저장과 실제 외부 브라우저 실행은 후속 단계로 유지
 - 지역 코드 계약: `docs/policy/region-code-contract.md`
 
-## 2. 이번 구현 범위
+## 2. 1차 UI 구현 범위
 
 ### 포함
 
@@ -44,7 +45,7 @@
 - 외부 브라우저 실행
 - API 키 또는 비밀값 저장
 
-## 3. 현재 코드 기준
+## 3. 1차 구현 전 코드 기준
 
 현재 정책 탭은 `PolicyListPage`를 바로 표시한다.
 
@@ -283,12 +284,12 @@ test/features/policy/...
 백엔드 API가 준비되면 다음 순서로 교체한다.
 
 1. [x] 백엔드 `PolicySummary`, `PolicyDetail`, 필터 코드 계약을 확인한다.
-2. 앱 `Policy`에 `fromJson`을 추가한다.
-3. 정책 전용 API client를 추가한다.
-4. MockData 직접 참조를 repository 또는 client 호출로 교체한다.
-5. 로딩, 인증 실패, 외부 API 장애, `partialResult` 상태를 추가한다.
-6. `CHECK_REQUIRED` 정책의 확인 안내와 사유를 목록·상세 화면에 표시한다.
-7. 실제 외부 링크 실행 범위를 별도 이슈로 확정한다.
+2. [x] MockData용 `Policy`와 분리된 API용 `PolicySummary`, `PolicyDetail` 모델을 추가한다.
+3. [x] 정책 전용 API client를 추가한다.
+4. [x] 정책 목록·상세·외부 확인 화면의 MockData 직접 참조를 API 결과로 교체한다.
+5. [x] 로딩, 인증 실패, 외부 API 장애, 재시도, `partialResult` 상태를 추가한다.
+6. [x] `CHECK_REQUIRED` 정책의 확인 안내와 사유를 목록·상세 화면에 표시한다.
+7. [ ] 실제 외부 링크 실행 범위를 별도 이슈로 확정한다.
 
 API 연동 작업에서는 `API_BASE_URL` 설정을 사용하고 비밀값을 앱에 포함하지 않는다.
 
@@ -307,3 +308,97 @@ GET /api/policies/{policyId}
 
 두 endpoint 모두 로그인 사용자의 액세스 토큰이 필요하다.
 온통청년 인증키는 백엔드 서버에서만 관리하며 앱에는 포함하지 않는다.
+
+## 10. 2차 실제 API 연동 구현
+
+### 단계 1. API 계약 모델 분리
+
+- [x] 목록 응답 `PolicySummary`와 상세 응답 `PolicyDetail`을 분리한다.
+- [x] `supportAmount`, `applicationPeriodText`, `categoryType`, `officialUrl`의 null을 허용한다.
+- [x] `MATCHED`, `CHECK_REQUIRED` 자격 상태와 확인 사유를 변환한다.
+- [x] 잘못된 JSON은 빈 데이터로 처리하지 않고 응답 형식 오류로 구분한다.
+
+### 단계 2. 인증된 API 요청 구현
+
+- [x] 화면이 `AuthSession`에서 액세스 토큰을 읽는다.
+- [x] 화면이 토큰과 검색 조건을 `PolicyApiClient`에 전달한다.
+- [x] 검색 조건 enum을 백엔드 대문자 코드로 변환한다.
+- [x] 요청 헤더에 `Authorization: Bearer {accessToken}`을 추가한다.
+- [x] 온통청년 인증키는 앱 요청이나 로그에 포함하지 않는다.
+- [x] 네트워크 연결 실패와 15초 응답 지연을 재시도 가능한 오류로 처리한다.
+
+### 단계 3. 목록 화면 실제 연동
+
+- [x] 앱의 MockData 정책 필터를 제거하고 `POST /api/policies/search` 결과를 표시한다.
+- [x] 서버가 반환한 추천 순서를 기본 순서로 유지한다.
+- [x] 마감임박순과 지원금액순 정렬을 실제 응답 필드에 적용한다.
+- [x] 빈 결과, 로딩, 로그인 필요, 서버 오류, 재시도 상태를 표시한다.
+- [x] `partialResult=true`이면 확인한 제공처 페이지 수와 추가 결과 가능성을 안내한다.
+- [x] `CHECK_REQUIRED`이면 목록 카드에 신청 자격 확인 필요를 표시한다.
+- [x] 관심 없음과 실행 취소를 메모리 상태로 유지한다.
+
+### 단계 4. 상세 화면 실제 연동
+
+- [x] 목록에서 정책 ID와 자격 판정 정보를 상세 화면으로 전달한다.
+- [x] `GET /api/policies/{policyId}`로 상세를 조회한다.
+- [x] 상세 조회 로딩, 404, 인증 실패, 서버 오류와 재시도를 처리한다.
+- [x] 자격 확인 사유, 운영 기관, 제출 서류, 참고 URL을 표시한다.
+- [x] 공식 URL이 있을 때만 외부 이동 확인 버튼을 활성화한다.
+- [x] 외부 이동 확인 화면은 상세 응답의 정책명과 공식 URL을 전달받는다.
+
+### 단계 5. 테스트와 검증
+
+- [x] 검색 요청 본문, Bearer 토큰, 응답 파싱을 테스트한다.
+- [x] nullable 필드와 잘못된 응답 계약을 테스트한다.
+- [x] 조건 입력 → 목록 → 상세 → 외부 확인 흐름을 테스트한다.
+- [x] 부분 결과, 자격 확인 필요, 빈 결과, 404, 재시도, 로그인 누락을 테스트한다.
+- [x] 관심 없음과 실행 취소가 API 목록에서도 유지되는지 테스트한다.
+- [x] 정책 API·화면 테스트 13개가 통과한다.
+- [x] `flutter analyze` 결과를 확인한다.
+  - 정책 변경 파일에는 문제가 없다.
+  - 최신 `main`의 `saving_map_page.dart`에 사용되지 않는 `_HousingSummaryCard` 경고 1건이 남아 있다.
+- [x] 전체 `flutter test --no-pub` 결과를 확인한다.
+  - 정책 변경과 관련된 테스트는 모두 통과했다.
+  - 최신 `main` 기준 전체 결과는 24개 통과, 정책 외 테스트 3개 실패다.
+  - 일기 화면에서 `결제 알림에서 찾았어요` 문구와 `edit-detected-detected-1` 키를 찾지 못한다.
+  - 지도 화면에서 `map-scroll` 키를 찾지 못한다.
+  - 위 실패는 이번 정책 작업 범위에서 수정하지 않는다.
+
+### 요청부터 응답까지의 데이터 흐름
+
+```text
+PolicyFilterCondition
+  → PolicyListPage가 AuthSession 액세스 토큰 확인
+  → PolicyApiClient.searchPolicies
+  → POST /api/policies/search
+  → PolicySearchResult와 PolicySummary 변환
+  → 목록 표시
+  → PolicyDetailArguments로 정책 ID와 자격 판정 전달
+  → PolicyApiClient.getPolicyDetail
+  → GET /api/policies/{policyId}
+  → PolicyDetail 변환
+  → 상세 및 공식 페이지 이동 확인 화면 표시
+```
+
+### 생성·수정 파일
+
+```text
+lib/features/policy/data/policy_models.dart
+lib/features/policy/data/policy_api_client.dart
+lib/features/policy/policy_list_page.dart
+lib/features/policy/policy_detail_page.dart
+lib/features/policy/policy_external_link_confirm_page.dart
+lib/core/router/app_router.dart
+test/features/policy/policy_api_client_test.dart
+test/features/policy/policy_flow_test.dart
+test/widget_test.dart
+docs/policy/implementation-plan.md
+```
+
+### 남은 위험과 후속 작업
+
+- 액세스 토큰은 현재 메모리에만 보관하므로 앱을 다시 시작하면 재로그인이 필요하다.
+- 서버의 실제 정책 상세 성공 응답은 운영 환경에서 한 번 더 확인해야 한다.
+- `applicationPeriodText`가 제공처 원문이므로 모든 날짜 표현을 정확하게 정렬하지 못할 수 있다.
+- 실제 외부 브라우저 열기는 이번 단계에 포함하지 않았다.
+- 검색 조건 저장, 페이지 추가 조회, 관심 없음 서버 저장은 별도 설계가 필요하다.

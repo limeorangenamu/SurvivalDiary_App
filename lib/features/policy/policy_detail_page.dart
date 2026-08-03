@@ -4,40 +4,124 @@ import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
-import '../../data/mock_data.dart';
+import '../../data/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/empty_state_view.dart';
+import '../auth/auth_session.dart';
+import 'data/policy_api_client.dart';
+import 'data/policy_models.dart';
 
-class PolicyDetailPage extends StatelessWidget {
-  const PolicyDetailPage({super.key, required this.policyId});
+typedef PolicyDetailAccessTokenProvider = String? Function();
 
-  final String policyId;
+class PolicyDetailPage extends StatefulWidget {
+  PolicyDetailPage({
+    super.key,
+    required this.arguments,
+    PolicyApiClient? apiClient,
+    PolicyDetailAccessTokenProvider? accessTokenProvider,
+  })  : apiClient = apiClient ?? PolicyApiClient(),
+        accessTokenProvider =
+            accessTokenProvider ?? (() => AuthSession.instance.accessToken);
+
+  final PolicyDetailArguments arguments;
+  final PolicyApiClient apiClient;
+  final PolicyDetailAccessTokenProvider accessTokenProvider;
 
   @override
-  Widget build(BuildContext context) {
-    final policy = MockData.policyById(policyId);
-    if (policy == null) {
-      return const Scaffold(
-        appBar: _PolicyDetailAppBar(),
-        body: EmptyStateView(
-          icon: Icons.find_in_page_outlined,
-          title: '정책 정보를 찾을 수 없어요',
-          description: '목록으로 돌아가 다른 정책을 선택해 주세요.',
+  State<PolicyDetailPage> createState() => _PolicyDetailPageState();
+}
+
+class _PolicyDetailPageState extends State<PolicyDetailPage> {
+  late Future<PolicyDetail> _detailFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _detailFuture = _loadDetail();
+  }
+
+  Future<PolicyDetail> _loadDetail() {
+    final accessToken = widget.accessTokenProvider();
+    if (accessToken == null || accessToken.isEmpty) {
+      return Future.error(
+        const PolicyApiException(
+          '정책을 조회하려면 먼저 로그인해 주세요.',
+          type: PolicyApiErrorType.unauthorized,
         ),
       );
     }
+    return widget.apiClient.getPolicyDetail(
+      accessToken: accessToken,
+      policyId: widget.arguments.policyId,
+    );
+  }
 
+  void _retry() {
+    final detailFuture = _loadDetail();
+    setState(() {
+      _detailFuture = detailFuture;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PolicyDetail>(
+      future: _detailFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            appBar: _PolicyDetailAppBar(),
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return _PolicyDetailErrorPage(
+            error: snapshot.error,
+            onRetry: _retry,
+          );
+        }
+        return _PolicyDetailContent(
+          policy: snapshot.requireData,
+          arguments: widget.arguments,
+        );
+      },
+    );
+  }
+}
+
+class _PolicyDetailContent extends StatelessWidget {
+  const _PolicyDetailContent({required this.policy, required this.arguments});
+
+  final PolicyDetail policy;
+  final PolicyDetailArguments arguments;
+
+  IconData get _categoryIcon => switch (policy.categoryType) {
+        PolicyCategory.housing => Icons.home_work_outlined,
+        PolicyCategory.employment => Icons.work_outline_rounded,
+        PolicyCategory.asset => Icons.savings_outlined,
+        PolicyCategory.culture => Icons.palette_outlined,
+        PolicyCategory.transport => Icons.directions_bus_outlined,
+        null => Icons.policy_outlined,
+      };
+
+  @override
+  Widget build(BuildContext context) {
     final supportAmount = policy.supportAmount;
     final supportAmountLabel = supportAmount == null
         ? '지원 내용 확인'
         : Formatters.compactAmount(supportAmount);
-    final deadlineLabel = policy.deadline ?? '신청 기간 확인 필요';
+    final periodLabel = policy.applicationPeriodText ?? '신청 기간 확인 필요';
 
     return Scaffold(
       appBar: const _PolicyDetailAppBar(),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
         children: [
+          if (arguments.eligibilityStatus ==
+              PolicyEligibilityStatus.checkRequired) ...[
+            _EligibilityNotice(reasons: arguments.eligibilityReasons),
+            const SizedBox(height: 10),
+          ],
           AppCard(
             color: AppColors.primarySoft,
             borderColor: AppColors.primarySoft,
@@ -46,13 +130,15 @@ class PolicyDetailPage extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(policy.icon, color: AppColors.primary, size: 30),
+                    Icon(_categoryIcon, color: AppColors.primary, size: 30),
                     const SizedBox(width: 10),
-                    Text(
-                      policy.category,
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.primaryDeep,
-                        fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: Text(
+                        policy.category,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.primaryDeep,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
@@ -60,7 +146,7 @@ class PolicyDetailPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(policy.title, style: AppTextStyles.title),
                 const SizedBox(height: 8),
-                Text(policy.summary, style: AppTextStyles.bodyMuted),
+                Text(policy.description, style: AppTextStyles.bodyMuted),
                 const SizedBox(height: 18),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,8 +160,8 @@ class PolicyDetailPage extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _SummaryValue(
-                        label: '신청 기한',
-                        value: deadlineLabel,
+                        label: '신청 기간',
+                        value: periodLabel,
                       ),
                     ),
                   ],
@@ -103,51 +189,22 @@ class PolicyDetailPage extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _InfoSection(
+            icon: Icons.business_outlined,
+            title: '운영 기관',
+            content: policy.operatingAgency,
+          ),
+          const SizedBox(height: 10),
+          _InfoSection(
             icon: Icons.how_to_reg_outlined,
             title: '신청 방법',
-            content: policy.applyMethod,
+            content: policy.applicationMethod,
           ),
-          if (policy.contact != null) ...[
-            const SizedBox(height: 10),
-            _InfoSection(
-              icon: Icons.support_agent_rounded,
-              title: '문의처',
-              content: policy.contact!,
-            ),
-          ],
           const SizedBox(height: 10),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.description_outlined, color: AppColors.primary),
-                    SizedBox(width: 8),
-                    Text('제출 서류', style: AppTextStyles.sectionTitle),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                for (final document in policy.documents)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.check_circle_outline_rounded,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(document, style: AppTextStyles.body),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          _DocumentsSection(documents: policy.documents),
+          if (policy.referenceUrls.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _ReferenceLinksSection(referenceUrls: policy.referenceUrls),
+          ],
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -180,7 +237,10 @@ class PolicyDetailPage extends StatelessWidget {
                       : () => Navigator.pushNamed(
                             context,
                             AppRoutes.policyExternalLinkConfirm,
-                            arguments: policy.id,
+                            arguments: PolicyExternalLinkArguments(
+                              title: policy.title,
+                              officialUrl: policy.officialUrl!,
+                            ),
                           ),
                   child: Text(
                     policy.officialUrl == null ? '공식 링크 준비 중' : '신청 안내 보기',
@@ -190,6 +250,144 @@ class PolicyDetailPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _EligibilityNotice extends StatelessWidget {
+  const _EligibilityNotice({required this.reasons});
+
+  final List<String> reasons;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      key: const ValueKey('policy-eligibility-notice'),
+      color: AppColors.warningSoft,
+      borderColor: AppColors.warningSoft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.fact_check_outlined, color: AppColors.warning),
+              SizedBox(width: 8),
+              Text('신청 자격을 확인해 주세요', style: AppTextStyles.sectionTitle),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            reasons.isEmpty ? '세부 조건은 공식 공고에서 직접 확인해야 해요.' : reasons.join('\n'),
+            style: AppTextStyles.caption,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DocumentsSection extends StatelessWidget {
+  const _DocumentsSection({required this.documents});
+
+  final List<String> documents;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.description_outlined, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text('제출 서류', style: AppTextStyles.sectionTitle),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (documents.isEmpty)
+            const Text(
+              '필요한 서류는 공식 공고에서 확인해 주세요.',
+              style: AppTextStyles.bodyMuted,
+            )
+          else
+            for (final document in documents)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(document, style: AppTextStyles.body)),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReferenceLinksSection extends StatelessWidget {
+  const _ReferenceLinksSection({required this.referenceUrls});
+
+  final List<String> referenceUrls;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.link_rounded, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text('참고 링크', style: AppTextStyles.sectionTitle),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (final url in referenceUrls)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(url, style: AppTextStyles.bodyMuted),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PolicyDetailErrorPage extends StatelessWidget {
+  const _PolicyDetailErrorPage({required this.error, required this.onRetry});
+
+  final Object? error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final apiError = error is PolicyApiException
+        ? error! as PolicyApiException
+        : const PolicyApiException(
+            '정책 상세를 불러오지 못했어요.',
+            type: PolicyApiErrorType.server,
+          );
+    final isNotFound = apiError.type == PolicyApiErrorType.notFound;
+    return Scaffold(
+      appBar: const _PolicyDetailAppBar(),
+      body: EmptyStateView(
+        icon:
+            isNotFound ? Icons.find_in_page_outlined : Icons.cloud_off_rounded,
+        title: isNotFound ? '정책 정보를 찾을 수 없어요' : '정책 상세를 불러오지 못했어요',
+        description: isNotFound ? '목록으로 돌아가 다른 정책을 선택해 주세요.' : apiError.message,
+        actionLabel: isNotFound ? '목록으로 돌아가기' : '다시 시도',
+        onAction: isNotFound ? () => Navigator.pop(context) : onRetry,
       ),
     );
   }
