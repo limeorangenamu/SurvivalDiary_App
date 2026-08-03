@@ -55,6 +55,7 @@ AI 코딩 도구(ChatGPT Codex, Claude Code 등)가 이 저장소에서 작업�
 모든 SurvivalDiary 저장소는 `SurvivalDiary_App`과 동일한 깃 공유 규칙을 사용한다.
 
 - 브랜치는 `{이름}/{타입}/{작업명}` 형식으로 만든다. 예: `kimin/feat/login-jwt`
+- 브랜치의 `{이름}`은 현재 깃에 로그인 되어 있는 계정 이름으로 사용한다.
 - 브랜치의 `{타입}`은 커밋 접두사와 동일하게 `feat`, `fix`, `docs`, `refactor`, `chore` 등을 사용한다.
 - 커밋 메시지는 Conventional Commits 형식을 사용한다.
   - 예: `feat: 로그인 API 구현`
