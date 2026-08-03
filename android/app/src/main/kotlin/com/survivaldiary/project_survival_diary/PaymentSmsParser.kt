@@ -19,6 +19,7 @@ object PaymentSmsParser {
         val parsed = PaymentTextParser.parse(
             lines = content.body.lines(),
             sourceName = institution.name,
+            sourceKey = institution.key,
         ) ?: return null
 
         return DetectedExpenseCandidate(

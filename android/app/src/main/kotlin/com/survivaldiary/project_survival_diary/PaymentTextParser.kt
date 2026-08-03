@@ -1,6 +1,11 @@
 package com.survivaldiary.project_survival_diary
 
 object PaymentTextParser {
+    private enum class KakaoPayTransferDirection {
+        OUTGOING_CONFIRMED,
+        INCOMING,
+    }
+
     data class ParsedPayment(
         val merchant: String,
         val amount: Int,
@@ -60,6 +65,14 @@ object PaymentTextParser {
         "본인인증",
         "광고",
     )
+    private val kakaoPayOutgoingConfirmationKeywords = listOf(
+        "원을 받았어요",
+        "원을 받았습니다",
+    )
+    private val kakaoPayIncomingKeywords = listOf(
+        "원을 보냈어요",
+        "원을 보냈습니다",
+    )
     private val amountRegex = Regex("""(?<!\d)(\d{1,3}(?:,\d{3})+|\d+)\s*원""")
     private val plainAmountRegex = Regex("""^(\d{1,3}(?:,\d{3})*|\d+)\s*(?:원)?$""")
     private val datedBankAmountRegex = Regex(
@@ -72,14 +85,29 @@ object PaymentTextParser {
     private val phoneRegex = Regex("""^\+?[\d()\-\s]{7,}$""")
     private val maskedNameRegex = Regex("""^[가-힣A-Za-z]{0,3}\*+[가-힣A-Za-z]{0,3}$""")
 
-    fun parse(lines: List<String>, sourceName: String): ParsedPayment? {
+    fun parse(
+        lines: List<String>,
+        sourceName: String,
+        sourceKey: String? = null,
+    ): ParsedPayment? {
         val normalizedLines = lines
             .flatMap { it.lines() }
             .map(::normalize)
             .filter(String::isNotBlank)
             .distinct()
         val combined = normalizedLines.joinToString(" ")
-        val bankAccountExpense = bankAccountExpenseKeywords.any(combined::contains)
+        val kakaoPayTransferDirection = if (sourceKey == KAKAO_PAY_SOURCE_KEY) {
+            findKakaoPayTransferDirection(normalizedLines)
+        } else {
+            null
+        }
+        if (kakaoPayTransferDirection == KakaoPayTransferDirection.INCOMING) {
+            return null
+        }
+        val kakaoPayOutgoingConfirmed =
+            kakaoPayTransferDirection == KakaoPayTransferDirection.OUTGOING_CONFIRMED
+        val bankAccountExpense =
+            bankAccountExpenseKeywords.any(combined::contains) || kakaoPayOutgoingConfirmed
 
         if (
             combined.isBlank() ||
@@ -100,7 +128,11 @@ object PaymentTextParser {
         val strongBankAccountExpense = accountAmount != null && accountMarkerCount >= 2
         val ignoredKeyword = ignoredKeywords.firstOrNull { keyword ->
             combined.contains(keyword) &&
-                !(keyword == "광고" && strongBankAccountExpense)
+                !(keyword == "광고" && strongBankAccountExpense) &&
+                !(
+                    kakaoPayOutgoingConfirmed &&
+                        keyword in kakaoPayOutgoingAllowedIgnoredKeywords
+                    )
         }
         if (ignoredKeyword != null) {
             return null
@@ -127,6 +159,7 @@ object PaymentTextParser {
             )
         }
         val accountAction = bankAccountExpenseKeywords.firstOrNull(combined::contains)
+            ?: "송금".takeIf { kakaoPayOutgoingConfirmed }
         val resolvedMerchant = merchant
             ?: "$sourceName ${accountAction ?: "결제"}"
 
@@ -160,6 +193,18 @@ object PaymentTextParser {
 
     fun containsBankAccountExpenseKeyword(value: String): Boolean =
         bankAccountExpenseKeywords.any(value::contains)
+
+    private fun findKakaoPayTransferDirection(
+        lines: List<String>,
+    ): KakaoPayTransferDirection? = lines.firstNotNullOfOrNull { line ->
+        when {
+            kakaoPayOutgoingConfirmationKeywords.any(line::contains) ->
+                KakaoPayTransferDirection.OUTGOING_CONFIRMED
+            kakaoPayIncomingKeywords.any(line::contains) ->
+                KakaoPayTransferDirection.INCOMING
+            else -> null
+        }
+    }
 
     private fun findBankAccountAmount(lines: List<String>): Pair<String, String>? {
         val actionLineIndex = lines.indexOfFirst { line ->
@@ -301,4 +346,11 @@ object PaymentTextParser {
         .replace('\n', ' ')
         .replace(Regex("""\s+"""), " ")
         .trim()
+
+    private const val KAKAO_PAY_SOURCE_KEY = "kakao-pay"
+    private val kakaoPayOutgoingAllowedIgnoredKeywords = setOf(
+        "송금 받",
+        "받았어요",
+        "받았습니다",
+    )
 }
