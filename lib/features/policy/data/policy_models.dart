@@ -2,6 +2,50 @@ import '../../../data/models.dart';
 
 enum PolicyEligibilityStatus { matched, checkRequired }
 
+class PolicyPreference {
+  const PolicyPreference({
+    required this.saved,
+    required this.age,
+    required this.regionCode,
+    required this.districtCode,
+    required this.employmentStatus,
+    required this.incomeRange,
+    required this.category,
+  });
+
+  factory PolicyPreference.fromJson(Map<String, dynamic> json) {
+    final saved = json['saved'];
+    final age = json['age'];
+    if (saved is! bool || (age != null && age is! num)) {
+      throw const FormatException();
+    }
+
+    final regionCode = _nullableString(json, 'regionCode');
+    final employmentStatus = _policyEmploymentStatus(json['employmentStatus']);
+    if (saved && (regionCode == null || employmentStatus == null)) {
+      throw const FormatException();
+    }
+
+    return PolicyPreference(
+      saved: saved,
+      age: (age as num?)?.toInt(),
+      regionCode: regionCode,
+      districtCode: _nullableString(json, 'districtCode'),
+      employmentStatus: employmentStatus,
+      incomeRange: _policyIncomeRange(json['incomeRange']),
+      category: _policyCategory(json['category']),
+    );
+  }
+
+  final bool saved;
+  final int? age;
+  final String? regionCode;
+  final String? districtCode;
+  final PolicyEmploymentStatus? employmentStatus;
+  final PolicyIncomeRange? incomeRange;
+  final PolicyCategory? category;
+}
+
 class PolicySearchResult {
   const PolicySearchResult({
     required this.items,
@@ -205,17 +249,36 @@ List<String> _stringList(Map<String, dynamic> json, String key) {
 }
 
 PolicyCategory? _policyCategory(Object? value) => switch (value) {
-      'HOUSING' => PolicyCategory.housing,
-      'EMPLOYMENT' => PolicyCategory.employment,
-      'ASSET' => PolicyCategory.asset,
-      'CULTURE' => PolicyCategory.culture,
-      'TRANSPORT' => PolicyCategory.transport,
-      null => null,
-      _ => null,
-    };
+  'HOUSING' => PolicyCategory.housing,
+  'EMPLOYMENT' => PolicyCategory.employment,
+  'ASSET' => PolicyCategory.asset,
+  'CULTURE' => PolicyCategory.culture,
+  'TRANSPORT' => PolicyCategory.transport,
+  null => null,
+  _ => null,
+};
 
-PolicyEligibilityStatus _eligibilityStatus(Object? value) => switch (value) {
-      'MATCHED' => PolicyEligibilityStatus.matched,
-      'CHECK_REQUIRED' => PolicyEligibilityStatus.checkRequired,
+PolicyEmploymentStatus? _policyEmploymentStatus(Object? value) =>
+    switch (value) {
+      'EMPLOYED' => PolicyEmploymentStatus.employed,
+      'JOB_SEEKING' => PolicyEmploymentStatus.jobSeeker,
+      'UNEMPLOYED' => PolicyEmploymentStatus.unemployed,
+      'STUDENT' => PolicyEmploymentStatus.student,
+      null => null,
       _ => throw const FormatException(),
     };
+
+PolicyIncomeRange? _policyIncomeRange(Object? value) => switch (value) {
+  'BELOW_50' => PolicyIncomeRange.below50,
+  'BELOW_100' => PolicyIncomeRange.below100,
+  'BELOW_150' => PolicyIncomeRange.below150,
+  'NO_LIMIT' => PolicyIncomeRange.noLimit,
+  null => null,
+  _ => throw const FormatException(),
+};
+
+PolicyEligibilityStatus _eligibilityStatus(Object? value) => switch (value) {
+  'MATCHED' => PolicyEligibilityStatus.matched,
+  'CHECK_REQUIRED' => PolicyEligibilityStatus.checkRequired,
+  _ => throw const FormatException(),
+};
