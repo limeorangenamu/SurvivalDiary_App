@@ -111,6 +111,9 @@ class _PolicyDetailContent extends StatelessWidget {
         ? '지원 내용 확인'
         : Formatters.compactAmount(supportAmount);
     final periodLabel = policy.applicationPeriodText ?? '신청 기간 확인 필요';
+    final referenceUrls = policy.referenceUrls
+        .where((url) => url != policy.officialUrl)
+        .toList(growable: false);
 
     return Scaffold(
       appBar: const _PolicyDetailAppBar(),
@@ -201,9 +204,12 @@ class _PolicyDetailContent extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           _DocumentsSection(documents: policy.documents),
-          if (policy.referenceUrls.isNotEmpty) ...[
+          if (referenceUrls.isNotEmpty) ...[
             const SizedBox(height: 10),
-            _ReferenceLinksSection(referenceUrls: policy.referenceUrls),
+            _ReferenceLinksSection(
+              policyTitle: policy.title,
+              referenceUrls: referenceUrls,
+            ),
           ],
         ],
       ),
@@ -239,11 +245,12 @@ class _PolicyDetailContent extends StatelessWidget {
                             AppRoutes.policyExternalLinkConfirm,
                             arguments: PolicyExternalLinkArguments(
                               title: policy.title,
-                              officialUrl: policy.officialUrl!,
+                              url: policy.officialUrl!,
+                              type: PolicyExternalLinkType.application,
                             ),
                           ),
                   child: Text(
-                    policy.officialUrl == null ? '공식 링크 준비 중' : '신청 안내 보기',
+                    policy.officialUrl == null ? '온라인 신청 링크 없음' : '신청 사이트 확인',
                   ),
                 ),
               ),
@@ -335,8 +342,12 @@ class _DocumentsSection extends StatelessWidget {
 }
 
 class _ReferenceLinksSection extends StatelessWidget {
-  const _ReferenceLinksSection({required this.referenceUrls});
+  const _ReferenceLinksSection({
+    required this.policyTitle,
+    required this.referenceUrls,
+  });
 
+  final String policyTitle;
   final List<String> referenceUrls;
 
   @override
@@ -352,15 +363,45 @@ class _ReferenceLinksSection extends StatelessWidget {
               Text('참고 링크', style: AppTextStyles.sectionTitle),
             ],
           ),
-          const SizedBox(height: 10),
-          for (final url in referenceUrls)
+          const SizedBox(height: 8),
+          const Text(
+            '정책 안내나 관련 기관 정보를 확인하는 링크예요. 실제 신청 경로와 '
+            '다를 수 있어요.',
+            style: AppTextStyles.caption,
+          ),
+          const SizedBox(height: 12),
+          for (final (index, url) in referenceUrls.indexed)
             Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(url, style: AppTextStyles.bodyMuted),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  key: ValueKey('policy-reference-link-$index'),
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    AppRoutes.policyExternalLinkConfirm,
+                    arguments: PolicyExternalLinkArguments(
+                      title: policyTitle,
+                      url: url,
+                      type: PolicyExternalLinkType.reference,
+                    ),
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: Text(_linkLabel(url)),
+                ),
+              ),
             ),
         ],
       ),
     );
+  }
+
+  String _linkLabel(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri != null && uri.host.isNotEmpty) {
+      return '${uri.host} 참고 링크';
+    }
+    return '참고 링크 열기';
   }
 }
 

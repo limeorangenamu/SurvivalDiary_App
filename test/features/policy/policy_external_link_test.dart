@@ -9,7 +9,7 @@ import 'package:project_survival_diary/features/policy/policy_external_link_conf
 import 'package:url_launcher/url_launcher.dart';
 
 void main() {
-  test('https 공식 주소를 외부 애플리케이션 모드로 연다', () async {
+  test('https 정책 링크를 외부 애플리케이션 모드로 연다', () async {
     late Uri launchedUri;
     late LaunchMode launchedMode;
     final launcher = PolicyExternalLinkLauncher(
@@ -71,7 +71,7 @@ void main() {
     );
   });
 
-  testWidgets('공식 사이트 실행 중에는 버튼 중복 입력을 막는다', (tester) async {
+  testWidgets('신청 사이트 실행 중에는 버튼 중복 입력을 막는다', (tester) async {
     final launchResult = Completer<bool>();
     var launchCount = 0;
     final launcher = PolicyExternalLinkLauncher(
@@ -98,7 +98,25 @@ void main() {
 
     launchResult.complete(true);
     await tester.pumpAndSettle();
-    expect(find.text('공식 사이트 열기'), findsOneWidget);
+    expect(find.text('신청 사이트 열기'), findsOneWidget);
+  });
+
+  testWidgets('참고 링크를 신청 사이트와 다른 안내로 표시한다', (tester) async {
+    final launcher = PolicyExternalLinkLauncher(
+      launch: (url, {required mode}) async => true,
+    );
+    await tester.pumpWidget(
+      _externalLinkApp(
+        launcher: launcher,
+        type: PolicyExternalLinkType.reference,
+      ),
+    );
+
+    expect(find.text('참고 링크 이동'), findsOneWidget);
+    expect(find.text('정책 안내 페이지로 이동할까요?'), findsOneWidget);
+    expect(find.text('참고 링크 주소'), findsOneWidget);
+    expect(find.text('참고 링크 열기'), findsOneWidget);
+    expect(find.textContaining('실제 신청 경로임을 보장하지 않아요.'), findsOneWidget);
   });
 
   testWidgets('브라우저 실행 실패를 사용자에게 안내한다', (tester) async {
@@ -121,13 +139,17 @@ void main() {
   });
 }
 
-Widget _externalLinkApp({required PolicyExternalLinkLauncher launcher}) {
+Widget _externalLinkApp({
+  required PolicyExternalLinkLauncher launcher,
+  PolicyExternalLinkType type = PolicyExternalLinkType.application,
+}) {
   return MaterialApp(
     theme: AppTheme.light,
     home: PolicyExternalLinkConfirmPage(
-      arguments: const PolicyExternalLinkArguments(
+      arguments: PolicyExternalLinkArguments(
         title: '청년 주거 지원',
-        officialUrl: 'https://example.com/policies/1',
+        url: 'https://example.com/policies/1',
+        type: type,
       ),
       launcher: launcher,
     ),
