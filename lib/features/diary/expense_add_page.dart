@@ -57,7 +57,6 @@ class _ExpenseAddPageState extends State<ExpenseAddPage>
           DetectedExpenseList(
             limit: 3,
             showHeader: true,
-            allowExclude: false,
             onExpenseSaved: _refreshStats,
           ),
           _DirectExpenseTab(onExpenseSaved: _refreshStats),

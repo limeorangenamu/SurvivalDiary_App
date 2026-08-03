@@ -46,7 +46,7 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _repository.addListener(_repositoryChanged);
-    unawaited(_repository.start());
+    unawaited(_start());
   }
 
   @override
@@ -59,7 +59,27 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(_repository.refresh());
+      unawaited(_refresh());
+    }
+  }
+
+  Future<void> _start() async {
+    await _repository.start();
+    await _requestExpenseAlertsIfReady();
+  }
+
+  Future<void> _refresh() async {
+    await _repository.refresh();
+    await _requestExpenseAlertsIfReady();
+  }
+
+  Future<void> _requestExpenseAlertsIfReady() async {
+    final canDetectExpenses =
+        _repository.accessStatus == NotificationAccessStatus.enabled ||
+        _repository.smsAccessStatus == SmsAccessStatus.enabled ||
+        _repository.smsAccessStatus == SmsAccessStatus.readOnly;
+    if (canDetectExpenses) {
+      await _repository.requestExpenseAlertPermission();
     }
   }
 
@@ -96,12 +116,56 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
     }
   }
 
+  Future<void> _requestSmsAccess() async {
+    final agreed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('문자함 결제 내역 조회 안내'),
+        content: const Text(
+          '문자함 연결을 켜면 최근 30일의 문자와 장문 문자에서 카드·은행 이름과 '
+          '승인·결제 또는 출금·이체·송금 형식이 있는 내역만 기기에서 확인해요. '
+          '일반 대화·광고·인증번호와 원본 문자는 저장하거나 서버로 보내지 않고, '
+          '찾은 금액·가맹점·시간도 확인 후에만 지출로 등록돼요.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('나중에'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('동의하고 문자함 연결'),
+          ),
+        ],
+      ),
+    );
+    if (agreed != true) {
+      return;
+    }
+
+    final granted = await _repository.requestSmsAccess();
+    if (granted) {
+      await _repository.requestExpenseAlertPermission();
+    }
+    if (!granted && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('문자 접근이 허용되지 않아 알림 감지만 계속 사용해요.'),
+        ),
+      );
+    }
+  }
+
   Future<void> _edit(DetectedExpenseCandidate item) async {
     final edit = await showModalBottomSheet<DetectedExpenseEdit>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => DetectedExpenseEditor(item: item),
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        top: false,
+        child: DetectedExpenseEditor(item: item),
+      ),
     );
     if (edit == null || !mounted) {
       return;
@@ -132,16 +196,25 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
     final shouldExclude = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('감지 내역에서 제외할까요?'),
-        content: Text('${item.merchant} 결제는 지출 일기에 등록되지 않아요.'),
+        title: const Text('지출을 삭제할까요?', style: AppTextStyles.sectionTitle),
+        content: const Text(
+          '지출 내역은 삭제 후 복구할 수 없어요.',
+          style: AppTextStyles.bodyMuted,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('취소'),
           ),
-          FilledButton(
+          TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('제외'),
+            child: Text(
+              '삭제',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.danger,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -154,13 +227,13 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
       await _repository.remove(item.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('이 결제는 감지 내역에서 제외했어요.')),
+          const SnackBar(content: Text('감지 내역에서 제외했어요.')),
         );
       }
     } on PlatformException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message ?? '결제를 제외하지 못했어요.')),
+          SnackBar(content: Text(error.message ?? '감지 내역에서 제외하지 못했어요.')),
         );
       }
     }
@@ -223,9 +296,14 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
     final allItems = _repository.items;
     final visibleItems =
         widget.limit == null ? allItems : allItems.take(widget.limit!).toList();
+    final showNotificationAccessCard =
+        _repository.accessStatus != NotificationAccessStatus.enabled;
+    final showSmsAccessCard =
+        _repository.smsAccessStatus != SmsAccessStatus.enabled &&
+        _repository.smsAccessStatus != SmsAccessStatus.readOnly;
 
     return RefreshIndicator(
-      onRefresh: _repository.refresh,
+      onRefresh: _refresh,
       child: ListView(
         key: const PageStorageKey('detected-expense-list'),
         physics: const AlwaysScrollableScrollPhysics(),
@@ -233,8 +311,9 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
         children: [
           if (widget.showHeader) ...[
             SectionHeader(
-              title: '결제 알림에서 찾았어요',
-              subtitle: '확인한 지출만 일기에 추가돼요.',
+              title: '결제 내역에서 찾았어요',
+              subtitle:
+                  '알림 내용을 숨기거나 결제 알림 기능을 꺼두면 지출 내역이 감지되지 않을 수 있어요.',
               actionLabel: allItems.length > (widget.limit ?? allItems.length)
                   ? '전체 보기'
                   : null,
@@ -247,14 +326,26 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
             ),
             const SizedBox(height: 10),
           ],
-          _NotificationAccessCard(
-            status: _repository.accessStatus,
-            errorMessage: _repository.errorMessage,
-            onRequestAccess: _requestNotificationAccess,
-            onRetry: _repository.refresh,
-          ),
-          const SizedBox(height: 12),
-          if (_repository.accessStatus == NotificationAccessStatus.checking &&
+          if (showNotificationAccessCard) ...[
+            _NotificationAccessCard(
+              status: _repository.accessStatus,
+              errorMessage: _repository.errorMessage,
+              onRequestAccess: _requestNotificationAccess,
+              onRetry: _refresh,
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (showSmsAccessCard) ...[
+            _SmsAccessCard(
+              status: _repository.smsAccessStatus,
+              errorMessage: _repository.smsErrorMessage,
+              onRequestAccess: _requestSmsAccess,
+              onRetry: _refresh,
+            ),
+            const SizedBox(height: 12),
+          ],
+          if ((_repository.accessStatus == NotificationAccessStatus.checking ||
+                  _repository.smsAccessStatus == SmsAccessStatus.checking) &&
               allItems.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 36),
@@ -264,7 +355,7 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
             const EmptyStateView(
               icon: Icons.notifications_none_rounded,
               title: '아직 감지한 결제가 없어요',
-              description: '지원하는 금융 앱에서 결제 알림이 오면\n여기에 바로 표시돼요.',
+              description: '금융 앱 알림이나 카드·은행 결제 문자를 찾으면\n여기에 바로 표시돼요.',
             )
           else
             for (final item in visibleItems)
@@ -282,6 +373,80 @@ class _DetectedExpenseListState extends State<DetectedExpenseList>
         ],
       ),
     );
+  }
+}
+
+class _SmsAccessCard extends StatelessWidget {
+  const _SmsAccessCard({
+    required this.status,
+    required this.errorMessage,
+    required this.onRequestAccess,
+    required this.onRetry,
+  });
+
+  final SmsAccessStatus status;
+  final String? errorMessage;
+  final VoidCallback onRequestAccess;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (status) {
+      SmsAccessStatus.enabled => const AppCard(
+          child: _AccessCardContent(
+            icon: Icons.sms_rounded,
+            iconColor: AppColors.primary,
+            title: '문자함의 결제 내역도 확인 중이에요',
+            description: '최근 30일의 카드·은행 결제 문자와 장문 문자만 기기에서 찾아요.',
+          ),
+        ),
+      SmsAccessStatus.readOnly => AppCard(
+          child: _AccessCardContent(
+            icon: Icons.mark_chat_read_outlined,
+            iconColor: AppColors.info,
+            title: '문자함의 결제 내역을 확인 중이에요',
+            description: '문자와 장문 문자는 조회할 수 있지만 실시간 수신 권한은 꺼져 있어요.',
+            actionLabel: '실시간 감지 켜기',
+            onAction: onRequestAccess,
+          ),
+        ),
+      SmsAccessStatus.disabled => AppCard(
+          child: _AccessCardContent(
+            icon: Icons.sms_failed_outlined,
+            iconColor: AppColors.warning,
+            title: '문자함 결제 내역도 가져올 수 있어요',
+            description: '일반 문자는 보관하지 않고 카드·은행 결제 형식만 기기에서 확인해요.',
+            actionLabel: '문자함 연결하기',
+            onAction: onRequestAccess,
+          ),
+        ),
+      SmsAccessStatus.unsupported => const AppCard(
+          child: _AccessCardContent(
+            icon: Icons.sms_outlined,
+            iconColor: AppColors.textSecondary,
+            title: '이 기기에서는 문자함 조회를 지원하지 않아요',
+            description: '기존 금융 앱 결제 알림 감지는 계속 사용할 수 있어요.',
+          ),
+        ),
+      SmsAccessStatus.error => AppCard(
+          child: _AccessCardContent(
+            icon: Icons.error_outline_rounded,
+            iconColor: AppColors.danger,
+            title: '문자함 결제 내역을 확인하지 못했어요',
+            description: errorMessage ?? '문자 권한을 확인한 뒤 다시 시도해 주세요.',
+            actionLabel: '다시 확인',
+            onAction: onRetry,
+          ),
+        ),
+      SmsAccessStatus.checking => const AppCard(
+          child: _AccessCardContent(
+            icon: Icons.sync_rounded,
+            iconColor: AppColors.info,
+            title: '문자함 연결 상태를 확인하고 있어요',
+            description: '잠시만 기다려 주세요.',
+          ),
+        ),
+    };
   }
 }
 
@@ -494,18 +659,28 @@ class DetectedExpenseCard extends StatelessWidget {
             children: [
               if (allowExclude) ...[
                 Expanded(
-                  child: OutlinedButton(
+                  child: FilledButton(
                     key: ValueKey('exclude-detected-${item.id}'),
                     onPressed: isSaving ? null : onExclude,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.danger,
+                      foregroundColor: AppColors.surface,
+                      minimumSize: const Size(0, 44),
+                    ),
                     child: const Text('제외'),
                   ),
                 ),
                 const SizedBox(width: 7),
               ],
               Expanded(
-                child: OutlinedButton(
+                child: FilledButton(
                   key: ValueKey('edit-detected-${item.id}'),
                   onPressed: isSaving ? null : onEdit,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.info,
+                    foregroundColor: AppColors.surface,
+                    minimumSize: const Size(0, 44),
+                  ),
                   child: const Text('수정'),
                 ),
               ),
@@ -514,6 +689,11 @@ class DetectedExpenseCard extends StatelessWidget {
                 child: FilledButton(
                   key: ValueKey('add-detected-${item.id}'),
                   onPressed: isSaving ? null : onAdd,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.surface,
+                    minimumSize: const Size(0, 44),
+                  ),
                   child: Text(isSaving ? '저장 중' : '추가'),
                 ),
               ),
@@ -584,14 +764,15 @@ class _DetectedExpenseEditorState extends State<DetectedExpenseEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        16,
-        20,
-        16,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
       ),
       child: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         child: Form(
           key: _formKey,
           child: Column(
@@ -654,9 +835,12 @@ class _DetectedExpenseEditorState extends State<DetectedExpenseEditor> {
                 },
               ),
               const SizedBox(height: 18),
-              FilledButton(
-                onPressed: _submit,
-                child: const Text('수정 내용 저장'),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _submit,
+                  child: const Text('수정 내용 저장'),
+                ),
               ),
             ],
           ),
