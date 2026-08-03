@@ -2,29 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../data/mock_data.dart';
 import '../../shared/widgets/app_card.dart';
-import '../../shared/widgets/empty_state_view.dart';
+import 'data/policy_models.dart';
 
 class PolicyExternalLinkConfirmPage extends StatelessWidget {
-  const PolicyExternalLinkConfirmPage({super.key, required this.policyId});
+  const PolicyExternalLinkConfirmPage({super.key, required this.arguments});
 
-  final String policyId;
+  final PolicyExternalLinkArguments arguments;
 
   @override
   Widget build(BuildContext context) {
-    final policy = MockData.policyById(policyId);
-    if (policy == null || policy.officialUrl == null) {
-      return const Scaffold(
-        appBar: _ExternalLinkAppBar(),
-        body: EmptyStateView(
-          icon: Icons.link_off_rounded,
-          title: '공식 페이지 정보를 찾을 수 없어요',
-          description: '정책 상세로 돌아가 문의처를 확인해 주세요.',
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: const _ExternalLinkAppBar(),
       body: ListView(
@@ -43,7 +30,7 @@ class PolicyExternalLinkConfirmPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '${policy.title} 신청 조건과 최신 공고는 주관 기관의 '
+            '${arguments.title} 신청 조건과 최신 공고는 주관 기관의 '
             '공식 사이트에서 최종 확인해 주세요.',
             style: AppTextStyles.bodyMuted,
             textAlign: TextAlign.center,
@@ -55,7 +42,7 @@ class PolicyExternalLinkConfirmPage extends StatelessWidget {
               children: [
                 const Text('이동할 주소', style: AppTextStyles.caption),
                 const SizedBox(height: 6),
-                Text(policy.officialUrl!, style: AppTextStyles.body),
+                Text(arguments.officialUrl, style: AppTextStyles.body),
               ],
             ),
           ),

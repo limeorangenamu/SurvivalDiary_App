@@ -1,18 +1,59 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:project_survival_diary/core/router/app_router.dart';
+import 'package:project_survival_diary/core/router/app_routes.dart';
 import 'package:project_survival_diary/core/theme/app_theme.dart';
 import 'package:project_survival_diary/data/mock_data.dart';
 import 'package:project_survival_diary/data/models.dart';
+import 'package:project_survival_diary/features/policy/data/policy_api_client.dart';
+import 'package:project_survival_diary/features/policy/data/policy_models.dart';
 import 'package:project_survival_diary/features/policy/policy_detail_page.dart';
 import 'package:project_survival_diary/features/policy/policy_filter_page.dart';
 import 'package:project_survival_diary/features/policy/policy_list_page.dart';
 
 void main() {
-  Widget policyApp(Widget home) {
+  late PolicyApiClient apiClient;
+
+  setUp(() {
+    apiClient = _policyApiClient();
+  });
+
+  Widget policyApp(Widget home, {PolicyApiClient? client}) {
+    final resolvedClient = client ?? apiClient;
+    Route<dynamic> onGenerateRoute(RouteSettings settings) {
+      final page = switch (settings.name) {
+        AppRoutes.policyResults
+            when settings.arguments is PolicyFilterCondition =>
+          PolicyListPage(
+            condition: settings.arguments! as PolicyFilterCondition,
+            apiClient: resolvedClient,
+            accessTokenProvider: () => 'test-access-token',
+          ),
+        AppRoutes.policyDetail
+            when settings.arguments is PolicyDetailArguments =>
+          PolicyDetailPage(
+            arguments: settings.arguments! as PolicyDetailArguments,
+            apiClient: resolvedClient,
+            accessTokenProvider: () => 'test-access-token',
+          ),
+        _ => null,
+      };
+      if (page != null) {
+        return MaterialPageRoute<dynamic>(
+          settings: settings,
+          builder: (_) => page,
+        );
+      }
+      return AppRouter.onGenerateRoute(settings);
+    }
+
     return MaterialApp(
       theme: AppTheme.light,
-      onGenerateRoute: AppRouter.onGenerateRoute,
+      onGenerateRoute: onGenerateRoute,
       home: home,
     );
   }
@@ -87,7 +128,7 @@ void main() {
     expect(find.text('맞춤 정책 결과'), findsNothing);
   });
 
-  testWidgets('조건 입력부터 상세와 외부 이동 확인 화면까지 연결된다', (tester) async {
+  testWidgets('조건 입력부터 실제 목록·상세 응답과 외부 확인 화면까지 연결된다', (tester) async {
     await tester.pumpWidget(policyApp(const PolicyFilterPage()));
     await selectRequiredConditions(tester, district: '종로구');
 
@@ -100,11 +141,21 @@ void main() {
     expect(find.text('종로구'), findsOneWidget);
     expect(find.text('구직 중'), findsOneWidget);
     expect(find.text('청년 월세 지원'), findsOneWidget);
+    expect(find.textContaining('제공처 3페이지까지'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('policy-check-required-policy-1')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('policy-card-policy-1')));
     await tester.pumpAndSettle();
     expect(find.text('정책 상세'), findsOneWidget);
     expect(find.text('월 최대 20만원, 최대 12개월'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('policy-eligibility-notice')),
+      findsOneWidget,
+    );
+    expect(find.text('중위소득 조건을 공고문에서 확인해야 합니다.'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('policy-application-guide-button')),
@@ -112,15 +163,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('공식 페이지 이동'), findsOneWidget);
     expect(find.text('외부 공식 사이트로 이동할까요?'), findsOneWidget);
-
-    await tester.tap(
-      find.byKey(const ValueKey('policy-open-external-button')),
-    );
-    await tester.pump();
-    expect(find.text('외부 브라우저 연결은 다음 단계에서 제공해요.'), findsOneWidget);
+    expect(find.text('https://example.com/policies/policy-1'), findsOneWidget);
   });
 
-  testWidgets('조건과 일치하는 정책이 없으면 빈 결과를 표시한다', (tester) async {
+  testWidgets('서버가 빈 목록을 반환하면 빈 결과를 표시한다', (tester) async {
     await tester.pumpWidget(policyApp(const PolicyFilterPage()));
     await selectRequiredConditions(
       tester,
@@ -140,26 +186,40 @@ void main() {
 
   testWidgets('없는 정책 ID는 안내 상태를 표시한다', (tester) async {
     await tester.pumpWidget(
-      policyApp(const PolicyDetailPage(policyId: 'missing-policy')),
+      policyApp(
+        PolicyDetailPage(
+          arguments: const PolicyDetailArguments(
+            policyId: 'missing-policy',
+            eligibilityStatus: PolicyEligibilityStatus.matched,
+            eligibilityReasons: [],
+          ),
+          apiClient: apiClient,
+          accessTokenProvider: () => 'test-access-token',
+        ),
+      ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('정책 정보를 찾을 수 없어요'), findsOneWidget);
   });
 
-  testWidgets('지원금과 마감일이 없으면 대체 문구를 표시한다', (tester) async {
+  testWidgets('지원금·신청 기간·공식 URL이 없으면 대체 상태를 표시한다', (tester) async {
     await tester.pumpWidget(
       policyApp(
-        const PolicyListPage(
-          condition: PolicyFilterCondition(
+        PolicyListPage(
+          condition: const PolicyFilterCondition(
             age: 20,
             regionCode: '11',
             region: '서울특별시',
             employmentStatus: PolicyEmploymentStatus.student,
             category: PolicyCategory.transport,
           ),
+          apiClient: apiClient,
+          accessTokenProvider: () => 'test-access-token',
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('지원 내용 확인'), findsOneWidget);
     expect(find.text('신청 기간 확인 필요'), findsOneWidget);
@@ -174,4 +234,198 @@ void main() {
     );
     expect(button.onPressed, isNull);
   });
+
+  testWidgets('API 실패를 더미 정책으로 숨기지 않고 재시도한다', (tester) async {
+    var attempts = 0;
+    final retryClient = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        attempts += 1;
+        if (attempts == 1) {
+          return http.Response('{}', 500);
+        }
+        return _successResponse({
+          'items': [_policySummaryJson()],
+          'partialResult': false,
+          'checkedProviderPages': 1,
+        });
+      }),
+    );
+    await tester.pumpWidget(
+      policyApp(
+        PolicyListPage(
+          condition: _defaultCondition,
+          apiClient: retryClient,
+          accessTokenProvider: () => 'test-access-token',
+        ),
+        client: retryClient,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('정책 목록을 불러오지 못했어요'), findsOneWidget);
+    expect(find.text('청년 월세 지원'), findsNothing);
+
+    await tester.tap(find.text('다시 시도'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('청년 월세 지원'), findsOneWidget);
+    expect(attempts, 2);
+  });
+
+  testWidgets('실제 API 목록에서도 관심 없음과 실행취소가 동작한다', (tester) async {
+    await tester.pumpWidget(
+      policyApp(
+        PolicyListPage(
+          condition: _defaultCondition,
+          apiClient: apiClient,
+          accessTokenProvider: () => 'test-access-token',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('청년 월세 지원'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('policy-menu-policy-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('관심 없음'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('청년 월세 지원'), findsNothing);
+    await tester.tap(find.text('실행취소'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('청년 월세 지원'), findsOneWidget);
+  });
+
+  testWidgets('로그인 토큰이 없으면 서버 호출 없이 로그인 안내를 표시한다', (tester) async {
+    var called = false;
+    final client = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        called = true;
+        return http.Response('{}', 500);
+      }),
+    );
+    await tester.pumpWidget(
+      policyApp(
+        PolicyListPage(
+          condition: _defaultCondition,
+          apiClient: client,
+          accessTokenProvider: () => null,
+        ),
+        client: client,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('정책을 조회하려면 먼저 로그인해 주세요.'), findsOneWidget);
+    expect(called, isFalse);
+  });
+}
+
+const _defaultCondition = PolicyFilterCondition(
+  age: 27,
+  regionCode: '11',
+  region: '서울특별시',
+  districtCode: '11110',
+  district: '종로구',
+  employmentStatus: PolicyEmploymentStatus.jobSeeker,
+);
+
+PolicyApiClient _policyApiClient() {
+  return PolicyApiClient(
+    baseUrl: 'http://test.example',
+    client: MockClient((request) async {
+      if (request.method == 'POST' &&
+          request.url.path == '/api/policies/search') {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final items = body['age'] == 39
+            ? <Map<String, dynamic>>[]
+            : body['category'] == 'TRANSPORT'
+                ? [_policySummaryJson(policyId: 'policy-5', nullable: true)]
+                : [_policySummaryJson()];
+        return _successResponse({
+          'items': items,
+          'partialResult': body['age'] != 39,
+          'checkedProviderPages': body['age'] == 39 ? 1 : 3,
+        });
+      }
+
+      if (request.method == 'GET' &&
+          request.url.path == '/api/policies/missing-policy') {
+        return http.Response(
+          jsonEncode({
+            'success': false,
+            'error': {'code': 'P001', 'message': '정책을 찾을 수 없습니다.'},
+          }),
+          404,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      }
+
+      if (request.method == 'GET' &&
+          request.url.path.startsWith('/api/policies/')) {
+        final policyId = request.url.pathSegments.last;
+        return _successResponse(
+          _policyDetailJson(
+            policyId: policyId,
+            nullable: policyId == 'policy-5',
+          ),
+        );
+      }
+      return http.Response('{}', 404);
+    }),
+  );
+}
+
+Map<String, dynamic> _policySummaryJson({
+  String policyId = 'policy-1',
+  bool nullable = false,
+}) {
+  return {
+    'policyId': policyId,
+    'category': nullable ? '교통' : '주거',
+    'categoryType': nullable ? 'TRANSPORT' : 'HOUSING',
+    'title': nullable ? '청년 교통비 지원' : '청년 월세 지원',
+    'summary': '청년의 생활비 부담을 줄이는 정책입니다.',
+    'supportAmount': nullable ? null : 2400000,
+    'supportText': nullable ? '지원 내용을 확인해 주세요.' : '월 최대 20만원, 최대 12개월',
+    'applicationPeriodText': nullable ? null : '2026.08.01~2026.08.31',
+    'target': '만 19~34세',
+    'agency': '청년정책 담당 기관',
+    'eligibilityStatus': nullable ? 'MATCHED' : 'CHECK_REQUIRED',
+    'eligibilityReasons': nullable ? <String>[] : ['중위소득 조건을 공고문에서 확인해야 합니다.'],
+  };
+}
+
+Map<String, dynamic> _policyDetailJson({
+  required String policyId,
+  bool nullable = false,
+}) {
+  return {
+    'policyId': policyId,
+    'category': nullable ? '교통' : '주거',
+    'categoryType': nullable ? 'TRANSPORT' : 'HOUSING',
+    'title': nullable ? '청년 교통비 지원' : '청년 월세 지원',
+    'description': '청년의 생활비 부담을 줄이는 정책입니다.',
+    'supportAmount': nullable ? null : 2400000,
+    'supportText': nullable ? '지원 내용을 확인해 주세요.' : '월 최대 20만원, 최대 12개월',
+    'applicationPeriodText': nullable ? null : '2026.08.01~2026.08.31',
+    'target': '만 19~34세',
+    'agency': '청년정책 담당 기관',
+    'operatingAgency': '정책 운영 기관',
+    'applicationMethod': '공식 사이트에서 온라인 신청',
+    'documents': nullable ? <String>[] : ['신분증', '소득 확인 서류'],
+    'officialUrl': nullable ? null : 'https://example.com/policies/$policyId',
+    'referenceUrls': <String>[],
+  };
+}
+
+http.Response _successResponse(Object data) {
+  return http.Response(
+    jsonEncode({'success': true, 'data': data}),
+    200,
+    headers: {'content-type': 'application/json; charset=utf-8'},
+  );
 }
