@@ -4,6 +4,9 @@ class AppConfig {
   AppConfig._();
 
   static const _configuredApiBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const kakaoNativeAppKey = String.fromEnvironment(
+    'KAKAO_NATIVE_APP_KEY',
+  );
 
   static String get apiBaseUrl {
     if (_configuredApiBaseUrl.isNotEmpty) {

@@ -42,7 +42,7 @@ class CurrentUser {
     final rawInterest = json['signupInterest'];
     return CurrentUser(
       id: (json['userId'] as num).toInt(),
-      email: json['email'] as String,
+      email: json['email'] as String? ?? '',
       name: json['name'] as String,
       phone: json['phone'] as String? ?? '',
       birthDate: json['birthDate'] as String? ?? '',
@@ -125,19 +125,31 @@ class AuthApiClient {
     return AuthTokens.fromJson(_responseData(response));
   }
 
+  Future<AuthTokens> socialLogin({
+    required String provider,
+    required String providerAccessToken,
+  }) async {
+    final response = await _post(
+      '/api/auth/social/$provider',
+      {'accessToken': providerAccessToken},
+    );
+    if (response.statusCode != 200) {
+      throw AuthApiException(_errorMessage(response));
+    }
+    return AuthTokens.fromJson(_responseData(response));
+  }
+
   Future<CurrentUser> getCurrentUser(String accessToken) async {
     final uri = Uri.parse('$_baseUrl/api/users/me');
     late final http.Response response;
     try {
-      response = await _client
-          .get(
-            uri,
-            headers: {
-              'Accept': 'application/json',
-              'Authorization': 'Bearer $accessToken'
-            },
-          )
-          .timeout(const Duration(seconds: 10));
+      response = await _client.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken'
+        },
+      ).timeout(const Duration(seconds: 10));
     } on http.ClientException catch (error) {
       throw AuthApiException('서버에 연결하지 못했어요.\n요청 주소: $uri\n${error.message}');
     } on TimeoutException {
@@ -149,6 +161,25 @@ class AuthApiClient {
       throw AuthApiException(_errorMessage(response));
     }
     return CurrentUser.fromJson(_responseData(response));
+  }
+
+  Future<AuthTokens> refresh(String refreshToken) async {
+    final response = await _post(
+      '/api/auth/token/refresh',
+      {'refreshToken': refreshToken},
+    );
+    if (response.statusCode != 200) {
+      throw AuthApiException(_errorMessage(response));
+    }
+    return AuthTokens.fromJson(_responseData(response));
+  }
+
+  Future<void> logout(String refreshToken) async {
+    final response =
+        await _post('/api/auth/logout', {'refreshToken': refreshToken});
+    if (response.statusCode != 200) {
+      throw AuthApiException(_errorMessage(response));
+    }
   }
 
   Future<http.Response> _post(String path, Map<String, dynamic> body) async {

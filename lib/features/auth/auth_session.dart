@@ -1,14 +1,17 @@
 import 'package:flutter/foundation.dart';
 
 import 'data/auth_api_client.dart';
+import 'data/auth_token_storage.dart';
 
 class AuthSession extends ChangeNotifier {
-  AuthSession._();
+  AuthSession._({AuthTokenStorage? tokenStorage})
+    : _tokenStorage = tokenStorage ?? AuthTokenStorage();
 
   static final AuthSession instance = AuthSession._();
 
   AuthTokens? _tokens;
   CurrentUser? _currentUser;
+  final AuthTokenStorage _tokenStorage;
 
   CurrentUser? get currentUser => _currentUser;
   String? get accessToken => _tokens?.accessToken;
@@ -21,13 +24,54 @@ class AuthSession extends ChangeNotifier {
   }) async {
     final client = apiClient ?? AuthApiClient();
     final tokens = await client.login(email: email, password: password);
-    final user = await client.getCurrentUser(tokens.accessToken);
+    await establishSession(tokens, apiClient: client);
+  }
+
+  /// Completes authentication after either email or social login returns
+  /// service-issued tokens from the backend.
+  Future<void> establishSession(
+    AuthTokens tokens, {
+    AuthApiClient? apiClient,
+  }) async {
+    final user = await (apiClient ?? AuthApiClient()).getCurrentUser(
+      tokens.accessToken,
+    );
+    await _tokenStorage.write(tokens);
     _tokens = tokens;
     _currentUser = user;
     notifyListeners();
   }
 
-  void logout() {
+  Future<bool> restore({AuthApiClient? apiClient}) async {
+    final tokens = await _tokenStorage.read();
+    if (tokens == null) return false;
+
+    final client = apiClient ?? AuthApiClient();
+    try {
+      final user = await client.getCurrentUser(tokens.accessToken);
+      _tokens = tokens;
+      _currentUser = user;
+      notifyListeners();
+      return true;
+    } on AuthApiException {
+      await _tokenStorage.clear();
+      _tokens = null;
+      _currentUser = null;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> logout({AuthApiClient? apiClient}) async {
+    final refreshToken = _tokens?.refreshToken;
+    if (refreshToken != null) {
+      try {
+        await (apiClient ?? AuthApiClient()).logout(refreshToken);
+      } on AuthApiException {
+        // Local credentials still need to be removed when the server is offline.
+      }
+    }
+    await _tokenStorage.clear();
     _tokens = null;
     _currentUser = null;
     notifyListeners();
