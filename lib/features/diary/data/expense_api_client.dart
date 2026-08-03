@@ -29,17 +29,47 @@ class CreateExpenseRequest {
       'categoryId': category.databaseId,
       'title': title.trim(),
       'amount': amount,
-      'spentAt': _formatDateTime(spentAt),
+      'spentAt': _formatRequestDateTime(spentAt),
       if (trimmedMemo != null && trimmedMemo.isNotEmpty) 'memo': trimmedMemo,
       'entryType': 'MANUAL',
     };
   }
 
-  String _formatDateTime(DateTime value) {
-    String twoDigits(int number) => number.toString().padLeft(2, '0');
-    return '${value.year}-${twoDigits(value.month)}-${twoDigits(value.day)}'
-        'T${twoDigits(value.hour)}:${twoDigits(value.minute)}:'
-        '${twoDigits(value.second)}';
+}
+
+class CreateAutoExpenseRequest {
+  const CreateAutoExpenseRequest({
+    required this.userId,
+    required this.category,
+    required this.title,
+    required this.amount,
+    required this.spentAt,
+    required this.detectionKey,
+    required this.notificationSource,
+    this.memo,
+  });
+
+  final int userId;
+  final ExpenseCategory category;
+  final String title;
+  final int amount;
+  final DateTime spentAt;
+  final String detectionKey;
+  final String notificationSource;
+  final String? memo;
+
+  Map<String, dynamic> toJson() {
+    final trimmedMemo = memo?.trim();
+    return {
+      'userId': userId,
+      'categoryId': category.databaseId,
+      'title': title.trim(),
+      'amount': amount,
+      'spentAt': _formatRequestDateTime(spentAt),
+      if (trimmedMemo != null && trimmedMemo.isNotEmpty) 'memo': trimmedMemo,
+      'detectionKey': detectionKey,
+      'notificationSource': notificationSource.trim(),
+    };
   }
 }
 
@@ -199,6 +229,41 @@ class ExpenseApiClient {
     );
   }
 
+  Future<void> createAutoExpense({
+    required String accessToken,
+    required CreateAutoExpenseRequest request,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/api/expenses/auto');
+    late final http.Response response;
+
+    try {
+      response = await _client.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+    } on http.ClientException catch (error) {
+      throw ExpenseApiException(
+        '서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.\n${error.message}',
+      );
+    }
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
+    }
+
+    throw ExpenseApiException(
+      _errorMessage(
+        response,
+        fallbackMessage: '감지한 지출을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.',
+      ),
+    );
+  }
+
   String _errorMessage(
     http.Response response, {
     required String fallbackMessage,
@@ -241,3 +306,10 @@ ExpenseCategory _categoryFromDatabaseId(int categoryId) => switch (categoryId) {
       5 => ExpenseCategory.etc,
       _ => throw const FormatException(),
     };
+
+String _formatRequestDateTime(DateTime value) {
+  String twoDigits(int number) => number.toString().padLeft(2, '0');
+  return '${value.year}-${twoDigits(value.month)}-${twoDigits(value.day)}'
+      'T${twoDigits(value.hour)}:${twoDigits(value.minute)}:'
+      '${twoDigits(value.second)}';
+}
