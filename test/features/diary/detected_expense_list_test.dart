@@ -15,11 +15,13 @@ void main() {
 
   setUp(() async {
     await NotificationExpenseRepository.instance.reset();
-    final messenger = TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(methodChannel, (call) async {
       return switch (call.method) {
         'isNotificationAccessGranted' => true,
+        'getSmsAccessState' => 'enabled',
+        'scanSmsInbox' => 0,
         'getDetectedExpenses' => [
             {
               'id': 'detection-key',
@@ -39,8 +41,8 @@ void main() {
   });
 
   tearDown(() async {
-    final messenger = TestDefaultBinaryMessengerBinding
-        .instance.defaultBinaryMessenger;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(methodChannel, null);
     messenger.setMockMethodCallHandler(eventChannel, null);
     await NotificationExpenseRepository.instance.reset();
@@ -57,7 +59,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('결제 알림을 실시간으로 확인 중이에요'), findsOneWidget);
+    expect(find.text('결제 알림을 실시간으로 확인 중이에요'), findsNothing);
+    expect(find.text('문자함의 결제 내역도 확인 중이에요'), findsNothing);
     expect(find.text('스타벅스 강남점'), findsOneWidget);
     expect(find.text('5,500원'), findsOneWidget);
     expect(

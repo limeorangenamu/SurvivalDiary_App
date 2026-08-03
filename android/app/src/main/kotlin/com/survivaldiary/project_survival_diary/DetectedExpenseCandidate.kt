@@ -9,6 +9,8 @@ data class DetectedExpenseCandidate(
     val detectedAt: Long,
     val source: String,
     val sourcePackage: String,
+    val sourceKey: String,
+    val detectionChannel: String,
     val category: String,
     val confidence: Double,
 ) {
@@ -19,6 +21,8 @@ data class DetectedExpenseCandidate(
         "detectedAt" to detectedAt,
         "source" to source,
         "sourcePackage" to sourcePackage,
+        "sourceKey" to sourceKey,
+        "detectionChannel" to detectionChannel,
         "category" to category,
         "confidence" to confidence,
     )
@@ -30,6 +34,8 @@ data class DetectedExpenseCandidate(
         put("detectedAt", detectedAt)
         put("source", source)
         put("sourcePackage", sourcePackage)
+        put("sourceKey", sourceKey)
+        put("detectionChannel", detectionChannel)
         put("category", category)
         put("confidence", confidence)
     }
@@ -43,6 +49,13 @@ data class DetectedExpenseCandidate(
                 detectedAt = json.getLong("detectedAt"),
                 source = json.getString("source"),
                 sourcePackage = json.getString("sourcePackage"),
+                sourceKey = json.optString("sourceKey").ifBlank {
+                    PaymentInstitutions.sourceKeyFor(
+                        json.getString("sourcePackage"),
+                        json.getString("source"),
+                    )
+                },
+                detectionChannel = json.optString("detectionChannel", "notification"),
                 category = json.optString("category", "etc"),
                 confidence = json.optDouble("confidence", 0.7),
             )
