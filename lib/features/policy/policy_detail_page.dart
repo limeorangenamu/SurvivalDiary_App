@@ -96,11 +96,11 @@ class _PolicyDetailContent extends StatelessWidget {
   final PolicyDetailArguments arguments;
 
   IconData get _categoryIcon => switch (policy.categoryType) {
-        PolicyCategory.housing => Icons.home_work_outlined,
         PolicyCategory.employment => Icons.work_outline_rounded,
-        PolicyCategory.asset => Icons.savings_outlined,
-        PolicyCategory.culture => Icons.palette_outlined,
-        PolicyCategory.transport => Icons.directions_bus_outlined,
+        PolicyCategory.housing => Icons.home_work_outlined,
+        PolicyCategory.education => Icons.school_outlined,
+        PolicyCategory.welfareCulture => Icons.volunteer_activism_outlined,
+        PolicyCategory.participationRights => Icons.campaign_outlined,
         null => Icons.policy_outlined,
       };
 

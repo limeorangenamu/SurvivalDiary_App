@@ -27,8 +27,8 @@ class PolicyApiException implements Exception {
 
 class PolicyApiClient {
   PolicyApiClient({http.Client? client, String? baseUrl})
-    : _client = client ?? http.Client(),
-      _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
+      : _client = client ?? http.Client(),
+        _baseUrl = baseUrl ?? AppConfig.apiBaseUrl;
 
   final http.Client _client;
   final String _baseUrl;
@@ -90,12 +90,24 @@ class PolicyApiClient {
   Future<PolicySearchResult> searchPolicies({
     required String accessToken,
     required PolicyFilterCondition condition,
+    PolicyCategory? category,
+    String? keyword,
+    int page = 1,
+    int size = 20,
   }) async {
     final response = await _send(
       () => _client.post(
         Uri.parse('$_baseUrl/api/policies/search'),
         headers: _headers(accessToken, hasBody: true),
-        body: jsonEncode(_searchBody(condition)),
+        body: jsonEncode(
+          _searchBody(
+            condition,
+            category: category,
+            keyword: keyword,
+            page: page,
+            size: size,
+          ),
+        ),
       ),
       fallbackMessage: '정책 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.',
     );
@@ -195,34 +207,37 @@ class PolicyApiClient {
     };
   }
 
-  Map<String, dynamic> _searchBody(PolicyFilterCondition condition) {
+  Map<String, dynamic> _searchBody(
+    PolicyFilterCondition condition, {
+    PolicyCategory? category,
+    String? keyword,
+    required int page,
+    required int size,
+  }) {
+    final resolvedCategory = category ?? condition.category;
+    final normalizedKeyword = keyword?.trim();
     return {
       'age': condition.age,
       'regionCode': condition.regionCode,
       if (condition.districtCode != null)
         'districtCode': condition.districtCode,
-      'employmentStatus': switch (condition.employmentStatus) {
-        PolicyEmploymentStatus.employed => 'EMPLOYED',
-        PolicyEmploymentStatus.jobSeeker => 'JOB_SEEKING',
-        PolicyEmploymentStatus.unemployed => 'UNEMPLOYED',
-        PolicyEmploymentStatus.student => 'STUDENT',
-      },
-      if (condition.incomeRange != null)
-        'incomeRange': switch (condition.incomeRange!) {
-          PolicyIncomeRange.below50 => 'BELOW_50',
-          PolicyIncomeRange.below100 => 'BELOW_100',
-          PolicyIncomeRange.below150 => 'BELOW_150',
-          PolicyIncomeRange.noLimit => 'NO_LIMIT',
-        },
-      if (condition.category != null)
-        'category': switch (condition.category!) {
-          PolicyCategory.housing => 'HOUSING',
+      if (condition.workStatus != null)
+        'workStatus': _workStatusCode(condition.workStatus!),
+      if (condition.jobSeeking != null) 'jobSeeking': condition.jobSeeking,
+      if (condition.educationStatus != null)
+        'educationStatus': _educationStatusCode(condition.educationStatus!),
+      if (resolvedCategory != null)
+        'category': switch (resolvedCategory) {
           PolicyCategory.employment => 'EMPLOYMENT',
-          PolicyCategory.asset => 'ASSET',
-          PolicyCategory.culture => 'CULTURE',
-          PolicyCategory.transport => 'TRANSPORT',
+          PolicyCategory.housing => 'HOUSING',
+          PolicyCategory.education => 'EDUCATION',
+          PolicyCategory.welfareCulture => 'WELFARE_CULTURE',
+          PolicyCategory.participationRights => 'PARTICIPATION_RIGHTS',
         },
-      'size': 20,
+      if (normalizedKeyword != null && normalizedKeyword.isNotEmpty)
+        'keyword': normalizedKeyword,
+      'page': page,
+      'size': size,
     };
   }
 
@@ -231,29 +246,44 @@ class PolicyApiClient {
       'regionCode': condition.regionCode,
       if (condition.districtCode != null)
         'districtCode': condition.districtCode,
-      'employmentStatus': switch (condition.employmentStatus) {
-        PolicyEmploymentStatus.employed => 'EMPLOYED',
-        PolicyEmploymentStatus.jobSeeker => 'JOB_SEEKING',
-        PolicyEmploymentStatus.unemployed => 'UNEMPLOYED',
-        PolicyEmploymentStatus.student => 'STUDENT',
-      },
-      if (condition.incomeRange != null)
-        'incomeRange': switch (condition.incomeRange!) {
-          PolicyIncomeRange.below50 => 'BELOW_50',
-          PolicyIncomeRange.below100 => 'BELOW_100',
-          PolicyIncomeRange.below150 => 'BELOW_150',
-          PolicyIncomeRange.noLimit => 'NO_LIMIT',
-        },
-      if (condition.category != null)
-        'category': switch (condition.category!) {
-          PolicyCategory.housing => 'HOUSING',
-          PolicyCategory.employment => 'EMPLOYMENT',
-          PolicyCategory.asset => 'ASSET',
-          PolicyCategory.culture => 'CULTURE',
-          PolicyCategory.transport => 'TRANSPORT',
-        },
+      if (condition.workStatus != null)
+        'workStatus': _workStatusCode(condition.workStatus!),
+      if (condition.jobSeeking != null) 'jobSeeking': condition.jobSeeking,
+      if (condition.educationStatus != null)
+        'educationStatus': _educationStatusCode(condition.educationStatus!),
+      'interests': condition.interests.map(_interestCode).toList(),
     };
   }
+
+  String _workStatusCode(PolicyWorkStatus status) => switch (status) {
+        PolicyWorkStatus.employed => 'EMPLOYED',
+        PolicyWorkStatus.selfEmployed => 'SELF_EMPLOYED',
+        PolicyWorkStatus.unemployed => 'UNEMPLOYED',
+        PolicyWorkStatus.freelancer => 'FREELANCER',
+        PolicyWorkStatus.dailyWorker => 'DAILY_WORKER',
+        PolicyWorkStatus.prospectiveFounder => 'PROSPECTIVE_FOUNDER',
+        PolicyWorkStatus.shortTermWorker => 'SHORT_TERM_WORKER',
+        PolicyWorkStatus.farmer => 'FARMER',
+        PolicyWorkStatus.other => 'OTHER',
+      };
+
+  String _educationStatusCode(PolicyEducationStatus status) => switch (status) {
+        PolicyEducationStatus.student => 'STUDENT',
+        PolicyEducationStatus.onLeave => 'ON_LEAVE',
+        PolicyEducationStatus.graduated => 'GRADUATED',
+        PolicyEducationStatus.notStudent => 'NOT_STUDENT',
+        PolicyEducationStatus.other => 'OTHER',
+      };
+
+  String _interestCode(PolicyInterest interest) => switch (interest) {
+        PolicyInterest.employment => 'EMPLOYMENT',
+        PolicyInterest.housing => 'HOUSING',
+        PolicyInterest.education => 'EDUCATION',
+        PolicyInterest.welfareCulture => 'WELFARE_CULTURE',
+        PolicyInterest.participationRights => 'PARTICIPATION_RIGHTS',
+        PolicyInterest.assetBuilding => 'ASSET_BUILDING',
+        PolicyInterest.transport => 'TRANSPORT',
+      };
 
   String _errorMessage(
     http.Response response, {
