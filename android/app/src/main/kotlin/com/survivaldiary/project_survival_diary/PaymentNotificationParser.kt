@@ -7,6 +7,7 @@ object PaymentNotificationParser {
         val packageName: String,
         val notificationKey: String,
         val title: String?,
+        val messagingText: String?,
         val text: String?,
         val bigText: String?,
         val textLines: List<String>,
@@ -14,12 +15,20 @@ object PaymentNotificationParser {
     )
 
     fun parse(content: NotificationContent): DetectedExpenseCandidate? {
-        val lines = listOfNotNull(content.title, content.text, content.bigText) +
+        val lines = listOfNotNull(
+            content.title,
+            content.messagingText,
+            content.text,
+            content.bigText,
+        ) +
             content.textLines
         val isMessagingNotification = PaymentInstitutions.isMessagingPackage(content.packageName)
         val institution = PaymentInstitutions.fromPackage(content.packageName)
             ?: if (isMessagingNotification) {
-                PaymentInstitutions.fromSms(
+                PaymentInstitutions.fromKakaoPayTransferMessage(
+                    packageName = content.packageName,
+                    body = content.messagingText.orEmpty(),
+                ) ?: PaymentInstitutions.fromSms(
                     sender = content.title.orEmpty(),
                     body = lines.joinToString("\n"),
                 ) ?: PaymentInstitutions.genericBankAccount()
