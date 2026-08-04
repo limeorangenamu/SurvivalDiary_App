@@ -6,6 +6,8 @@ import 'package:project_survival_diary/features/map/widgets/good_price_store_map
 void main() {
   testWidgets('지도 업소 카드에서 상세 정보와 찜 상태를 표시한다', (tester) async {
     var isFavorite = false;
+    var detailTapCount = 0;
+    var directionsTapCount = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -20,6 +22,8 @@ void main() {
                   onFavoritePressed: () {
                     setState(() => isFavorite = !isFavorite);
                   },
+                  onDirectionsPressed: () => directionsTapCount++,
+                  onTap: () => detailTapCount++,
                 ),
               ),
             ),
@@ -41,6 +45,20 @@ void main() {
 
     expect(isFavorite, isTrue);
     expect(find.byIcon(Icons.favorite_rounded), findsOneWidget);
+    expect(detailTapCount, 0);
+
+    await tester.tap(
+      find.byKey(const ValueKey('good-price-directions-button')),
+    );
+    await tester.pump();
+
+    expect(directionsTapCount, 1);
+    expect(detailTapCount, 0);
+
+    await tester.tap(find.byKey(const ValueKey('good-price-store-card')));
+    await tester.pump();
+
+    expect(detailTapCount, 1);
   });
 }
 
