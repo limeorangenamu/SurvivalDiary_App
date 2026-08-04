@@ -7,6 +7,12 @@ class AppConfig {
   static const kakaoNativeAppKey = String.fromEnvironment(
     'KAKAO_NATIVE_APP_KEY',
   );
+  static const naverLoginClientId = String.fromEnvironment(
+    'NAVER_LOGIN_CLIENT_ID',
+  );
+  static const naverLoginClientSecret = String.fromEnvironment(
+    'NAVER_LOGIN_CLIENT_SECRET',
+  );
 
   static String get apiBaseUrl {
     if (_configuredApiBaseUrl.isNotEmpty) {
