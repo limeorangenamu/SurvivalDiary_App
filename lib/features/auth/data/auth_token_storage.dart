@@ -6,7 +6,7 @@ import 'auth_api_client.dart';
 /// Provider tokens from Kakao or Naver are never stored here.
 class AuthTokenStorage {
   AuthTokenStorage({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+      : _storage = storage ?? const FlutterSecureStorage();
 
   static const _accessTokenKey = 'auth.access_token';
   static const _refreshTokenKey = 'auth.refresh_token';
@@ -41,5 +41,14 @@ class AuthTokenStorage {
     );
   }
 
-  Future<void> clear() => _storage.deleteAll();
+  Future<void> clear() async {
+    for (final key in [
+      _accessTokenKey,
+      _refreshTokenKey,
+      _tokenTypeKey,
+      _expiresInSecondsKey,
+    ]) {
+      await _storage.delete(key: key);
+    }
+  }
 }

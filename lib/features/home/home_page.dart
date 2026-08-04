@@ -6,6 +6,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
 import '../../data/mock_data.dart';
 import '../../data/models.dart';
+import '../auth/auth_session.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/pig_mascot.dart';
 import '../../shared/widgets/section_header.dart';
@@ -66,6 +67,12 @@ class HomePage extends StatelessWidget {
                               shape: BoxShape.circle,
                             ),
                           ),
+                        ),
+                        IconButton(
+                          key: const ValueKey('account-button'),
+                          tooltip: '계정',
+                          onPressed: () => _showAccountMenu(context),
+                          icon: const Icon(Icons.account_circle_outlined),
                         ),
                       ],
                     ),
@@ -229,6 +236,31 @@ class HomePage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _showAccountMenu(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('로그아웃'),
+        content: Text(
+          '${AuthSession.instance.currentUser?.name ?? '사용자'}님, 로그아웃할까요?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('로그아웃'),
+          ),
+        ],
+      ),
+    );
+    if (shouldLogout != true || !context.mounted) return;
+
+    await AuthSession.instance.logout();
   }
 }
 

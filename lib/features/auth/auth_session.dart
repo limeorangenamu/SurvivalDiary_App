@@ -5,7 +5,7 @@ import 'data/auth_token_storage.dart';
 
 class AuthSession extends ChangeNotifier {
   AuthSession._({AuthTokenStorage? tokenStorage})
-    : _tokenStorage = tokenStorage ?? AuthTokenStorage();
+      : _tokenStorage = tokenStorage ?? AuthTokenStorage();
 
   static final AuthSession instance = AuthSession._();
 
@@ -44,12 +44,27 @@ class AuthSession extends ChangeNotifier {
 
   Future<bool> restore({AuthApiClient? apiClient}) async {
     final tokens = await _tokenStorage.read();
-    if (tokens == null) return false;
+    if (tokens == null) {
+      if (_tokens != null || _currentUser != null) {
+        _tokens = null;
+        _currentUser = null;
+        notifyListeners();
+      }
+      return false;
+    }
 
     final client = apiClient ?? AuthApiClient();
     try {
-      final user = await client.getCurrentUser(tokens.accessToken);
-      _tokens = tokens;
+      var activeTokens = tokens;
+      CurrentUser user;
+      try {
+        user = await client.getCurrentUser(activeTokens.accessToken);
+      } on AuthApiException {
+        activeTokens = await client.refresh(tokens.refreshToken);
+        user = await client.getCurrentUser(activeTokens.accessToken);
+        await _tokenStorage.write(activeTokens);
+      }
+      _tokens = activeTokens;
       _currentUser = user;
       notifyListeners();
       return true;

@@ -23,6 +23,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   final _socialAuthService = SocialAuthService();
   int _currentIndex = 0;
   SocialAuthProvider? _submittingProvider;
+  bool _isLeavingOnboarding = false;
 
   @override
   void dispose() {
@@ -31,11 +32,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   void _skipToAuth() {
-    _controller.animateToPage(
-      MockData.onboardingSlides.length,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOut,
-    );
+    _openEmailLogin();
+  }
+
+  void _openEmailLogin() {
+    if (_isLeavingOnboarding || !mounted) return;
+    _isLeavingOnboarding = true;
+    Navigator.of(context).pushReplacementNamed(AppRoutes.login);
   }
 
   Future<void> _socialLogin(SocialAuthProvider provider) async {
@@ -61,7 +64,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
   @override
   Widget build(BuildContext context) {
     const slides = MockData.onboardingSlides;
-    final pageCount = slides.length + 1;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -74,39 +76,43 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 children: [
                   Expanded(
                     child: _DotsIndicator(
-                      count: pageCount,
+                      count: slides.length,
                       currentIndex: _currentIndex,
                     ),
                   ),
-                  if (_currentIndex < slides.length)
-                    TextButton(
-                      key: const ValueKey('onboarding-skip-button'),
-                      onPressed: _skipToAuth,
-                      child: Text(
-                        '건너뛰기',
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w700,
-                        ),
+                  TextButton(
+                    key: const ValueKey('onboarding-skip-button'),
+                    onPressed: _skipToAuth,
+                    child: Text(
+                      '건너뛰기',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
                       ),
-                    )
-                  else
-                    const SizedBox(width: 76),
+                    ),
+                  ),
                 ],
               ),
             ),
             Expanded(
               child: PageView.builder(
                 controller: _controller,
-                itemCount: pageCount,
-                onPageChanged: (index) => setState(() => _currentIndex = index),
-                itemBuilder: (context, index) => index < slides.length
-                    ? _SlideView(slide: slides[index])
-                    : _OnboardingAuthPage(
-                        submittingProvider: _submittingProvider,
-                        onSocialLogin: _socialLogin,
-                      ),
+                itemCount: slides.length,
+                onPageChanged: (index) {
+                  setState(() => _currentIndex = index);
+                  if (index == slides.length - 1) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _openEmailLogin();
+                    });
+                  }
+                },
+                itemBuilder: (context, index) =>
+                    _SlideView(slide: slides[index]),
               ),
+            ),
+            _AuthBottomArea(
+              submittingProvider: _submittingProvider,
+              onSocialLogin: _socialLogin,
             ),
           ],
         ),
@@ -296,6 +302,162 @@ class _PreviewPointCard extends StatelessWidget {
   }
 }
 
+class _AuthBottomArea extends StatelessWidget {
+  const _AuthBottomArea({
+    required this.submittingProvider,
+    required this.onSocialLogin,
+  });
+
+  final SocialAuthProvider? submittingProvider;
+  final ValueChanged<SocialAuthProvider> onSocialLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              'SNS 계정으로 간편하게 시작해요',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _SnsCircleButton(
+                key: const ValueKey('sns-kakao-button'),
+                background: AppColors.snsKakao,
+                isLoading: submittingProvider == SocialAuthProvider.kakao,
+                onPressed: submittingProvider == null
+                    ? () => onSocialLogin(SocialAuthProvider.kakao)
+                    : null,
+                child: const Icon(
+                  Icons.chat_bubble_rounded,
+                  size: 26,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 20),
+              _SnsCircleButton(
+                key: const ValueKey('sns-naver-button'),
+                background: AppColors.snsNaver,
+                isLoading: submittingProvider == SocialAuthProvider.naver,
+                onPressed: submittingProvider == null
+                    ? () => onSocialLogin(SocialAuthProvider.naver)
+                    : null,
+                child: Text(
+                  'N',
+                  style: AppTextStyles.title.copyWith(
+                    color: AppColors.surface,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                key: const ValueKey('email-login-button'),
+                onPressed: () => Navigator.of(context)
+                    .pushReplacementNamed(AppRoutes.login),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(120, 44),
+                ),
+                child: Text(
+                  '이메일로 로그인',
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 18,
+                color: AppColors.border,
+              ),
+              TextButton(
+                key: const ValueKey('email-signup-button'),
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.signup),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(96, 44),
+                ),
+                child: Text(
+                  '회원가입',
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SnsCircleButton extends StatelessWidget {
+  const _SnsCircleButton({
+    super.key,
+    required this.background,
+    required this.isLoading,
+    required this.onPressed,
+    required this.child,
+  });
+
+  final Color background;
+  final bool isLoading;
+  final VoidCallback? onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: background,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onPressed,
+        child: SizedBox(
+          width: 58,
+          height: 58,
+          child: Center(
+            child: isLoading
+                ? CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: background == AppColors.snsKakao
+                        ? AppColors.textPrimary
+                        : AppColors.surface,
+                  )
+                : child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Kept temporarily for compatibility with the previous onboarding layout.
+// ignore: unused_element
 class _OnboardingAuthPage extends StatelessWidget {
   const _OnboardingAuthPage({
     required this.submittingProvider,
