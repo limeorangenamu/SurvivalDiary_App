@@ -1,8 +1,29 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use(localProperties::load)
+}
+
+fun localCredential(name: String): String? =
+    System.getenv(name)
+        ?: run {
+            val configFile = rootProject.projectDir.parentFile.resolve("config/local.json")
+            if (!configFile.exists()) {
+                null
+            } else {
+                val keyPattern = Regex("\\\"${Regex.escape(name)}\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"")
+                keyPattern.find(configFile.readText())?.groupValues?.get(1)
+            }
+        }
+        ?: project.findProperty(name)?.toString()
 
 android {
     namespace = "com.survivaldiary.project_survival_diary"
@@ -28,17 +49,23 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["kakaoRedirectScheme"] =
-            "kakao${project.findProperty("KAKAO_NATIVE_APP_KEY") ?: "not-configured"}"
+        // OAuth credentials come from config/local.json, environment variables, or CI.
+        // Do not commit config/local.json or real credentials to source control.
+        val kakaoNativeAppKey = localCredential("KAKAO_NATIVE_APP_KEY") ?: "not-configured"
+        val naverLoginClientId = localCredential("NAVER_LOGIN_CLIENT_ID") ?: "not-configured"
+        val naverLoginClientSecret =
+            localCredential("NAVER_LOGIN_CLIENT_SECRET") ?: "not-configured"
+
+        manifestPlaceholders["kakaoRedirectScheme"] = "kakao$kakaoNativeAppKey"
         resValue(
             "string",
             "naver_login_client_id",
-            (project.findProperty("NAVER_LOGIN_CLIENT_ID") ?: "not-configured").toString(),
+            naverLoginClientId,
         )
         resValue(
             "string",
             "naver_login_client_secret",
-            (project.findProperty("NAVER_LOGIN_CLIENT_SECRET") ?: "not-configured").toString(),
+            naverLoginClientSecret,
         )
         resValue("string", "naver_login_client_name", "생존일기")
     }

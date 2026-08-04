@@ -18,14 +18,16 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-  static const _reviewStep = 6;
+  static const _reviewStep = 7;
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _birthDateController = TextEditingController();
   final _birthDateFormatter = _BirthDateInputFormatter();
   final _nameFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
   final _birthDateFocusNode = FocusNode();
@@ -120,8 +122,10 @@ class _SignupPageState extends State<SignupPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _phoneController.dispose();
     _birthDateController.dispose();
     _nameFocusNode.dispose();
+    _phoneFocusNode.dispose();
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
     _birthDateFocusNode.dispose();
@@ -146,6 +150,7 @@ class _SignupPageState extends State<SignupPage> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
           name: _nameController.text.trim(),
+          phone: _phoneController.text.replaceAll(RegExp(r'\D'), ''),
           birthDate: _parseBirthDate(_birthDateDigits),
           gender: _selectedGender,
           signupInterests:
@@ -160,7 +165,17 @@ class _SignupPageState extends State<SignupPage> {
         (route) => false,
       );
     } on AuthApiException catch (error) {
-      _showError(error.message);
+      final lowerMessage = error.message.toLowerCase();
+      final isNetworkFailure = lowerMessage.contains('connection failed') ||
+          lowerMessage.contains('failed host lookup') ||
+          lowerMessage.contains('network is unreachable') ||
+          lowerMessage.contains('connection refused');
+      _showError(
+        isNetworkFailure
+            ? '인터넷에 연결되어 있지 않거나 백엔드 서버에 접근할 수 없어요.\n'
+                '휴대폰과 PC가 같은 네트워크인지 확인해 주세요.'
+            : error.message,
+      );
     } catch (_) {
       _showError('서버에 연결할 수 없어요. 백엔드 주소와 DB 상태를 확인해 주세요.');
     } finally {
@@ -188,12 +203,18 @@ class _SignupPageState extends State<SignupPage> {
       return;
     }
     FocusScope.of(context).unfocus();
-    setState(() => _activeStep -= 1);
+    setState(() {
+      _activeStep -= 1;
+      _submissionError = null;
+    });
   }
 
   void _advanceToStep(int step) {
     FocusScope.of(context).unfocus();
-    setState(() => _activeStep = step);
+    setState(() {
+      _activeStep = step;
+      _submissionError = null;
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _activeStep != step) {
         return;
@@ -201,6 +222,9 @@ class _SignupPageState extends State<SignupPage> {
       switch (step) {
         case 1:
           _emailFocusNode.requestFocus();
+          break;
+        case 6:
+          _phoneFocusNode.requestFocus();
           break;
         case 2:
           _passwordFocusNode.requestFocus();
@@ -241,6 +265,10 @@ class _SignupPageState extends State<SignupPage> {
         return _selectedGender != null;
       case 5:
         return _selectedInterests.isNotEmpty;
+      case 6:
+        return RegExp(r'^\d{10,11}$').hasMatch(
+          _phoneController.text.replaceAll(RegExp(r'\D'), ''),
+        );
       case _reviewStep:
         return _firstInvalidStep() == null;
       default:
@@ -333,6 +361,12 @@ class _SignupPageState extends State<SignupPage> {
     setState(() => _submissionError = message);
   }
 
+  void _clearSubmissionError() {
+    if (_submissionError != null && mounted) {
+      setState(() => _submissionError = null);
+    }
+  }
+
   Future<void> _openGenderSheet({bool advanceAfterSelection = false}) async {
     final selected = await showModalBottomSheet<_SignupOption>(
       context: context,
@@ -386,7 +420,7 @@ class _SignupPageState extends State<SignupPage> {
         ..addAll(selected);
     });
     if (advanceAfterSelection && _activeStep == 5) {
-      _advanceToStep(_reviewStep);
+      _advanceToStep(6);
     }
   }
 
@@ -416,7 +450,7 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                   const Spacer(),
                   Text(
-                    '${(_activeStep + 1).clamp(1, _reviewStep + 1)}/7',
+                    '${(_activeStep + 1).clamp(1, _reviewStep + 1)}/8',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.textTertiary,
                       fontWeight: FontWeight.w800,
@@ -521,6 +555,7 @@ class _SignupPageState extends State<SignupPage> {
             focusNode: _nameFocusNode,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.name],
+            onChanged: (_) => _clearSubmissionError(),
             onSubmitted: (_) => _activeStep == 0 ? _moveNext() : null,
           ),
         );
@@ -536,6 +571,7 @@ class _SignupPageState extends State<SignupPage> {
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.email],
+            onChanged: (_) => _clearSubmissionError(),
             onSubmitted: (_) => _activeStep == 1 ? _moveNext() : null,
           ),
         );
@@ -563,6 +599,7 @@ class _SignupPageState extends State<SignupPage> {
               ),
             ),
             onSubmitted: (_) => _activeStep == 2 ? _moveNext() : null,
+            onChanged: (_) => _clearSubmissionError(),
           ),
         );
       case 3:
@@ -582,6 +619,7 @@ class _SignupPageState extends State<SignupPage> {
               LengthLimitingTextInputFormatter(8),
               _birthDateFormatter,
             ],
+            onChanged: (_) => _clearSubmissionError(),
             onSubmitted: (_) => _activeStep == 3 ? _moveNext() : null,
           ),
         );
@@ -594,7 +632,10 @@ class _SignupPageState extends State<SignupPage> {
             label: '성별',
             value: _genderSummary,
             hintText: '성별',
-            onTap: _openGenderSheet,
+            onTap: () {
+              _clearSubmissionError();
+              _openGenderSheet();
+            },
           ),
         );
       case 5:
@@ -606,19 +647,44 @@ class _SignupPageState extends State<SignupPage> {
             label: '관심사',
             value: _interestSummary,
             hintText: '관심사',
-            onTap: _openInterestSheet,
+            onTap: () {
+              _clearSubmissionError();
+              _openInterestSheet();
+            },
+          ),
+        );
+      case 6:
+        return _QuestionSection(
+          title: '전화번호를 알려주세요',
+          subtitle: '숫자만 입력해 주세요. 예: 01012345678',
+          child: _LargeTextField(
+            key: const ValueKey('signup-phone-field'),
+            label: '전화번호',
+            hintText: '01012345678',
+            controller: _phoneController,
+            focusNode: _phoneFocusNode,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.done,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(11),
+            ],
+            onChanged: (_) => _clearSubmissionError(),
+            onSubmitted: (_) => _activeStep == 6 ? _moveNext() : null,
           ),
         );
       default:
         return _ReviewPanel(
           name: _displayName,
           email: _emailController.text.trim(),
+          phone: _phoneController.text,
           birthDate: _birthDateController.text,
           gender: _genderSummary.isEmpty ? '미선택' : _genderSummary,
           interestSummary: _interestSummary,
           allInterests: _allInterestLabels,
           onEditName: () => _editStep(0),
           onEditEmail: () => _editStep(1),
+          onEditPhone: () => _editStep(6),
           onEditPassword: () => _editStep(2),
           onEditBirthDate: () => _editStep(3),
           onEditGender: _openGenderSheet,
@@ -722,6 +788,7 @@ class _LargeTextField extends StatelessWidget {
     this.obscureText = false,
     this.suffixIcon,
     this.inputFormatters,
+    this.onChanged,
     this.onSubmitted,
   });
 
@@ -735,6 +802,7 @@ class _LargeTextField extends StatelessWidget {
   final bool obscureText;
   final Widget? suffixIcon;
   final List<TextInputFormatter>? inputFormatters;
+  final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
   @override
@@ -747,6 +815,7 @@ class _LargeTextField extends StatelessWidget {
       autofillHints: autofillHints,
       obscureText: obscureText,
       inputFormatters: inputFormatters,
+      onChanged: onChanged,
       onSubmitted: onSubmitted,
       cursorColor: AppColors.primary,
       style: AppTextStyles.display.copyWith(fontSize: 26),
@@ -1053,12 +1122,14 @@ class _ReviewPanel extends StatelessWidget {
   const _ReviewPanel({
     required this.name,
     required this.email,
+    required this.phone,
     required this.birthDate,
     required this.gender,
     required this.interestSummary,
     required this.allInterests,
     required this.onEditName,
     required this.onEditEmail,
+    required this.onEditPhone,
     required this.onEditPassword,
     required this.onEditBirthDate,
     required this.onEditGender,
@@ -1067,12 +1138,14 @@ class _ReviewPanel extends StatelessWidget {
 
   final String name;
   final String email;
+  final String phone;
   final String birthDate;
   final String gender;
   final String interestSummary;
   final String allInterests;
   final VoidCallback onEditName;
   final VoidCallback onEditEmail;
+  final VoidCallback onEditPhone;
   final VoidCallback onEditPassword;
   final VoidCallback onEditBirthDate;
   final VoidCallback onEditGender;
@@ -1091,6 +1164,7 @@ class _ReviewPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 52),
+        _ReviewRow(label: '전화번호', value: phone, onTap: onEditPhone),
         _ReviewRow(
           label: '관심사',
           value: interestSummary.isEmpty ? '미선택' : interestSummary,

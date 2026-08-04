@@ -1,0 +1,117 @@
+SurvivalDiary SNS 로그인 개발환경 설정
+=====================================
+
+이 문서는 카카오·네이버 Android SNS 로그인 개발환경 설정 방법을 정리한 문서입니다.
+실제 인증키와 Secret은 문서나 Git에 기록하지 않습니다.
+
+1. 공통 Android 패키지명
+-------------------------
+
+com.survivaldiary.project_survival_diary
+
+카카오와 네이버 개발자센터에 위 패키지명을 정확히 입력합니다.
+패키지명은 일부만 일치해도 안 되며 완전히 같아야 합니다.
+
+2. 카카오디벨로퍼스 설정
+------------------------
+
+경로:
+내 애플리케이션 > 앱 설정 > 플랫폼 키 > 네이티브 앱 키 > Android 앱 정보
+
+입력:
+- Android 패키지명: com.survivaldiary.project_survival_diary
+- 키 해시: 아래 방법으로 생성한 Base64 값
+
+카카오 로그인 활성화:
+제품 설정 > 카카오 로그인 > 활성화 설정 ON
+
+필요한 동의항목도 카카오 로그인 동의항목 메뉴에서 설정합니다.
+
+2-1. Debug 키 해시 생성(Windows PowerShell)
+
+flutter run으로 개발할 때는 Debug 키 해시를 등록합니다.
+
+$keytool = "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe"
+$tempCert = Join-Path $env:TEMP "survival-diary-debug.cer"
+
+& $keytool `
+  -exportcert `
+  -alias androiddebugkey `
+  -keystore "C:\Users\it\.android\debug.keystore" `
+  -storepass android `
+  -keypass android `
+  -file $tempCert
+
+$certBytes = [System.IO.File]::ReadAllBytes($tempCert)
+$sha1Bytes = [System.Security.Cryptography.SHA1]::Create().ComputeHash($certBytes)
+[Convert]::ToBase64String($sha1Bytes)
+
+Remove-Item -LiteralPath $tempCert
+
+마지막에 출력된 Base64 문자열을 카카오 키 해시에 등록합니다.
+AA:BB:CC 형식의 SHA-1 지문을 그대로 등록하면 안 됩니다.
+
+Release APK를 사용하면 Release keystore로 같은 작업을 하여 키 해시를 추가 등록합니다.
+
+3. 네이버 개발자센터 설정
+--------------------------
+
+경로:
+Application > 내 애플리케이션 > API 설정 > 네이버 로그인
+
+입력:
+- Android 앱 패키지명: com.survivaldiary.project_survival_diary
+- Client ID: 네이버 애플리케이션에서 발급받은 값
+- Client Secret: 네이버 애플리케이션에서 발급받은 값
+
+개발 중 상태에서는 테스트 계정만 로그인할 수 있습니다.
+경로:
+키 발급/관리 > 테스트 계정
+
+앱을 일반 사용자에게 공개할 때는 서비스 적용 상태로 변경해야 합니다.
+네이버 콘솔에서 다운로드 URL을 요구하면 실제 APK를 공개적으로 다운로드할 수 있는
+GitHub Release 또는 공개 파일 서버의 URL을 입력합니다.
+localhost와 10.x.x.x 같은 사설 IP는 사용할 수 없습니다.
+
+4. 앱 로컬 설정(팀원별 작성)
+----------------------------
+
+config/local.example.json을 복사하여 config/local.json을 만들고 다음처럼 작성합니다.
+
+{
+  "API_BASE_URL": "http://10.100.105.28:8080",
+  "KAKAO_NATIVE_APP_KEY": "실제_카카오_Native_App_Key"
+}
+
+실제 OAuth 값은 config/local.json 한 곳에만 입력합니다. android/local.properties에는 sdk.dir와 flutter.sdk만 유지합니다.
+config/local.json은 .gitignore 대상이라 실제 값은 Git에 올라가지 않습니다.
+실제 값은 Git에 커밋하거나 팀 채팅에 올리지 않습니다.
+
+5. 백엔드 로컬 설정
+--------------------
+
+SurvivalDiary_WebBackend/src/main/resources/application-secret.yml은 로컬 전용입니다.
+다음 환경변수에 실제 값을 연결합니다.
+
+KAKAO_REST_API_KEY
+KAKAO_CLIENT_SECRET
+NAVER_CLIENT_ID
+NAVER_CLIENT_SECRET
+JWT_SECRET
+
+모바일 SDK 로그인은 앱이 받은 Provider Access Token을 백엔드가 검증합니다.
+백엔드 Secret을 앱에 넣지 않습니다.
+
+6. 앱 실행
+----------
+
+flutter clean
+flutter pub get
+flutter run --dart-define-from-file=config/local.json
+
+7. 문제 확인
+------------
+
+- 네이버 서비스 설정 오류: 패키지명과 네이버 테스트 계정을 확인합니다.
+- 카카오 키 해시 오류: Debug/Release 키 해시를 구분하여 Base64 값으로 등록합니다.
+- 인증 후 서버 로그인 실패: 백엔드가 최신 main의 SNS API를 실행 중인지 확인합니다.

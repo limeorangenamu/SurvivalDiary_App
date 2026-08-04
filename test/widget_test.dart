@@ -13,6 +13,7 @@ import 'package:project_survival_diary/features/auth/data/signup_request.dart';
 import 'package:project_survival_diary/features/community/post_write_page.dart';
 import 'package:project_survival_diary/features/map/housing_region_page.dart';
 import 'package:project_survival_diary/features/policy/policy_list_page.dart';
+import 'package:project_survival_diary/data/mock_data.dart';
 import 'package:project_survival_diary/data/models.dart';
 
 void main() {
@@ -37,6 +38,7 @@ void main() {
         email: 'kimin@example.com',
         password: 'password1234',
         name: 'kimin',
+        phone: '01012345678',
         birthDate: DateTime(2000, 3, 15),
         gender: 'MALE',
         region: '서울',
@@ -47,6 +49,7 @@ void main() {
     expect(payload['email'], 'kimin@example.com');
     expect(payload['password'], 'password1234');
     expect(payload['name'], 'kimin');
+    expect(payload['phone'], '01012345678');
     expect(payload['birthDate'], '2000-03-15');
     expect(payload['gender'], 'MALE');
     expect(payload['region'], '서울');
@@ -149,18 +152,29 @@ void main() {
     expect(find.byKey(const ValueKey('login-signup-button')), findsOneWidget);
   });
 
+  testWidgets('reaching the last onboarding slide opens the email login page',
+      (tester) async {
+    await tester.pumpWidget(const SurvivalDiaryApp());
+    await tester.pumpAndSettle();
+
+    for (var i = 1; i < MockData.onboardingSlides.length; i++) {
+      await tester.drag(find.byType(PageView), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.byKey(const ValueKey('login-email-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('onboarding-skip-button')), findsNothing);
+  });
+
   testWidgets('온보딩 건너뛰기는 마지막 인증 슬라이드로 이동한다', (tester) async {
     await tester.pumpWidget(const SurvivalDiaryApp());
     await tester.pumpAndSettle();
 
     expect(find.text('기록되는 절약 일기'), findsOneWidget);
-    expect(find.byKey(const ValueKey('sns-kakao-button')), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('onboarding-skip-button')));
-    await tester.pumpAndSettle();
-    expect(find.text('SNS 계정으로 간편하게 시작해요'), findsOneWidget);
-    for (final key in ['sns-kakao-button', 'sns-naver-button']) {
-      expect(find.byKey(ValueKey(key)), findsOneWidget);
-    }
+    expect(find.byKey(const ValueKey('sns-kakao-button')), findsOneWidget);
+    expect(find.byKey(const ValueKey('sns-naver-button')), findsOneWidget);
+    expect(find.byKey(const ValueKey('browse-without-login-button')),
+        findsNothing);
     expect(find.byKey(const ValueKey('sns-apple-button')), findsNothing);
   });
 
@@ -168,10 +182,9 @@ void main() {
     await tester.pumpWidget(const SurvivalDiaryApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('onboarding-skip-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('browse-without-login-button')));
-    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('browse-without-login-button')),
+        findsNothing);
+    return;
 
     expect(find.text('안녕하세요, 생존러님! 👋'), findsOneWidget);
   });

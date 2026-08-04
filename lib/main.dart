@@ -7,6 +7,8 @@ import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 
 import 'app.dart';
 import 'core/config/app_config.dart';
+import 'core/router/app_routes.dart';
+import 'features/auth/auth_session.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,5 +37,10 @@ Future<void> main() async {
         'Naver Map initialization failed; continuing app startup: $error');
   }
 
-  runApp(const SurvivalDiaryApp());
+  final hasSession = await AuthSession.instance.restore();
+  runApp(
+    SurvivalDiaryApp(
+      initialRoute: hasSession ? AppRoutes.root : AppRoutes.onboarding,
+    ),
+  );
 }
