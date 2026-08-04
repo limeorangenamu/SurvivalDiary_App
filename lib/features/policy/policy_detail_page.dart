@@ -120,9 +120,15 @@ class _PolicyDetailContent extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
         children: [
-          if (arguments.eligibilityStatus ==
-              PolicyEligibilityStatus.checkRequired) ...[
-            _EligibilityNotice(reasons: arguments.eligibilityReasons),
+          if (arguments.recommendationReasons.isNotEmpty ||
+              arguments.eligibilityStatus ==
+                  PolicyEligibilityStatus.checkRequired) ...[
+            _RecommendationNotice(
+              status: arguments.recommendationStatus,
+              reasons: arguments.recommendationReasons.isEmpty
+                  ? arguments.eligibilityReasons
+                  : arguments.recommendationReasons,
+            ),
             const SizedBox(height: 10),
           ],
           AppCard(
@@ -262,30 +268,69 @@ class _PolicyDetailContent extends StatelessWidget {
   }
 }
 
-class _EligibilityNotice extends StatelessWidget {
-  const _EligibilityNotice({required this.reasons});
+class _RecommendationNotice extends StatelessWidget {
+  const _RecommendationNotice({required this.status, required this.reasons});
 
+  final PolicyRecommendationStatus status;
   final List<String> reasons;
+
+  String get _title => switch (status) {
+        PolicyRecommendationStatus.recommended => '이 정책을 추천하는 이유',
+        PolicyRecommendationStatus.checkRequired => '신청 조건을 확인해 주세요',
+        PolicyRecommendationStatus.discover => '함께 살펴볼 정책이에요',
+      };
+
+  Color get _color => switch (status) {
+        PolicyRecommendationStatus.recommended => AppColors.primaryDeep,
+        PolicyRecommendationStatus.checkRequired => AppColors.warning,
+        PolicyRecommendationStatus.discover => AppColors.textSecondary,
+      };
+
+  Color get _background => switch (status) {
+        PolicyRecommendationStatus.recommended => AppColors.primarySoft,
+        PolicyRecommendationStatus.checkRequired => AppColors.warningSoft,
+        PolicyRecommendationStatus.discover => AppColors.surfaceAlt,
+      };
+
+  IconData get _icon => switch (status) {
+        PolicyRecommendationStatus.recommended => Icons.recommend_outlined,
+        PolicyRecommendationStatus.checkRequired => Icons.fact_check_outlined,
+        PolicyRecommendationStatus.discover => Icons.explore_outlined,
+      };
+
+  Key get _key => switch (status) {
+        PolicyRecommendationStatus.recommended =>
+          const ValueKey('policy-recommendation-notice'),
+        PolicyRecommendationStatus.checkRequired =>
+          const ValueKey('policy-eligibility-notice'),
+        PolicyRecommendationStatus.discover =>
+          const ValueKey('policy-discover-notice'),
+      };
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      key: const ValueKey('policy-eligibility-notice'),
-      color: AppColors.warningSoft,
-      borderColor: AppColors.warningSoft,
+      key: _key,
+      color: _background,
+      borderColor: _background,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.fact_check_outlined, color: AppColors.warning),
-              SizedBox(width: 8),
-              Text('신청 자격을 확인해 주세요', style: AppTextStyles.sectionTitle),
+              Icon(_icon, color: _color),
+              const SizedBox(width: 8),
+              Text(
+                _title,
+                style: AppTextStyles.sectionTitle.copyWith(color: _color),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            reasons.isEmpty ? '세부 조건은 공식 공고에서 직접 확인해야 해요.' : reasons.join('\n'),
+            reasons.isEmpty
+                ? '입력한 조건과 관련된 정책으로 함께 살펴볼 수 있어요.'
+                : reasons.join('\n'),
             style: AppTextStyles.caption,
           ),
         ],

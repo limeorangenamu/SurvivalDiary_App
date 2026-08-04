@@ -118,6 +118,7 @@ void main() {
         jobSeeking: true,
         educationStatus: PolicyEducationStatus.graduated,
         category: PolicyCategory.housing,
+        interests: {PolicyInterest.housing, PolicyInterest.assetBuilding},
       ),
       keyword: '  월세  ',
       page: 3,
@@ -133,6 +134,7 @@ void main() {
       'workStatus': 'UNEMPLOYED',
       'jobSeeking': true,
       'educationStatus': 'GRADUATED',
+      'interests': ['HOUSING', 'ASSET_BUILDING'],
       'category': 'HOUSING',
       'keyword': '월세',
       'page': 3,
@@ -145,6 +147,10 @@ void main() {
     expect(
       result.items.single.eligibilityStatus,
       PolicyEligibilityStatus.checkRequired,
+    );
+    expect(
+      result.items.single.recommendationStatus,
+      PolicyRecommendationStatus.checkRequired,
     );
   });
 
@@ -184,6 +190,37 @@ void main() {
     expect(detail.supportAmount, isNull);
     expect(detail.applicationPeriodText, isNull);
     expect(detail.officialUrl, isNull);
+  });
+
+  test('추천 필드가 없는 구버전 응답은 자격 확인 상태로 호환한다', () async {
+    final legacySummary = _summaryJson()
+      ..remove('recommendationStatus')
+      ..remove('recommendationReasons');
+    final client = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient(
+        (request) async => _successResponse({
+          'items': [legacySummary],
+          'partialResult': false,
+          'checkedProviderPages': 1,
+          'nextPage': null,
+        }),
+      ),
+    );
+
+    final result = await client.searchPolicies(
+      accessToken: 'access-token',
+      condition: _condition,
+    );
+
+    expect(
+      result.items.single.recommendationStatus,
+      PolicyRecommendationStatus.checkRequired,
+    );
+    expect(
+      result.items.single.recommendationReasons,
+      ['소득 조건을 확인해 주세요.'],
+    );
   });
 
   test('인증 실패는 로그인 만료 오류로 구분한다', () async {
@@ -260,6 +297,11 @@ Map<String, dynamic> _summaryJson() {
     'agency': '주관 기관',
     'eligibilityStatus': 'CHECK_REQUIRED',
     'eligibilityReasons': ['소득 조건을 확인해 주세요.'],
+    'recommendationStatus': 'CHECK_REQUIRED',
+    'recommendationReasons': [
+      '중위소득 조건을 공고문에서 확인해야 합니다.',
+      '관심 주제인 주거 분야와 관련된 정책이에요.',
+    ],
   };
 }
 

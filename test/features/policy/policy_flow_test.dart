@@ -422,6 +422,14 @@ void main() {
       );
       expect(section, findsOneWidget);
     }
+    expect(
+      find.byKey(const ValueKey('policy-recommended-policy-2')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('구직 중인 사용자에게 관련된 일자리 정책이에요.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('분야 첫 페이지가 비어도 다음 페이지 정책을 이어서 조회한다', (tester) async {
@@ -731,6 +739,8 @@ Map<String, dynamic> _policySummaryJson({
   String? category,
   String? categoryType,
   String? title,
+  String? recommendationStatus,
+  List<String>? recommendationReasons,
 }) {
   return {
     'policyId': policyId,
@@ -746,6 +756,10 @@ Map<String, dynamic> _policySummaryJson({
     'agency': '청년정책 담당 기관',
     'eligibilityStatus': nullable ? 'MATCHED' : 'CHECK_REQUIRED',
     'eligibilityReasons': nullable ? <String>[] : ['중위소득 조건을 공고문에서 확인해야 합니다.'],
+    'recommendationStatus':
+        recommendationStatus ?? (nullable ? 'DISCOVER' : 'CHECK_REQUIRED'),
+    'recommendationReasons': recommendationReasons ??
+        (nullable ? ['선택한 시·도 거주 조건과 일치해요.'] : ['중위소득 조건을 공고문에서 확인해야 합니다.']),
   };
 }
 
@@ -758,6 +772,10 @@ Map<String, dynamic> _categoryPolicySummary(String? category,
         category: '일자리·창업',
         categoryType: 'EMPLOYMENT',
         title: '청년 일자리 지원$suffix',
+        recommendationStatus: 'RECOMMENDED',
+        recommendationReasons: const [
+          '구직 중인 사용자에게 관련된 일자리 정책이에요.',
+        ],
       ),
     'EDUCATION' => _policySummaryJson(
         policyId: 'policy-3$suffix',

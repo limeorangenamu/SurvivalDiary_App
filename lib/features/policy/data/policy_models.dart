@@ -2,6 +2,8 @@ import '../../../data/models.dart';
 
 enum PolicyEligibilityStatus { matched, checkRequired }
 
+enum PolicyRecommendationStatus { recommended, checkRequired, discover }
+
 class PolicyPreference {
   const PolicyPreference({
     required this.saved,
@@ -117,9 +119,13 @@ class PolicySummary {
     required this.agency,
     required this.eligibilityStatus,
     required this.eligibilityReasons,
+    required this.recommendationStatus,
+    required this.recommendationReasons,
   });
 
   factory PolicySummary.fromJson(Map<String, dynamic> json) {
+    final eligibilityStatus = _eligibilityStatus(json['eligibilityStatus']);
+    final eligibilityReasons = _stringList(json, 'eligibilityReasons');
     return PolicySummary(
       policyId: _requiredString(json, 'policyId'),
       category: _requiredString(json, 'category'),
@@ -131,8 +137,15 @@ class PolicySummary {
       applicationPeriodText: _nullableString(json, 'applicationPeriodText'),
       target: _requiredString(json, 'target'),
       agency: _requiredString(json, 'agency'),
-      eligibilityStatus: _eligibilityStatus(json['eligibilityStatus']),
-      eligibilityReasons: _stringList(json, 'eligibilityReasons'),
+      eligibilityStatus: eligibilityStatus,
+      eligibilityReasons: eligibilityReasons,
+      recommendationStatus: _recommendationStatus(
+        json['recommendationStatus'],
+        legacyStatus: eligibilityStatus,
+      ),
+      recommendationReasons: json['recommendationReasons'] == null
+          ? eligibilityReasons
+          : _stringList(json, 'recommendationReasons'),
     );
   }
 
@@ -148,6 +161,8 @@ class PolicySummary {
   final String agency;
   final PolicyEligibilityStatus eligibilityStatus;
   final List<String> eligibilityReasons;
+  final PolicyRecommendationStatus recommendationStatus;
+  final List<String> recommendationReasons;
 }
 
 class PolicyDetail {
@@ -211,11 +226,15 @@ class PolicyDetailArguments {
     required this.policyId,
     required this.eligibilityStatus,
     required this.eligibilityReasons,
+    this.recommendationStatus = PolicyRecommendationStatus.discover,
+    this.recommendationReasons = const [],
   });
 
   final String policyId;
   final PolicyEligibilityStatus eligibilityStatus;
   final List<String> eligibilityReasons;
+  final PolicyRecommendationStatus recommendationStatus;
+  final List<String> recommendationReasons;
 }
 
 enum PolicyExternalLinkType { application, reference }
@@ -355,5 +374,19 @@ PolicyInterest? _policyInterest(Object? value) => switch (value) {
 PolicyEligibilityStatus _eligibilityStatus(Object? value) => switch (value) {
       'MATCHED' => PolicyEligibilityStatus.matched,
       'CHECK_REQUIRED' => PolicyEligibilityStatus.checkRequired,
+      _ => throw const FormatException(),
+    };
+
+PolicyRecommendationStatus _recommendationStatus(
+  Object? value, {
+  required PolicyEligibilityStatus legacyStatus,
+}) =>
+    switch (value) {
+      'RECOMMENDED' => PolicyRecommendationStatus.recommended,
+      'CHECK_REQUIRED' => PolicyRecommendationStatus.checkRequired,
+      'DISCOVER' => PolicyRecommendationStatus.discover,
+      null when legacyStatus == PolicyEligibilityStatus.checkRequired =>
+        PolicyRecommendationStatus.checkRequired,
+      null => PolicyRecommendationStatus.discover,
       _ => throw const FormatException(),
     };

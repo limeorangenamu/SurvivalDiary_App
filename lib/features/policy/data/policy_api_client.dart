@@ -226,6 +226,7 @@ class PolicyApiClient {
       if (condition.jobSeeking != null) 'jobSeeking': condition.jobSeeking,
       if (condition.educationStatus != null)
         'educationStatus': _educationStatusCode(condition.educationStatus!),
+      'interests': condition.interests.map(_interestCode).toList(),
       if (resolvedCategory != null)
         'category': switch (resolvedCategory) {
           PolicyCategory.employment => 'EMPLOYMENT',
