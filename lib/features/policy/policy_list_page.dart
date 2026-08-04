@@ -320,7 +320,23 @@ class _PolicyListPageState extends State<PolicyListPage> {
 
   List<PolicySummary> _sortedPolicies(List<PolicySummary> source) {
     final result = [...source];
-    if (_sortIndex == 1) {
+    if (_sortIndex == 0) {
+      final originalIndexes = <String, int>{
+        for (var index = 0; index < source.length; index++)
+          source[index].policyId: index,
+      };
+      result.sort((a, b) {
+        final rankComparison = _recommendationRank(
+          b.recommendationStatus,
+        ).compareTo(_recommendationRank(a.recommendationStatus));
+        if (rankComparison != 0) {
+          return rankComparison;
+        }
+        return originalIndexes[a.policyId]!.compareTo(
+          originalIndexes[b.policyId]!,
+        );
+      });
+    } else if (_sortIndex == 1) {
       result.sort(
         (a, b) => _deadlineSortValue(
           a.applicationPeriodText,
@@ -344,6 +360,13 @@ class _PolicyListPageState extends State<PolicyListPage> {
     }
     return result;
   }
+
+  int _recommendationRank(PolicyRecommendationStatus status) =>
+      switch (status) {
+        PolicyRecommendationStatus.recommended => 3,
+        PolicyRecommendationStatus.checkRequired => 2,
+        PolicyRecommendationStatus.discover => 1,
+      };
 
   DateTime _deadlineSortValue(String? period) {
     final matches = RegExp(
@@ -550,6 +573,8 @@ class _PolicyListPageState extends State<PolicyListPage> {
           policyId: policy.policyId,
           eligibilityStatus: policy.eligibilityStatus,
           eligibilityReasons: policy.eligibilityReasons,
+          recommendationStatus: policy.recommendationStatus,
+          recommendationReasons: policy.recommendationReasons,
         ),
       ),
     );
@@ -876,6 +901,33 @@ class _PolicyCard extends StatelessWidget {
 
   String get _periodLabel => policy.applicationPeriodText ?? '신청 기간 확인 필요';
 
+  String get _recommendationLabel => switch (policy.recommendationStatus) {
+        PolicyRecommendationStatus.recommended => '맞춤 추천',
+        PolicyRecommendationStatus.checkRequired => '조건 확인 필요',
+        PolicyRecommendationStatus.discover => '함께 보기',
+      };
+
+  Color get _recommendationColor => switch (policy.recommendationStatus) {
+        PolicyRecommendationStatus.recommended => AppColors.primaryDeep,
+        PolicyRecommendationStatus.checkRequired => AppColors.warning,
+        PolicyRecommendationStatus.discover => AppColors.textSecondary,
+      };
+
+  Color get _recommendationBackground => switch (policy.recommendationStatus) {
+        PolicyRecommendationStatus.recommended => AppColors.primarySoft,
+        PolicyRecommendationStatus.checkRequired => AppColors.warningSoft,
+        PolicyRecommendationStatus.discover => AppColors.surfaceAlt,
+      };
+
+  Key get _recommendationKey => switch (policy.recommendationStatus) {
+        PolicyRecommendationStatus.recommended =>
+          ValueKey('policy-recommended-${policy.policyId}'),
+        PolicyRecommendationStatus.checkRequired =>
+          ValueKey('policy-check-required-${policy.policyId}'),
+        PolicyRecommendationStatus.discover =>
+          ValueKey('policy-discover-${policy.policyId}'),
+      };
+
   @override
   Widget build(BuildContext context) {
     final categoryColor = _categoryColor(policy.categoryType);
@@ -957,18 +1009,40 @@ class _PolicyCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (policy.eligibilityStatus ==
-                    PolicyEligibilityStatus.checkRequired) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '신청 자격 확인 필요',
-                    key: ValueKey('policy-check-required-${policy.policyId}'),
-                    style: AppTextStyles.captionTiny.copyWith(
-                      color: AppColors.warning,
-                      fontWeight: FontWeight.w700,
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      key: _recommendationKey,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _recommendationBackground,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _recommendationLabel,
+                        style: AppTextStyles.captionTiny.copyWith(
+                          color: _recommendationColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    if (policy.recommendationReasons.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          policy.recommendationReasons.first,
+                          style: AppTextStyles.captionTiny,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
                 const SizedBox(height: 5),
                 Row(
                   children: [
