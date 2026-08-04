@@ -51,6 +51,17 @@ class BudgetSummary {
   final int weeklyBudget;
   final int weeklySpent;
 
+  factory BudgetSummary.empty({String userName = ''}) => BudgetSummary(
+        userName: userName,
+        dailyLimit: 0,
+        remainingToday: 0,
+        spentToday: 0,
+        savedToday: 0,
+        dDay: 0,
+        weeklyBudget: 0,
+        weeklySpent: 0,
+      );
+
   double get dailyProgress =>
       dailyLimit == 0 ? 0 : (spentToday / dailyLimit).clamp(0, 1);
   double get weeklyProgress =>

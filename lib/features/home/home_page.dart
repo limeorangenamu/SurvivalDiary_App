@@ -7,16 +7,51 @@ import '../../core/utils/formatters.dart';
 import '../../data/mock_data.dart';
 import '../../data/models.dart';
 import '../auth/auth_session.dart';
+import 'data/home_api_client.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/pig_mascot.dart';
 import '../../shared/widgets/section_header.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  BudgetSummary? _budget;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSummary();
+  }
+
+  Future<void> _loadSummary() async {
+    final token = AuthSession.instance.accessToken;
+    if (token == null) return;
+
+    try {
+      final summary = await HomeApiClient().getSummary(accessToken: token);
+      if (!mounted) return;
+      setState(() {
+        _budget = summary;
+        _errorMessage = null;
+      });
+    } on HomeApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _errorMessage = error.message);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const budget = MockData.budget;
+    final budget = _budget ??
+        BudgetSummary.empty(
+          userName: AuthSession.instance.currentUser?.name ?? '',
+        );
     return SafeArea(
       bottom: false,
       child: CustomScrollView(
@@ -26,6 +61,25 @@ class HomePage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             sliver: SliverList.list(
               children: [
+                if (_errorMessage != null) ...[
+                  AppCard(
+                    color: AppColors.dangerSoft,
+                    borderColor: AppColors.danger,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline,
+                            color: AppColors.danger),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(_errorMessage!)),
+                        IconButton(
+                          onPressed: _loadSummary,
+                          icon: const Icon(Icons.refresh),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 Row(
                   children: [
                     Expanded(
@@ -80,6 +134,7 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 _BudgetHeroCard(
+                  budget: budget,
                   onSetting: () =>
                       Navigator.pushNamed(context, AppRoutes.budgetSetting),
                 ),
@@ -334,13 +389,13 @@ class _NewsListItem extends StatelessWidget {
 }
 
 class _BudgetHeroCard extends StatelessWidget {
-  const _BudgetHeroCard({required this.onSetting});
+  const _BudgetHeroCard({required this.budget, required this.onSetting});
 
+  final BudgetSummary budget;
   final VoidCallback onSetting;
 
   @override
   Widget build(BuildContext context) {
-    const budget = MockData.budget;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
