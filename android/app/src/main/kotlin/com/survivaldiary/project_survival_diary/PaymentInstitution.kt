@@ -106,6 +106,7 @@ object PaymentInstitutions {
     )
 
     private val messagingPackages = setOf(
+        KAKAO_TALK_PACKAGE,
         "com.google.android.apps.messaging",
         "com.samsung.android.messaging",
         "com.android.messaging",
@@ -117,6 +118,19 @@ object PaymentInstitutions {
 
     fun isMessagingPackage(packageName: String): Boolean =
         packageName in messagingPackages
+
+    fun fromKakaoPayTransferMessage(
+        packageName: String,
+        body: String,
+    ): PaymentInstitution? {
+        if (
+            packageName != KAKAO_TALK_PACKAGE ||
+            !kakaoPayTransferMessageRegex.containsMatchIn(body)
+        ) {
+            return null
+        }
+        return byKey[KAKAO_PAY_KEY]
+    }
 
     fun fromSms(sender: String, body: String): PaymentInstitution? {
         val sourceBody = body.lines()
@@ -142,4 +156,10 @@ object PaymentInstitutions {
         fromPackage(packageName)?.key
             ?: institutions.firstOrNull { it.name == sourceName.removeSuffix(" 문자") }?.key
             ?: packageName
+
+    private const val KAKAO_TALK_PACKAGE = "com.kakao.talk"
+    private const val KAKAO_PAY_KEY = "kakao-pay"
+    private val kakaoPayTransferMessageRegex = Regex(
+        """^\s*\d[\d,]*\s*원을\s*(?:받았어요|받았습니다|보냈어요|보냈습니다)(?=[.!?\s]|$)""",
+    )
 }

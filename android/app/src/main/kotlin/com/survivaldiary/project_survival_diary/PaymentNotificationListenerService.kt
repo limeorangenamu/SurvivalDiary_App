@@ -3,6 +3,7 @@ package com.survivaldiary.project_survival_diary
 import android.app.Notification
 import android.database.ContentObserver
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Telephony
@@ -69,6 +70,7 @@ class PaymentNotificationListenerService : NotificationListenerService() {
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+        val messagingText = extractLatestMessagingText(notification)
         val textLines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
             ?.map(CharSequence::toString)
             .orEmpty()
@@ -81,6 +83,7 @@ class PaymentNotificationListenerService : NotificationListenerService() {
                 packageName = item.packageName,
                 notificationKey = item.key,
                 title = title,
+                messagingText = messagingText,
                 text = text,
                 bigText = bigText,
                 textLines = textLines,
@@ -93,6 +96,26 @@ class PaymentNotificationListenerService : NotificationListenerService() {
 
         PaymentNotificationStore(this).add(candidate)
             ?.let(PaymentNotificationEventBus::publish)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun extractLatestMessagingText(notification: Notification): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            return null
+        }
+
+        val messageBundles = notification.extras
+            .getParcelableArray(Notification.EXTRA_MESSAGES)
+            ?: return null
+        return Notification.MessagingStyle.Message
+            .getMessagesFromBundleArray(messageBundles)
+            .asReversed()
+            .firstNotNullOfOrNull { message ->
+                message.text
+                    ?.toString()
+                    ?.trim()
+                    ?.takeIf(String::isNotEmpty)
+            }
     }
 
     companion object {
