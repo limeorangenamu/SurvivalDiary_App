@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
+import '../../../core/services/directions_api_service.dart';
 import '../../../core/services/good_price_api_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models.dart';
@@ -22,6 +23,7 @@ class SavingMapCanvas extends StatefulWidget {
     super.key,
     required this.places,
     required this.goodPriceStores,
+    required this.directionsRoute,
     required this.onPlaceTap,
     required this.onGoodPriceStoreTap,
     required this.onMapReady,
@@ -29,11 +31,14 @@ class SavingMapCanvas extends StatefulWidget {
     required this.selectedGoodPriceStore,
     required this.isSelectedStoreFavorite,
     required this.onFavoritePressed,
+    required this.onDirectionsPressed,
+    required this.onGoodPriceStoreCardTap,
     required this.onGoodPriceStoreDismissed,
   });
 
   final List<SavingPlace> places;
   final List<GoodPriceStore> goodPriceStores;
+  final DirectionsRoute? directionsRoute;
   final ValueChanged<SavingPlace> onPlaceTap;
   final ValueChanged<GoodPriceStore> onGoodPriceStoreTap;
   final ValueChanged<NaverMapController> onMapReady;
@@ -41,6 +46,8 @@ class SavingMapCanvas extends StatefulWidget {
   final GoodPriceStore? selectedGoodPriceStore;
   final bool isSelectedStoreFavorite;
   final VoidCallback onFavoritePressed;
+  final VoidCallback onDirectionsPressed;
+  final VoidCallback onGoodPriceStoreCardTap;
   final VoidCallback onGoodPriceStoreDismissed;
 
   @override
@@ -59,6 +66,9 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
     if (oldWidget.places != widget.places ||
         oldWidget.goodPriceStores != widget.goodPriceStores) {
       unawaited(_syncMarkers());
+    }
+    if (oldWidget.directionsRoute != widget.directionsRoute) {
+      unawaited(_syncDirectionsRoute());
     }
     if (oldWidget.selectedGoodPriceStore?.id !=
         widget.selectedGoodPriceStore?.id) {
@@ -91,6 +101,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
               _controller = controller;
               widget.onMapReady(controller);
               await _syncMarkers();
+              await _syncDirectionsRoute();
             },
             onMapTapped: (_, __) => widget.onGoodPriceStoreDismissed(),
             onCameraChange: (_, __) {
@@ -142,6 +153,8 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
                   store: store,
                   isFavorite: widget.isSelectedStoreFavorite,
                   onFavoritePressed: widget.onFavoritePressed,
+                  onDirectionsPressed: widget.onDirectionsPressed,
+                  onTap: widget.onGoodPriceStoreCardTap,
                 ),
               ),
               Positioned(
@@ -239,6 +252,42 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
     if (markers.isNotEmpty) {
       await controller.addOverlayAll(markers);
     }
+  }
+
+  Future<void> _syncDirectionsRoute() async {
+    final controller = _controller;
+    if (controller == null) {
+      return;
+    }
+    await controller.clearOverlays(type: NOverlayType.pathOverlay);
+
+    final route = widget.directionsRoute;
+    if (route == null) {
+      return;
+    }
+    final coords = route.path
+        .map((point) => NLatLng(point.latitude, point.longitude))
+        .toList(growable: false);
+    if (coords.length < 2) {
+      return;
+    }
+
+    final pathOverlay = NPathOverlay(
+      id: 'directions-route',
+      coords: coords,
+      width: 8,
+      color: AppColors.primary,
+      outlineWidth: 3,
+      outlineColor: AppColors.surface,
+      isHideCollidedSymbols: true,
+    );
+    await controller.addOverlay(pathOverlay);
+    await controller.updateCamera(
+      NCameraUpdate.fitBounds(
+        NLatLngBounds.from(coords),
+        padding: const EdgeInsets.fromLTRB(48, 150, 48, 210),
+      )..setAnimation(duration: const Duration(milliseconds: 600)),
+    );
   }
 
   Future<NOverlayImage> _goodPriceMarkerIcon(String category) {

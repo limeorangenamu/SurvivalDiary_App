@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
+import '../../core/services/directions_api_service.dart';
 import '../../core/services/good_price_api_service.dart';
 import '../../core/services/location_service.dart';
 import '../../core/router/app_routes.dart';
@@ -15,6 +16,7 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/pill_chip.dart';
 import '../auth/auth_session.dart';
 import 'good_price_store_category_summary.dart';
+import 'good_price_store_detail_page.dart';
 import 'good_price_store_distance.dart';
 import 'good_price_store_marker_style.dart';
 import 'good_price_store_visibility.dart';
@@ -29,10 +31,11 @@ class SavingMapPage extends StatefulWidget {
 }
 
 class _SavingMapPageState extends State<SavingMapPage> {
+  final DirectionsApiService _directionsApiService = DirectionsApiService();
   final GoodPriceApiService _goodPriceApiService = GoodPriceApiService();
   final LocationService _locationService = LocationService();
 
-  String _filter = '착한가격업소';
+  String _filter = '전체';
   int _sortIndex = 0;
   SavingPlace? _selectedPlace;
   GoodPriceStore? _selectedGoodPriceStore;
@@ -52,6 +55,10 @@ class _SavingMapPageState extends State<SavingMapPage> {
   NLatLngBounds? _viewportBounds;
   int _viewportRequestId = 0;
   bool _isInitialLocationPending = true;
+  DirectionsRoute? _directionsRoute;
+  String? _directionsDestinationName;
+  bool _isLoadingDirections = false;
+  int _directionsRequestId = 0;
 
   List<GoodPriceStore> get _visibleGoodPriceStores {
     final bounds = _viewportBounds;
@@ -296,6 +303,10 @@ class _SavingMapPageState extends State<SavingMapPage> {
       _sortIndex = 0;
       _selectedPlace = null;
       _selectedGoodPriceStore = null;
+      _directionsRoute = null;
+      _directionsDestinationName = null;
+      _isLoadingDirections = false;
+      _directionsRequestId++;
       if (value != '착한가격업소') {
         _selectedGoodPriceCategoryKey = null;
       }
@@ -323,7 +334,105 @@ class _SavingMapPageState extends State<SavingMapPage> {
   }
 
   void _selectGoodPriceStore(GoodPriceStore store) {
-    setState(() => _selectedGoodPriceStore = store);
+    setState(() {
+      _selectedGoodPriceStore = store;
+      _directionsRoute = null;
+      _directionsDestinationName = null;
+      _isLoadingDirections = false;
+      _directionsRequestId++;
+    });
+  }
+
+  void _showGoodPriceStoreDetail() {
+    final store = _selectedGoodPriceStore;
+    if (store == null) {
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => GoodPriceStoreDetailPage(store: store),
+      ),
+    );
+  }
+
+  Future<void> _openSelectedGoodPriceStoreDirections() async {
+    final store = _selectedGoodPriceStore;
+    if (store == null) {
+      return;
+    }
+    final goalLatitude = store.latitude;
+    final goalLongitude = store.longitude;
+    if (goalLatitude == null || goalLongitude == null) {
+      _showDirectionsError('이 업소는 위치 정보가 없어 길찾기를 시작할 수 없어요.');
+      return;
+    }
+    final accessToken = AuthSession.instance.accessToken;
+    if (accessToken == null) {
+      _showDirectionsError('로그인 후 도보 경로를 확인할 수 있어요.');
+      return;
+    }
+
+    final requestId = ++_directionsRequestId;
+    setState(() {
+      _isLoadingDirections = true;
+      _directionsRoute = null;
+      _directionsDestinationName = store.name;
+    });
+
+    try {
+      final position = await _locationService.getCurrentPosition();
+      final controller = _mapController;
+      if (controller != null) {
+        controller.getLocationOverlay()
+          ..setPosition(NLatLng(position.latitude, position.longitude))
+          ..setIsVisible(true);
+      }
+      final route = await _directionsApiService.fetchOptimalRoute(
+        accessToken: accessToken,
+        startLatitude: position.latitude,
+        startLongitude: position.longitude,
+        goalLatitude: goalLatitude,
+        goalLongitude: goalLongitude,
+      );
+      if (!mounted || requestId != _directionsRequestId) {
+        return;
+      }
+      setState(() {
+        _directionsRoute = route;
+        _isLoadingDirections = false;
+        _selectedGoodPriceStore = null;
+      });
+    } on DirectionsApiException catch (error) {
+      if (!mounted || requestId != _directionsRequestId) {
+        return;
+      }
+      setState(() => _isLoadingDirections = false);
+      _showDirectionsError(error.message);
+    } catch (error) {
+      if (!mounted || requestId != _directionsRequestId) {
+        return;
+      }
+      setState(() => _isLoadingDirections = false);
+      _showDirectionsError(error.toString());
+    }
+  }
+
+  void _clearDirections() {
+    setState(() {
+      _directionsRequestId++;
+      _directionsRoute = null;
+      _directionsDestinationName = null;
+      _isLoadingDirections = false;
+    });
+  }
+
+  void _showDirectionsError(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   void _toggleSelectedGoodPriceStoreFavorite() {
@@ -378,6 +487,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
             child: SavingMapCanvas(
               places: places,
               goodPriceStores: mapGoodPriceStores,
+              directionsRoute: _directionsRoute,
               onPlaceTap: (place) {
                 setState(() => _selectedPlace = place);
               },
@@ -398,6 +508,10 @@ class _SavingMapPageState extends State<SavingMapPage> {
                     _selectedGoodPriceStore!.id,
                   ),
               onFavoritePressed: _toggleSelectedGoodPriceStoreFavorite,
+              onDirectionsPressed: () {
+                unawaited(_openSelectedGoodPriceStoreDirections());
+              },
+              onGoodPriceStoreCardTap: _showGoodPriceStoreDetail,
               onGoodPriceStoreDismissed: () {
                 if (_selectedGoodPriceStore != null) {
                   setState(() => _selectedGoodPriceStore = null);
@@ -424,7 +538,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
                     Padding(
                       padding: const EdgeInsets.only(right: 7),
                       child: PillChip(
-                        label: filter,
+                        label: filter == '전체' ? 'MY' : filter,
                         selected: _filter == filter,
                         onTap: () => _changeFilter(filter),
                       ),
@@ -433,49 +547,19 @@ class _SavingMapPageState extends State<SavingMapPage> {
               ),
             ),
           ),
-          Positioned(
-            top: 68,
-            left: 16,
-            right: 16,
-            child: AppCard(
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.location_on_rounded,
-                    size: 18,
-                    color: AppColors.info,
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      isGoodPrice
-                          ? _viewportRegionLabel == null
-                              ? '현재 지도 지역 확인 중'
-                              : '$_viewportRegionLabel 착한가격업소'
-                          : '내 주변 절약 장소',
-                      style: AppTextStyles.caption,
-                    ),
-                  ),
-                  SortToggle(
-                    options: isGoodPrice
-                        ? const ['거리순', '가격순']
-                        : const ['거리순', '가격순'],
-                    selectedIndex: _sortIndex,
-                    onChanged: (value) {
-                      setState(() {
-                        _sortIndex = value;
-                        _selectedPlace = null;
-                      });
-                      if (isGoodPrice) {
-                        _loadGoodPriceStores();
-                      }
-                    },
-                  ),
-                ],
+          if (_isLoadingDirections || _directionsRoute != null)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: _DirectionsSummaryCard(
+                destinationName: _directionsDestinationName ?? '목적지',
+                route: _directionsRoute,
+                isLoading: _isLoadingDirections,
+                onClose: _clearDirections,
               ),
-            ),
-          ),
-          if (isGoodPrice)
+            )
+          else if (isGoodPrice)
             Positioned(
               left: 16,
               right: 16,
@@ -529,6 +613,89 @@ class _SavingMapPageState extends State<SavingMapPage> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _DirectionsSummaryCard extends StatelessWidget {
+  const _DirectionsSummaryCard({
+    required this.destinationName,
+    required this.route,
+    required this.isLoading,
+    required this.onClose,
+  });
+
+  final String destinationName;
+  final DirectionsRoute? route;
+  final bool isLoading;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      key: const ValueKey('directions-summary-card'),
+      borderColor: AppColors.primary,
+      child: isLoading ? _buildLoading() : _buildRoute(route!),
+    );
+  }
+
+  Widget _buildLoading() {
+    return Row(
+      children: [
+        const SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 3),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            '$destinationName 도보 경로를 찾고 있어요.',
+            style: AppTextStyles.body,
+          ),
+        ),
+        IconButton(
+          tooltip: '길찾기 취소',
+          onPressed: onClose,
+          icon: const Icon(Icons.close_rounded),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoute(DirectionsRoute route) {
+    final durationMinutes = (route.durationMillis / 60000).ceil();
+    final distance = route.distanceMeters >= 1000
+        ? '${(route.distanceMeters / 1000).toStringAsFixed(1)}km'
+        : '${route.distanceMeters}m';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.directions_walk_rounded, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$destinationName 도보 추천 경로',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.sectionTitle,
+              ),
+            ),
+            IconButton(
+              tooltip: '경로 닫기',
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '$distance · 약 $durationMinutes분',
+          style: AppTextStyles.amount.copyWith(color: AppColors.primaryDeep),
+        ),
+      ],
     );
   }
 }
