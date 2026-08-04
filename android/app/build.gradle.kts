@@ -14,7 +14,15 @@ if (localPropertiesFile.exists()) {
 
 fun localCredential(name: String): String? =
     System.getenv(name)
-        ?: localProperties.getProperty(name)
+        ?: run {
+            val configFile = rootProject.projectDir.parentFile.resolve("config/local.json")
+            if (!configFile.exists()) {
+                null
+            } else {
+                val keyPattern = Regex("\\\"${Regex.escape(name)}\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"")
+                keyPattern.find(configFile.readText())?.groupValues?.get(1)
+            }
+        }
         ?: project.findProperty(name)?.toString()
 
 android {
@@ -41,8 +49,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        // OAuth credentials are supplied through the local environment/CI.
-        // Do not commit them to gradle.properties or source control.
+        // OAuth credentials come from config/local.json, environment variables, or CI.
+        // Do not commit config/local.json or real credentials to source control.
         val kakaoNativeAppKey = localCredential("KAKAO_NATIVE_APP_KEY") ?: "not-configured"
         val naverLoginClientId = localCredential("NAVER_LOGIN_CLIENT_ID") ?: "not-configured"
         val naverLoginClientSecret =

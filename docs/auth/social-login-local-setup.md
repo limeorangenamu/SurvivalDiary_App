@@ -1,6 +1,6 @@
 # SNS 로그인 로컬 설정
 
-실제 인증키는 로컬 파일에 저장하고 Git에는 커밋하지 않는다. `config/local.json`과 `android/local.properties`는 `.gitignore` 대상이다.
+실제 인증키는 `config/local.json` 한 곳에만 저장하고 Git에는 커밋하지 않는다. `android/local.properties`에는 Flutter SDK 경로만 둔다.
 
 ## 필요한 값
 
@@ -22,13 +22,7 @@
 }
 ```
 
-기존 `android/local.properties`에는 다음 항목을 추가한다. 기존 Android SDK 경로 항목은 유지한다.
-
-```properties
-KAKAO_NATIVE_APP_KEY=실제_카카오_Native_App_Key
-NAVER_LOGIN_CLIENT_ID=실제_네이버_Client_ID
-NAVER_LOGIN_CLIENT_SECRET=실제_네이버_Client_Secret
-```
+`android/local.properties`에는 기존 `sdk.dir`와 `flutter.sdk`만 유지한다. Android Gradle 설정도 `config/local.json`을 읽는다.
 
 ## 실행
 
