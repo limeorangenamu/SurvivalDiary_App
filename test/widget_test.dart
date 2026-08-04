@@ -104,38 +104,72 @@ void main() {
     expect(user.interests, ['LIVING_COST', 'YOUTH_POLICY']);
   });
 
-  testWidgets('온보딩 이메일 로그인 버튼이 로그인 화면을 연다', (tester) async {
+  test('social login exchanges the provider token with the backend', () async {
+    late Map<String, dynamic> payload;
+    final client = AuthApiClient(
+      baseUrl: 'http://localhost:8080',
+      client: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/auth/social/kakao');
+        payload = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'success': true,
+            'data': {
+              'accessToken': 'service-access-token',
+              'refreshToken': 'service-refresh-token',
+              'tokenType': 'Bearer',
+              'expiresInSeconds': 1800,
+            },
+          }),
+          200,
+        );
+      }),
+    );
+
+    final tokens = await client.socialLogin(
+      provider: 'kakao',
+      providerAccessToken: 'provider-access-token',
+    );
+
+    expect(payload, {'accessToken': 'provider-access-token'});
+    expect(tokens.accessToken, 'service-access-token');
+  });
+
+  testWidgets('온보딩 마지막 페이지에 이메일 로그인과 회원가입이 있다', (tester) async {
     await tester.pumpWidget(const SurvivalDiaryApp());
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('email-signup-button')), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('email-login-button')));
+    await tester.tap(find.byKey(const ValueKey('onboarding-skip-button')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('login-email-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('login-password-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('login-submit-button')), findsOneWidget);
     expect(find.byKey(const ValueKey('login-signup-button')), findsOneWidget);
   });
 
-  testWidgets('앱 첫 실행 시 온보딩 슬라이드와 SNS 로그인 버튼이 나타난다', (tester) async {
+  testWidgets('온보딩 건너뛰기는 마지막 인증 슬라이드로 이동한다', (tester) async {
     await tester.pumpWidget(const SurvivalDiaryApp());
     await tester.pumpAndSettle();
 
     expect(find.text('기록되는 절약 일기'), findsOneWidget);
-    expect(find.text('SNS 계정으로 3초 만에 시작해요!'), findsOneWidget);
+    expect(find.byKey(const ValueKey('sns-kakao-button')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('onboarding-skip-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('SNS 계정으로 간편하게 시작해요'), findsOneWidget);
     for (final key in ['sns-kakao-button', 'sns-naver-button']) {
       expect(find.byKey(ValueKey(key)), findsOneWidget);
     }
     expect(find.byKey(const ValueKey('sns-apple-button')), findsNothing);
-
-    await tester.drag(find.byType(PageView), const Offset(-400, 0));
-    await tester.pumpAndSettle();
-    expect(find.text('청년 정책 맞춤 추천'), findsOneWidget);
   });
 
   testWidgets('온보딩에서 로그인 없이 둘러보기로 홈에 진입한다', (tester) async {
     await tester.pumpWidget(const SurvivalDiaryApp());
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const ValueKey('onboarding-skip-button')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('browse-without-login-button')));
     await tester.pumpAndSettle();
 

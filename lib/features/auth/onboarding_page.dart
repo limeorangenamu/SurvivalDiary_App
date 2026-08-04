@@ -5,6 +5,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/mock_data.dart';
 import '../../data/models.dart';
+import 'data/auth_api_client.dart';
+import 'data/social_auth_service.dart';
+import 'widgets/email_login_form.dart';
 
 /// 첫 진입(미로그인) 화면 — 서비스 소개 슬라이드 + SNS 로그인.
 /// SNS 로그인·이메일 가입은 인증 연동 이슈(#33)에서 실제 동작을 붙인다.
@@ -17,7 +20,9 @@ class OnboardingPage extends StatefulWidget {
 
 class _OnboardingPageState extends State<OnboardingPage> {
   final _controller = PageController();
+  final _socialAuthService = SocialAuthService();
   int _currentIndex = 0;
+  SocialAuthProvider? _submittingProvider;
 
   @override
   void dispose() {
@@ -25,35 +30,84 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  void _showPreparingMessage(String provider) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text('$provider 로그인은 준비 중이에요.')),
+  void _skipToAuth() {
+    _controller.animateToPage(
+      MockData.onboardingSlides.length,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+  }
+
+  Future<void> _socialLogin(SocialAuthProvider provider) async {
+    if (_submittingProvider != null) return;
+    setState(() => _submittingProvider = provider);
+    try {
+      await _socialAuthService.login(provider);
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.root,
+        (route) => false,
       );
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _submittingProvider = null);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     const slides = MockData.onboardingSlides;
+    final pageCount = slides.length + 1;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 24),
-            _DotsIndicator(count: slides.length, currentIndex: _currentIndex),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _DotsIndicator(
+                      count: pageCount,
+                      currentIndex: _currentIndex,
+                    ),
+                  ),
+                  if (_currentIndex < slides.length)
+                    TextButton(
+                      key: const ValueKey('onboarding-skip-button'),
+                      onPressed: _skipToAuth,
+                      child: Text(
+                        '건너뛰기',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 76),
+                ],
+              ),
+            ),
             Expanded(
               child: PageView.builder(
                 controller: _controller,
-                itemCount: slides.length,
+                itemCount: pageCount,
                 onPageChanged: (index) => setState(() => _currentIndex = index),
-                itemBuilder: (context, index) =>
-                    _SlideView(slide: slides[index]),
+                itemBuilder: (context, index) => index < slides.length
+                    ? _SlideView(slide: slides[index])
+                    : _OnboardingAuthPage(
+                        submittingProvider: _submittingProvider,
+                        onSocialLogin: _socialLogin,
+                      ),
               ),
             ),
-            _AuthBottomArea(onSnsPressed: _showPreparingMessage),
           ],
         ),
       ),
@@ -242,17 +296,53 @@ class _PreviewPointCard extends StatelessWidget {
   }
 }
 
-class _AuthBottomArea extends StatelessWidget {
-  const _AuthBottomArea({required this.onSnsPressed});
+class _OnboardingAuthPage extends StatelessWidget {
+  const _OnboardingAuthPage({
+    required this.submittingProvider,
+    required this.onSocialLogin,
+  });
 
-  final void Function(String provider) onSnsPressed;
+  final SocialAuthProvider? submittingProvider;
+  final ValueChanged<SocialAuthProvider> onSocialLogin;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text(
+            '다시 만나서 반가워요',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.title.copyWith(fontSize: 24),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            '이메일로 로그인하거나 SNS 계정으로 바로 시작하세요.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyMuted,
+          ),
+          const SizedBox(height: 24),
+          EmailLoginForm(
+            compact: true,
+            onLoginSuccess: () => Navigator.of(context)
+                .pushNamedAndRemoveUntil(AppRoutes.root, (route) => false),
+            onSignupPressed: () =>
+                Navigator.of(context).pushNamed(AppRoutes.signup),
+          ),
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              Expanded(child: Divider()),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: Text('또는', style: AppTextStyles.caption),
+              ),
+              Expanded(child: Divider()),
+            ],
+          ),
+          const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -261,7 +351,7 @@ class _AuthBottomArea extends StatelessWidget {
               border: Border.all(color: AppColors.border),
             ),
             child: Text(
-              'SNS 계정으로 3초 만에 시작해요!',
+              'SNS 계정으로 간편하게 시작해요',
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -270,46 +360,35 @@ class _AuthBottomArea extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _SnsCircleButton(
-                key: const ValueKey('sns-kakao-button'),
-                background: AppColors.snsKakao,
-                onPressed: () => onSnsPressed('카카오'),
-                child: const Icon(
-                  Icons.chat_bubble_rounded,
-                  size: 26,
-                  color: AppColors.textPrimary,
+              Expanded(
+                child: _SocialLoginButton(
+                  key: const ValueKey('sns-kakao-button'),
+                  label: '카카오',
+                  background: AppColors.snsKakao,
+                  foreground: AppColors.textPrimary,
+                  isLoading: submittingProvider == SocialAuthProvider.kakao,
+                  onPressed: submittingProvider == null
+                      ? () => onSocialLogin(SocialAuthProvider.kakao)
+                      : null,
                 ),
               ),
-              const SizedBox(width: 20),
-              _SnsCircleButton(
-                key: const ValueKey('sns-naver-button'),
-                background: AppColors.snsNaver,
-                onPressed: () => onSnsPressed('네이버'),
-                child: Text(
-                  'N',
-                  style: AppTextStyles.title.copyWith(
-                    color: AppColors.surface,
-                    fontWeight: FontWeight.w800,
-                  ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _SocialLoginButton(
+                  key: const ValueKey('sns-naver-button'),
+                  label: '네이버',
+                  background: AppColors.snsNaver,
+                  foreground: AppColors.surface,
+                  isLoading: submittingProvider == SocialAuthProvider.naver,
+                  onPressed: submittingProvider == null
+                      ? () => onSocialLogin(SocialAuthProvider.naver)
+                      : null,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          TextButton(
-            key: const ValueKey('email-login-button'),
-            onPressed: () => Navigator.of(context).pushNamed(AppRoutes.login),
-            child: Text(
-              '이메일로 로그인',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w700,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
+          const SizedBox(height: 10),
           TextButton(
             key: const ValueKey('browse-without-login-button'),
             onPressed: () =>
@@ -327,30 +406,54 @@ class _AuthBottomArea extends StatelessWidget {
   }
 }
 
-class _SnsCircleButton extends StatelessWidget {
-  const _SnsCircleButton({
+class _SocialLoginButton extends StatelessWidget {
+  const _SocialLoginButton({
     super.key,
+    required this.label,
     required this.background,
+    required this.foreground,
+    required this.isLoading,
     required this.onPressed,
-    required this.child,
   });
 
+  final String label;
   final Color background;
-  final VoidCallback onPressed;
-  final Widget child;
+  final Color foreground;
+  final bool isLoading;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: background,
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onPressed,
-        child: SizedBox(
-          width: 58,
-          height: 58,
-          child: Center(child: child),
+    return SizedBox(
+      height: 48,
+      child: FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: background,
+          foregroundColor: foreground,
+        ),
+        onPressed: onPressed,
+        icon: isLoading
+            ? SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: foreground,
+                ),
+              )
+            : Text(
+                label == '네이버' ? 'N' : '●',
+                style: AppTextStyles.body.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+        label: Text(
+          label,
+          style: AppTextStyles.body.copyWith(
+            color: foreground,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
