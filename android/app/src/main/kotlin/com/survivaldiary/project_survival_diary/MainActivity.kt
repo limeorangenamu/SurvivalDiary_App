@@ -20,6 +20,11 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        LocationRegionChannel(
+            this,
+            flutterEngine.dartExecutor.binaryMessenger,
+        ).register()
+
         val store = PaymentNotificationStore(this)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,

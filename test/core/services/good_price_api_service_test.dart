@@ -87,4 +87,37 @@ void main() {
       ),
     );
   });
+
+  test('지도 화면 중심 조회는 시도와 시군구를 전달한다', () async {
+    final service = GoodPriceApiService(
+      baseUrl: 'http://example.com',
+      client: MockClient((request) async {
+        expect(request.url.queryParameters['province'], '부산광역시');
+        expect(request.url.queryParameters['district'], '부산진구');
+        return http.Response(
+          '''
+          {
+            "success": true,
+            "data": {
+              "content": [],
+              "page": 0,
+              "size": 20,
+              "totalElements": 0,
+              "totalPages": 0,
+              "hasNext": false
+            }
+          }
+          ''',
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    );
+
+    await service.fetchStores(
+      accessToken: 'access-token',
+      province: '부산광역시',
+      district: '부산진구',
+    );
+  });
 }
