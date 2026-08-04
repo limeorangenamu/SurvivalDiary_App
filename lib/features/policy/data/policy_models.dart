@@ -8,9 +8,10 @@ class PolicyPreference {
     required this.age,
     required this.regionCode,
     required this.districtCode,
-    required this.employmentStatus,
-    required this.incomeRange,
-    required this.category,
+    required this.workStatus,
+    required this.jobSeeking,
+    required this.educationStatus,
+    required this.interests,
   });
 
   factory PolicyPreference.fromJson(Map<String, dynamic> json) {
@@ -21,19 +22,35 @@ class PolicyPreference {
     }
 
     final regionCode = _nullableString(json, 'regionCode');
-    final employmentStatus = _policyEmploymentStatus(json['employmentStatus']);
-    if (saved && (regionCode == null || employmentStatus == null)) {
+    if (saved && regionCode == null) {
       throw const FormatException();
     }
+
+    final workStatus = _policyWorkStatus(
+      json['workStatus'],
+      legacyEmploymentStatus: json['employmentStatus'],
+    );
+    final educationStatus = _policyEducationStatus(
+      json['educationStatus'],
+      legacyEmploymentStatus: json['employmentStatus'],
+    );
+    final interests = _policyInterests(
+      json['interests'],
+      legacyCategory: json['category'],
+    );
 
     return PolicyPreference(
       saved: saved,
       age: (age as num?)?.toInt(),
       regionCode: regionCode,
       districtCode: _nullableString(json, 'districtCode'),
-      employmentStatus: employmentStatus,
-      incomeRange: _policyIncomeRange(json['incomeRange']),
-      category: _policyCategory(json['category']),
+      workStatus: workStatus,
+      jobSeeking: _nullableBool(
+        json['jobSeeking'],
+        legacyEmploymentStatus: json['employmentStatus'],
+      ),
+      educationStatus: educationStatus,
+      interests: interests,
     );
   }
 
@@ -41,9 +58,10 @@ class PolicyPreference {
   final int? age;
   final String? regionCode;
   final String? districtCode;
-  final PolicyEmploymentStatus? employmentStatus;
-  final PolicyIncomeRange? incomeRange;
-  final PolicyCategory? category;
+  final PolicyWorkStatus? workStatus;
+  final bool? jobSeeking;
+  final PolicyEducationStatus? educationStatus;
+  final Set<PolicyInterest> interests;
 }
 
 class PolicySearchResult {
@@ -51,15 +69,18 @@ class PolicySearchResult {
     required this.items,
     required this.partialResult,
     required this.checkedProviderPages,
+    required this.nextPage,
   });
 
   factory PolicySearchResult.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
     final partialResult = json['partialResult'];
     final checkedProviderPages = json['checkedProviderPages'];
+    final nextPage = json['nextPage'];
     if (rawItems is! List ||
         partialResult is! bool ||
-        checkedProviderPages is! num) {
+        checkedProviderPages is! num ||
+        (nextPage != null && nextPage is! num)) {
       throw const FormatException();
     }
 
@@ -72,12 +93,14 @@ class PolicySearchResult {
       }).toList(),
       partialResult: partialResult,
       checkedProviderPages: checkedProviderPages.toInt(),
+      nextPage: (nextPage as num?)?.toInt(),
     );
   }
 
   final List<PolicySummary> items;
   final bool partialResult;
   final int checkedProviderPages;
+  final int? nextPage;
 }
 
 class PolicySummary {
@@ -249,36 +272,88 @@ List<String> _stringList(Map<String, dynamic> json, String key) {
 }
 
 PolicyCategory? _policyCategory(Object? value) => switch (value) {
-  'HOUSING' => PolicyCategory.housing,
-  'EMPLOYMENT' => PolicyCategory.employment,
-  'ASSET' => PolicyCategory.asset,
-  'CULTURE' => PolicyCategory.culture,
-  'TRANSPORT' => PolicyCategory.transport,
-  null => null,
-  _ => null,
-};
+      'EMPLOYMENT' => PolicyCategory.employment,
+      'HOUSING' => PolicyCategory.housing,
+      'EDUCATION' => PolicyCategory.education,
+      'WELFARE_CULTURE' || 'CULTURE' => PolicyCategory.welfareCulture,
+      'PARTICIPATION_RIGHTS' => PolicyCategory.participationRights,
+      null => null,
+      _ => null,
+    };
 
-PolicyEmploymentStatus? _policyEmploymentStatus(Object? value) =>
-    switch (value) {
-      'EMPLOYED' => PolicyEmploymentStatus.employed,
-      'JOB_SEEKING' => PolicyEmploymentStatus.jobSeeker,
-      'UNEMPLOYED' => PolicyEmploymentStatus.unemployed,
-      'STUDENT' => PolicyEmploymentStatus.student,
+PolicyWorkStatus? _policyWorkStatus(
+  Object? value, {
+  required Object? legacyEmploymentStatus,
+}) =>
+    switch (value ?? legacyEmploymentStatus) {
+      'EMPLOYED' => PolicyWorkStatus.employed,
+      'SELF_EMPLOYED' => PolicyWorkStatus.selfEmployed,
+      'JOB_SEEKING' || 'UNEMPLOYED' => PolicyWorkStatus.unemployed,
+      'FREELANCER' => PolicyWorkStatus.freelancer,
+      'DAILY_WORKER' => PolicyWorkStatus.dailyWorker,
+      'PROSPECTIVE_FOUNDER' => PolicyWorkStatus.prospectiveFounder,
+      'SHORT_TERM_WORKER' => PolicyWorkStatus.shortTermWorker,
+      'FARMER' => PolicyWorkStatus.farmer,
+      'OTHER' => PolicyWorkStatus.other,
+      'STUDENT' || null => null,
+      _ => throw const FormatException(),
+    };
+
+PolicyEducationStatus? _policyEducationStatus(
+  Object? value, {
+  required Object? legacyEmploymentStatus,
+}) =>
+    switch (value ?? (legacyEmploymentStatus == 'STUDENT' ? 'STUDENT' : null)) {
+      'STUDENT' => PolicyEducationStatus.student,
+      'ON_LEAVE' => PolicyEducationStatus.onLeave,
+      'GRADUATED' => PolicyEducationStatus.graduated,
+      'NOT_STUDENT' => PolicyEducationStatus.notStudent,
+      'OTHER' => PolicyEducationStatus.other,
       null => null,
       _ => throw const FormatException(),
     };
 
-PolicyIncomeRange? _policyIncomeRange(Object? value) => switch (value) {
-  'BELOW_50' => PolicyIncomeRange.below50,
-  'BELOW_100' => PolicyIncomeRange.below100,
-  'BELOW_150' => PolicyIncomeRange.below150,
-  'NO_LIMIT' => PolicyIncomeRange.noLimit,
-  null => null,
-  _ => throw const FormatException(),
-};
+bool? _nullableBool(
+  Object? value, {
+  required Object? legacyEmploymentStatus,
+}) {
+  if (value == null) {
+    return legacyEmploymentStatus == 'JOB_SEEKING' ? true : null;
+  }
+  if (value is! bool) {
+    throw const FormatException();
+  }
+  return value;
+}
+
+Set<PolicyInterest> _policyInterests(
+  Object? value, {
+  required Object? legacyCategory,
+}) {
+  if (value == null) {
+    final legacy = _policyInterest(legacyCategory);
+    return legacy == null ? const {} : {legacy};
+  }
+  if (value is! List || value.any((item) => item is! String)) {
+    throw const FormatException();
+  }
+  return value.map(_policyInterest).whereType<PolicyInterest>().toSet();
+}
+
+PolicyInterest? _policyInterest(Object? value) => switch (value) {
+      'EMPLOYMENT' => PolicyInterest.employment,
+      'HOUSING' => PolicyInterest.housing,
+      'EDUCATION' => PolicyInterest.education,
+      'WELFARE_CULTURE' || 'CULTURE' => PolicyInterest.welfareCulture,
+      'PARTICIPATION_RIGHTS' => PolicyInterest.participationRights,
+      'ASSET_BUILDING' || 'ASSET' => PolicyInterest.assetBuilding,
+      'TRANSPORT' => PolicyInterest.transport,
+      null => null,
+      _ => throw const FormatException(),
+    };
 
 PolicyEligibilityStatus _eligibilityStatus(Object? value) => switch (value) {
-  'MATCHED' => PolicyEligibilityStatus.matched,
-  'CHECK_REQUIRED' => PolicyEligibilityStatus.checkRequired,
-  _ => throw const FormatException(),
-};
+      'MATCHED' => PolicyEligibilityStatus.matched,
+      'CHECK_REQUIRED' => PolicyEligibilityStatus.checkRequired,
+      _ => throw const FormatException(),
+    };

@@ -119,37 +119,81 @@ class MonthlyCompare {
   final int current;
 }
 
-enum PolicyEmploymentStatus { employed, jobSeeker, unemployed, student }
+enum PolicyWorkStatus {
+  employed,
+  selfEmployed,
+  unemployed,
+  freelancer,
+  dailyWorker,
+  prospectiveFounder,
+  shortTermWorker,
+  farmer,
+  other,
+}
 
-extension PolicyEmploymentStatusExtension on PolicyEmploymentStatus {
+extension PolicyWorkStatusExtension on PolicyWorkStatus {
   String get label => switch (this) {
-        PolicyEmploymentStatus.employed => '재직 중',
-        PolicyEmploymentStatus.jobSeeker => '구직 중',
-        PolicyEmploymentStatus.unemployed => '미취업',
-        PolicyEmploymentStatus.student => '학생',
+        PolicyWorkStatus.employed => '재직자',
+        PolicyWorkStatus.selfEmployed => '자영업자',
+        PolicyWorkStatus.unemployed => '미취업자',
+        PolicyWorkStatus.freelancer => '프리랜서',
+        PolicyWorkStatus.dailyWorker => '일용근로자',
+        PolicyWorkStatus.prospectiveFounder => '예비창업자',
+        PolicyWorkStatus.shortTermWorker => '단기근로자',
+        PolicyWorkStatus.farmer => '영농종사자',
+        PolicyWorkStatus.other => '기타',
       };
 }
 
-enum PolicyIncomeRange { below50, below100, below150, noLimit }
+enum PolicyEducationStatus { student, onLeave, graduated, notStudent, other }
 
-extension PolicyIncomeRangeExtension on PolicyIncomeRange {
+extension PolicyEducationStatusExtension on PolicyEducationStatus {
   String get label => switch (this) {
-        PolicyIncomeRange.below50 => '중위소득 50% 이하',
-        PolicyIncomeRange.below100 => '중위소득 100% 이하',
-        PolicyIncomeRange.below150 => '중위소득 150% 이하',
-        PolicyIncomeRange.noLimit => '소득 무관',
+        PolicyEducationStatus.student => '재학 중',
+        PolicyEducationStatus.onLeave => '휴학 중',
+        PolicyEducationStatus.graduated => '졸업',
+        PolicyEducationStatus.notStudent => '학생이 아님',
+        PolicyEducationStatus.other => '기타',
       };
 }
 
-enum PolicyCategory { housing, employment, asset, culture, transport }
+enum PolicyCategory {
+  employment,
+  housing,
+  education,
+  welfareCulture,
+  participationRights,
+}
 
 extension PolicyCategoryExtension on PolicyCategory {
   String get label => switch (this) {
+        PolicyCategory.employment => '일자리·창업',
         PolicyCategory.housing => '주거',
-        PolicyCategory.employment => '취업',
-        PolicyCategory.asset => '자산형성',
-        PolicyCategory.culture => '문화',
-        PolicyCategory.transport => '교통',
+        PolicyCategory.education => '교육·역량',
+        PolicyCategory.welfareCulture => '복지·문화',
+        PolicyCategory.participationRights => '참여·권리',
+      };
+}
+
+enum PolicyInterest {
+  employment,
+  housing,
+  education,
+  welfareCulture,
+  participationRights,
+  assetBuilding,
+  transport,
+}
+
+extension PolicyInterestExtension on PolicyInterest {
+  String get label => switch (this) {
+        PolicyInterest.employment => '일자리·창업',
+        PolicyInterest.housing => '주거',
+        PolicyInterest.education => '교육·역량',
+        PolicyInterest.welfareCulture => '복지·문화',
+        PolicyInterest.participationRights => '참여·권리',
+        PolicyInterest.assetBuilding => '자산형성·금융',
+        PolicyInterest.transport => '교통',
       };
 }
 
@@ -158,10 +202,12 @@ class PolicyFilterCondition {
     required this.age,
     required this.regionCode,
     required this.region,
-    required this.employmentStatus,
     this.districtCode,
     this.district,
-    this.incomeRange,
+    this.workStatus,
+    this.jobSeeking,
+    this.educationStatus,
+    this.interests = const {},
     this.category,
   });
 
@@ -170,8 +216,10 @@ class PolicyFilterCondition {
   final String region;
   final String? districtCode;
   final String? district;
-  final PolicyEmploymentStatus employmentStatus;
-  final PolicyIncomeRange? incomeRange;
+  final PolicyWorkStatus? workStatus;
+  final bool? jobSeeking;
+  final PolicyEducationStatus? educationStatus;
+  final Set<PolicyInterest> interests;
   final PolicyCategory? category;
 }
 
@@ -192,52 +240,6 @@ class PolicyRegionOption {
   final String code;
   final String name;
   final List<PolicyDistrictOption> districts;
-}
-
-class Policy {
-  const Policy({
-    required this.id,
-    required this.category,
-    required this.categoryType,
-    required this.title,
-    required this.summary,
-    required this.supportAmount,
-    required this.supportText,
-    required this.deadline,
-    required this.target,
-    required this.agency,
-    required this.applyMethod,
-    required this.documents,
-    required this.icon,
-    required this.minAge,
-    required this.maxAge,
-    required this.eligibleRegionCodes,
-    required this.employmentStatuses,
-    required this.incomeRanges,
-    this.officialUrl,
-    this.contact,
-  });
-
-  final String id;
-  final String category;
-  final PolicyCategory categoryType;
-  final String title;
-  final String summary;
-  final int? supportAmount;
-  final String supportText;
-  final String? deadline;
-  final String target;
-  final String agency;
-  final String applyMethod;
-  final List<String> documents;
-  final IconData icon;
-  final int minAge;
-  final int maxAge;
-  final List<String> eligibleRegionCodes;
-  final List<PolicyEmploymentStatus> employmentStatuses;
-  final List<PolicyIncomeRange> incomeRanges;
-  final String? officialUrl;
-  final String? contact;
 }
 
 enum PlaceType { goodPrice, publicFacility, publicParking }
@@ -277,7 +279,6 @@ class SavingPlace {
     required this.offsetY,
     required this.latitude,
     required this.longitude,
-
   });
 
   final String id;

@@ -35,8 +35,10 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
 
   PolicyRegionOption? _region;
   PolicyDistrictOption? _district;
-  PolicyEmploymentStatus? _employmentStatus;
-  PolicyIncomeRange? _incomeRange;
+  PolicyWorkStatus? _workStatus;
+  bool? _jobSeeking;
+  PolicyEducationStatus? _educationStatus;
+  final Set<PolicyInterest> _interests = {};
   PolicyCategory? _category;
   PolicyFilterCondition? _activeCondition;
   int? _profileAge;
@@ -114,8 +116,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
         preference.age == null ||
         preference.age! < 18 ||
         preference.age! > 39 ||
-        preference.regionCode == null ||
-        preference.employmentStatus == null) {
+        preference.regionCode == null) {
       if (preference.age != null) {
         _ageController.text = preference.age.toString();
       }
@@ -152,9 +153,10 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
       region: region.name,
       districtCode: district?.code,
       district: district?.name,
-      employmentStatus: preference.employmentStatus!,
-      incomeRange: preference.incomeRange,
-      category: preference.category,
+      workStatus: preference.workStatus,
+      jobSeeking: preference.jobSeeking,
+      educationStatus: preference.educationStatus,
+      interests: preference.interests,
     );
   }
 
@@ -166,10 +168,12 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
     _district = _region?.districts
         .where((option) => option.code == condition.districtCode)
         .firstOrNull;
-    _employmentStatus = condition.employmentStatus;
-    _incomeRange = condition.incomeRange == PolicyIncomeRange.noLimit
-        ? null
-        : condition.incomeRange;
+    _workStatus = condition.workStatus;
+    _jobSeeking = condition.jobSeeking;
+    _educationStatus = condition.educationStatus;
+    _interests
+      ..clear()
+      ..addAll(condition.interests);
     _category = condition.category;
   }
 
@@ -229,36 +233,66 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
     }
   }
 
-  Future<void> _pickEmploymentStatus() async {
-    final value = await _pick<PolicyEmploymentStatus>(
-      title: '취업 상태를 선택해 주세요',
-      options: PolicyEmploymentStatus.values,
-      labelBuilder: (option) => option.label,
-      selected: _employmentStatus,
-    );
-    if (value != null && mounted) {
-      setState(() => _employmentStatus = value);
-    }
-  }
-
-  Future<void> _pickIncomeRange() async {
+  Future<void> _pickWorkStatus() async {
     final options = [
-      const _OptionalOption<PolicyIncomeRange>(value: null, label: '소득 무관'),
-      for (final income in PolicyIncomeRange.values)
-        if (income != PolicyIncomeRange.noLimit)
-          _OptionalOption(value: income, label: income.label),
+      const _OptionalOption<PolicyWorkStatus>(value: null, label: '잘 모르겠어요'),
+      for (final status in PolicyWorkStatus.values)
+        _OptionalOption(value: status, label: status.label),
     ];
-    final value = await _pick<_OptionalOption<PolicyIncomeRange>>(
-      title: '소득 조건을 선택해 주세요',
+    final value = await _pick<_OptionalOption<PolicyWorkStatus>>(
+      title: '근로 상태를 선택해 주세요',
       options: options,
       labelBuilder: (option) => option.label,
       selected: options.firstWhere(
-        (option) => option.value == _incomeRange,
+        (option) => option.value == _workStatus,
         orElse: () => options.first,
       ),
     );
     if (value != null && mounted) {
-      setState(() => _incomeRange = value.value);
+      setState(() => _workStatus = value.value);
+    }
+  }
+
+  Future<void> _pickJobSeeking() async {
+    const options = [
+      _OptionalOption<bool>(value: null, label: '선택하지 않음'),
+      _OptionalOption(value: true, label: '구직 중'),
+      _OptionalOption(value: false, label: '구직 중이 아님'),
+    ];
+    final value = await _pick<_OptionalOption<bool>>(
+      title: '현재 구직 중인가요?',
+      options: options,
+      labelBuilder: (option) => option.label,
+      selected: options.firstWhere(
+        (option) => option.value == _jobSeeking,
+        orElse: () => options.first,
+      ),
+    );
+    if (value != null && mounted) {
+      setState(() => _jobSeeking = value.value);
+    }
+  }
+
+  Future<void> _pickEducationStatus() async {
+    final options = [
+      const _OptionalOption<PolicyEducationStatus>(
+        value: null,
+        label: '잘 모르겠어요',
+      ),
+      for (final status in PolicyEducationStatus.values)
+        _OptionalOption(value: status, label: status.label),
+    ];
+    final value = await _pick<_OptionalOption<PolicyEducationStatus>>(
+      title: '교육 상태를 선택해 주세요',
+      options: options,
+      labelBuilder: (option) => option.label,
+      selected: options.firstWhere(
+        (option) => option.value == _educationStatus,
+        orElse: () => options.first,
+      ),
+    );
+    if (value != null && mounted) {
+      setState(() => _educationStatus = value.value);
     }
   }
 
@@ -290,7 +324,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
     setState(() => _showSelectionErrors = true);
 
     final isFormValid = _formKey.currentState?.validate() ?? false;
-    if (!isFormValid || _region == null || _employmentStatus == null) {
+    if (!isFormValid || _region == null) {
       return;
     }
 
@@ -308,8 +342,10 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
       region: _region!.name,
       districtCode: _district?.code,
       district: _district?.name,
-      employmentStatus: _employmentStatus!,
-      incomeRange: _incomeRange,
+      workStatus: _workStatus,
+      jobSeeking: _jobSeeking,
+      educationStatus: _educationStatus,
+      interests: Set.unmodifiable(_interests),
       category: _category,
     );
 
@@ -383,7 +419,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
             const Text('내 상황에 맞는 정책을 찾아볼까요?', style: AppTextStyles.title),
             const SizedBox(height: 8),
             const Text(
-              '필수 조건 3가지를 입력하면 관련 정책을 추천해 드려요.',
+              '나이와 거주 지역을 기준으로 넓게 찾고, 선택 정보는 추천 순서에 반영해요.',
               style: AppTextStyles.bodyMuted,
             ),
             if (_preferenceLoadMessage != null) ...[
@@ -448,30 +484,69 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
             ),
             const SizedBox(height: 14),
             _SelectionField(
-              key: const ValueKey('policy-employment-field'),
-              label: '취업 상태 *',
-              value: _employmentStatus?.label,
-              hint: '현재 상태를 선택해 주세요',
-              errorText: _showSelectionErrors && _employmentStatus == null
-                  ? '취업 상태를 선택해 주세요.'
-                  : null,
-              onTap: _pickEmploymentStatus,
+              key: const ValueKey('policy-work-status-field'),
+              label: '근로 상태',
+              value: _workStatus?.label ?? '잘 모르겠어요',
+              hint: '잘 모르겠어요',
+              onTap: _pickWorkStatus,
             ),
             const SizedBox(height: 14),
             _SelectionField(
-              key: const ValueKey('policy-income-field'),
-              label: '소득 조건',
-              value: _incomeRange?.label ?? '소득 무관',
-              hint: '소득 무관',
-              onTap: _pickIncomeRange,
+              key: const ValueKey('policy-job-seeking-field'),
+              label: '구직 여부',
+              value: switch (_jobSeeking) {
+                true => '구직 중',
+                false => '구직 중이 아님',
+                null => '선택하지 않음',
+              },
+              hint: '선택하지 않음',
+              onTap: _pickJobSeeking,
+            ),
+            const SizedBox(height: 14),
+            _SelectionField(
+              key: const ValueKey('policy-education-status-field'),
+              label: '교육 상태',
+              value: _educationStatus?.label ?? '잘 모르겠어요',
+              hint: '잘 모르겠어요',
+              onTap: _pickEducationStatus,
             ),
             const SizedBox(height: 14),
             _SelectionField(
               key: const ValueKey('policy-category-field'),
-              label: '정책 분야',
+              label: '지금 둘러볼 정책 분야',
               value: _category?.label ?? '전체',
               hint: '전체',
               onTap: _pickCategory,
+            ),
+            const SizedBox(height: 18),
+            const Text('관심 주제', style: AppTextStyles.sectionTitle),
+            const SizedBox(height: 6),
+            const Text(
+              '복수 선택할 수 있으며, 선택하지 않아도 모든 분야를 확인할 수 있어요.',
+              style: AppTextStyles.caption,
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              key: const ValueKey('policy-interest-options'),
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final interest in PolicyInterest.values)
+                  FilterChip(
+                    key: ValueKey('policy-interest-${interest.name}'),
+                    label: Text(interest.label),
+                    selected: _interests.contains(interest),
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _interests.add(interest);
+                        } else {
+                          _interests.remove(interest);
+                        }
+                      });
+                    },
+                  ),
+              ],
             ),
             if (_hasAccessToken) ...[
               const SizedBox(height: 12),
@@ -508,7 +583,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
                   Expanded(
                     child: Text(
                       '기본 조건은 로그인한 계정에 저장되며 맞춤 정책 조회에만 사용합니다. '
-                      '다른 사용자에게 공개되지 않습니다.',
+                      '소득은 기본 조건으로 저장하지 않으며, 다른 사용자에게 공개되지 않습니다.',
                       style: AppTextStyles.caption,
                     ),
                   ),

@@ -22,6 +22,10 @@ void main() {
           'employmentStatus': null,
           'incomeRange': null,
           'category': null,
+          'workStatus': null,
+          'jobSeeking': null,
+          'educationStatus': null,
+          'interests': const [],
         });
       }),
     );
@@ -54,6 +58,10 @@ void main() {
           'employmentStatus': 'JOB_SEEKING',
           'incomeRange': null,
           'category': null,
+          'workStatus': 'UNEMPLOYED',
+          'jobSeeking': true,
+          'educationStatus': null,
+          'interests': ['EMPLOYMENT', 'ASSET_BUILDING'],
         });
       }),
     );
@@ -70,11 +78,17 @@ void main() {
     );
     expect(jsonDecode(capturedRequest.body), {
       'regionCode': '11',
-      'employmentStatus': 'JOB_SEEKING',
+      'workStatus': 'UNEMPLOYED',
+      'jobSeeking': true,
+      'interests': ['EMPLOYMENT', 'ASSET_BUILDING'],
     });
     expect(preference.saved, isTrue);
-    expect(preference.incomeRange, isNull);
-    expect(preference.category, isNull);
+    expect(preference.workStatus, PolicyWorkStatus.unemployed);
+    expect(preference.jobSeeking, isTrue);
+    expect(
+      preference.interests,
+      {PolicyInterest.employment, PolicyInterest.assetBuilding},
+    );
   });
 
   test('검색 조건과 액세스 토큰을 백엔드 계약 형식으로 전송한다', () async {
@@ -86,7 +100,8 @@ void main() {
         return _successResponse({
           'items': [_summaryJson()],
           'partialResult': true,
-          'checkedProviderPages': 3,
+          'checkedProviderPages': 1,
+          'nextPage': 4,
         });
       }),
     );
@@ -99,10 +114,13 @@ void main() {
         region: '서울특별시',
         districtCode: '11680',
         district: '강남구',
-        employmentStatus: PolicyEmploymentStatus.jobSeeker,
-        incomeRange: PolicyIncomeRange.below100,
+        workStatus: PolicyWorkStatus.unemployed,
+        jobSeeking: true,
+        educationStatus: PolicyEducationStatus.graduated,
         category: PolicyCategory.housing,
       ),
+      keyword: '  월세  ',
+      page: 3,
     );
 
     expect(capturedRequest.method, 'POST');
@@ -112,13 +130,17 @@ void main() {
       'age': 27,
       'regionCode': '11',
       'districtCode': '11680',
-      'employmentStatus': 'JOB_SEEKING',
-      'incomeRange': 'BELOW_100',
+      'workStatus': 'UNEMPLOYED',
+      'jobSeeking': true,
+      'educationStatus': 'GRADUATED',
       'category': 'HOUSING',
+      'keyword': '월세',
+      'page': 3,
       'size': 20,
     });
     expect(result.partialResult, isTrue);
-    expect(result.checkedProviderPages, 3);
+    expect(result.checkedProviderPages, 1);
+    expect(result.nextPage, 4);
     expect(result.items.single.policyId, 'POLICY-1');
     expect(
       result.items.single.eligibilityStatus,
@@ -219,7 +241,9 @@ const _condition = PolicyFilterCondition(
   age: 27,
   regionCode: '11',
   region: '서울특별시',
-  employmentStatus: PolicyEmploymentStatus.jobSeeker,
+  workStatus: PolicyWorkStatus.unemployed,
+  jobSeeking: true,
+  interests: {PolicyInterest.employment, PolicyInterest.assetBuilding},
 );
 
 Map<String, dynamic> _summaryJson() {
