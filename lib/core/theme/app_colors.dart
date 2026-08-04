@@ -34,6 +34,13 @@ class AppColors {
   static const snsNaver = Color(0xFF03C75A);
 
   static const pinGoodPrice = Color(0xFF17A67C);
+  static const pinGoodPriceFood = Color(0xFFE53935);
+  static const pinGoodPriceBeauty = Color(0xFFD81B60);
+  static const pinGoodPriceBarber = Color(0xFF3949AB);
+  static const pinGoodPriceLaundry = Color(0xFF1E88E5);
+  static const pinGoodPriceLodging = Color(0xFF5E35B1);
+  static const pinGoodPriceBath = Color(0xFF00ACC1);
+  static const pinGoodPriceService = Color(0xFF546E7A);
   static const pinPublic = Color(0xFF3E9AE0);
   static const pinParking = Color(0xFFF5A524);
   static const mapBackground = Color(0xFFEAF0ED);
