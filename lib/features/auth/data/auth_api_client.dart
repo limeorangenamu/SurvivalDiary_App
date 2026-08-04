@@ -151,10 +151,17 @@ class AuthApiClient {
         },
       ).timeout(const Duration(seconds: 10));
     } on http.ClientException catch (error) {
-      throw AuthApiException('서버에 연결하지 못했어요.\n요청 주소: $uri\n${error.message}');
+      final loopbackHint = uri.host == '127.0.0.1' || uri.host == 'localhost'
+          ? '\nAndroid 실기기에서 이 주소는 PC가 아니라 휴대폰 자신입니다. '
+              'ADB reverse를 연결하거나 휴대폰에서 접근 가능한 백엔드 주소를 사용해 주세요.'
+          : '';
+      throw AuthApiException(
+        '서버에 연결하지 못했습니다.\n'
+        '요청 주소: $uri\n${error.message}$loopbackHint',
+      );
     } on TimeoutException {
       throw AuthApiException(
-        '서버 응답이 10초 안에 오지 않았어요.\n요청 주소: $uri',
+        '서버 응답이 10초 안에 오지 않았습니다.\n요청 주소: $uri',
       );
     }
     if (response.statusCode != 200) {
