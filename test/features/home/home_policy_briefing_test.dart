@@ -157,7 +157,7 @@ void main() {
         theme: AppTheme.light,
         onGenerateRoute: (settings) {
           if (settings.name == AppRoutes.policyDetail) {
-            return MaterialPageRoute<PolicyDetailAction>(
+            return MaterialPageRoute<dynamic>(
               builder: (context) => Scaffold(
                 body: Center(
                   child: FilledButton(

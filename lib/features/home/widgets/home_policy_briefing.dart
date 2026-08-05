@@ -170,7 +170,7 @@ class _HomePolicyBriefingState extends State<HomePolicyBriefing> {
   }
 
   Future<void> _openPolicy(PolicySummary policy) async {
-    final action = await Navigator.pushNamed<PolicyDetailAction>(
+    final action = await Navigator.pushNamed<dynamic>(
       context,
       AppRoutes.policyDetail,
       arguments: PolicyDetailArguments(
