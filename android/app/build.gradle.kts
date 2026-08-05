@@ -55,8 +55,11 @@ android {
         val naverLoginClientId = localCredential("NAVER_LOGIN_CLIENT_ID") ?: "not-configured"
         val naverLoginClientSecret =
             localCredential("NAVER_LOGIN_CLIENT_SECRET") ?: "not-configured"
+        val apiBaseUrl = localCredential("API_BASE_URL") ?: "http://10.100.105.28:8080"
 
         manifestPlaceholders["kakaoRedirectScheme"] = "kakao$kakaoNativeAppKey"
+        resValue("string", "app_api_base_url", apiBaseUrl)
+        resValue("string", "kakao_native_app_key", kakaoNativeAppKey)
         resValue(
             "string",
             "naver_login_client_id",

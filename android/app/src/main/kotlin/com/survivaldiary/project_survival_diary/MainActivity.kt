@@ -25,6 +25,24 @@ class MainActivity : FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
         ).register()
 
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            CONFIG_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            if (call.method == "get") {
+                result.success(
+                    mapOf(
+                        "apiBaseUrl" to getString(R.string.app_api_base_url),
+                        "kakaoNativeAppKey" to getString(R.string.kakao_native_app_key),
+                        "naverLoginClientId" to getString(R.string.naver_login_client_id),
+                        "naverLoginClientSecret" to getString(R.string.naver_login_client_secret),
+                    ),
+                )
+            } else {
+                result.notImplemented()
+            }
+        }
+
         val store = PaymentNotificationStore(this)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -256,6 +274,8 @@ class MainActivity : FlutterFragmentActivity() {
     companion object {
         private const val METHOD_CHANNEL =
             "com.survivaldiary.project_survival_diary/payment_notifications"
+        private const val CONFIG_CHANNEL =
+            "com.survivaldiary.project_survival_diary/app_config"
         private const val EVENT_CHANNEL =
             "com.survivaldiary.project_survival_diary/payment_notification_events"
         private const val SMS_PERMISSION_REQUEST_CODE = 7201
