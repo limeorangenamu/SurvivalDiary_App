@@ -29,7 +29,7 @@ void main() {
       onGenerateRoute: (settings) {
         if (settings.name == AppRoutes.policyDetail &&
             settings.arguments is PolicyDetailArguments) {
-          return MaterialPageRoute<PolicyDetailAction>(
+          return MaterialPageRoute<dynamic>(
             builder: (_) => PolicyDetailPage(
               arguments: settings.arguments! as PolicyDetailArguments,
               apiClient: resolvedClient,
