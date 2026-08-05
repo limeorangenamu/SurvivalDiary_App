@@ -12,4 +12,14 @@ void main() {
     expect(tester.widget<PillChip>(finder).selected, isTrue);
     expect(find.text('전체'), findsNothing);
   });
+
+  testWidgets('주거지 탭은 지역 선택 화면 없이 실거래 배너를 표시한다', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SavingMapPage()));
+
+    await tester.tap(find.widgetWithText(PillChip, '주거지'));
+    await tester.pump();
+
+    expect(find.text('주거 실거래'), findsOneWidget);
+    expect(find.text('주거 실거래 지역 선택'), findsNothing);
+  });
 }

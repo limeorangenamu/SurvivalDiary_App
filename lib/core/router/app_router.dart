@@ -24,6 +24,7 @@ import '../../features/profile/profile_edit_page.dart';
 import '../../features/profile/profile_page.dart';
 import '../../features/root/root_shell.dart';
 import '../../features/auth/auth_session.dart';
+import '../services/housing_rent_api_service.dart';
 import '../theme/app_text_styles.dart';
 import 'app_routes.dart';
 
@@ -74,7 +75,13 @@ class AppRouter {
         PlaceDetailPage(place: settings.arguments! as SavingPlace),
       AppRoutes.housingRegion => const HousingRegionPage(),
       AppRoutes.housingDeal => HousingDealPage(
-          region: settings.arguments as String? ?? '서울특별시 강남구 역삼동',
+          condition: settings.arguments is HousingRentSearchCondition
+              ? settings.arguments! as HousingRentSearchCondition
+              : const HousingRentSearchCondition(
+                  region: '서울특별시 강남구 역삼동',
+                  lawdCode: '11680',
+                  neighborhood: '역삼동',
+                ),
         ),
       AppRoutes.postDetail when settings.arguments is CommunityPost =>
         PostDetailPage(post: settings.arguments! as CommunityPost),

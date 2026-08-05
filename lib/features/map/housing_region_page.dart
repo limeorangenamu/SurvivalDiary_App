@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/router/app_routes.dart';
+import '../../core/services/housing_rent_api_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/mock_data.dart';
@@ -21,6 +22,39 @@ class _HousingRegionPageState extends State<HousingRegionPage> {
 
   bool get _isComplete =>
       _province != null && _district != null && _neighborhood != null;
+
+  String? get _lawdCode {
+    final province = _province;
+    final district = _district;
+    final neighborhood = _neighborhood;
+    if (province == null || district == null || neighborhood == null) {
+      return null;
+    }
+    const neighborhoodCodes = {
+      '경기도|성남시|정자동': '41135',
+      '경기도|성남시|서현동': '41135',
+      '경기도|성남시|야탑동': '41135',
+      '경기도|수원시|인계동': '41115',
+      '경기도|수원시|영통동': '41117',
+      '경기도|수원시|매탄동': '41117',
+    };
+    final neighborhoodCode =
+        neighborhoodCodes['$province|$district|$neighborhood'];
+    if (neighborhoodCode != null) {
+      return neighborhoodCode;
+    }
+    for (final region in MockData.policyRegions) {
+      if (region.name != province) {
+        continue;
+      }
+      for (final option in region.districts) {
+        if (option.name == district) {
+          return option.code;
+        }
+      }
+    }
+    return null;
+  }
 
   Future<void> _selectProvince() async {
     final result = await showOptionPickerSheet<String>(
@@ -75,8 +109,23 @@ class _HousingRegionPageState extends State<HousingRegionPage> {
   }
 
   void _search() {
+    final lawdCode = _lawdCode;
+    if (lawdCode == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('선택한 지역의 법정동 코드를 확인하지 못했어요.')),
+      );
+      return;
+    }
     final region = '$_province $_district $_neighborhood';
-    Navigator.pushNamed(context, AppRoutes.housingDeal, arguments: region);
+    Navigator.pushNamed(
+      context,
+      AppRoutes.housingDeal,
+      arguments: HousingRentSearchCondition(
+        region: region,
+        lawdCode: lawdCode,
+        neighborhood: _neighborhood!,
+      ),
+    );
   }
 
   @override

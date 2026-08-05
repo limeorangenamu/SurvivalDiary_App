@@ -298,33 +298,21 @@ void main() {
     expect(button.onPressed, isNull);
   });
 
-  testWidgets('지도 주거지 카테고리에만 실거래 지역 메뉴가 나타난다', (tester) async {
+  testWidgets('지도 주거지 탭에서 실거래 배너가 나타난다', (tester) async {
     await tester
         .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.tap(find.byKey(const ValueKey('bottom-map')));
     await tester.pumpAndSettle();
 
-    expect(find.text('주변 부동산 최근 거래'), findsNothing);
-    expect(find.text('주거 실거래 지역 선택'), findsNothing);
+    expect(find.text('주거 실거래'), findsNothing);
 
     await tester.tap(find.text('주거지'));
     await tester.pumpAndSettle();
-    await tester.drag(
-      find.byKey(const PageStorageKey('map-scroll')),
-      const Offset(0, -260),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('주거 실거래 지역 선택'), findsOneWidget);
+    expect(find.text('주거 실거래'), findsOneWidget);
 
-    await tester.drag(
-      find.byKey(const PageStorageKey('map-scroll')),
-      const Offset(0, 260),
-    );
-    await tester.pumpAndSettle();
     await tester.tap(find.text('공공시설'));
     await tester.pumpAndSettle();
-    expect(find.text('주거 실거래 지역 선택'), findsNothing);
-    expect(find.text('주변 부동산 최근 거래'), findsNothing);
+    expect(find.text('주거 실거래'), findsNothing);
   });
 
   testWidgets('글쓰기 필수값 누락 시 화면 안에 오류가 나타난다', (tester) async {
