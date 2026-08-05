@@ -91,4 +91,9 @@ class AuthSession extends ChangeNotifier {
     _currentUser = null;
     notifyListeners();
   }
+
+  void updateCurrentUser(CurrentUser user) {
+    _currentUser = user;
+    notifyListeners();
+  }
 }

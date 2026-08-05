@@ -56,14 +56,6 @@ class SocialAuthService {
         '--dart-define-from-file=config/local.json 옵션으로 다시 빌드해 주세요.',
       );
     }
-    if (provider == SocialAuthProvider.naver &&
-        (AppConfig.naverLoginClientId.isEmpty ||
-            AppConfig.naverLoginClientSecret.isEmpty)) {
-      throw const AuthApiException(
-        '네이버 로그인 설정이 앱에 전달되지 않았습니다.\n'
-        '--dart-define-from-file=config/local.json 옵션으로 다시 빌드해 주세요.',
-      );
-    }
   }
 
   Future<String> _loginWithKakao() async {

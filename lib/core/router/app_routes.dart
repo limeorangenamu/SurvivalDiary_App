@@ -12,6 +12,8 @@ class AppRoutes {
   static const budgetSetting = '/budget-setting';
   static const expenseStats = '/expense-stats';
   static const detectedExpenses = '/detected-expenses';
+  static const profile = '/profile';
+  static const profileEdit = '/profile/edit';
   static const policyResults = '/policy-results';
   static const policyDetail = '/policy-detail';
   static const policyExternalLinkConfirm = '/policy-external-link-confirm';
