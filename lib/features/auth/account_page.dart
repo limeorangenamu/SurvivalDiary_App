@@ -20,10 +20,10 @@ class AccountPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (user?.profileImageUrl.isNotEmpty == true)
+                  if (user?.profileImageUrl?.isNotEmpty == true)
                     ClipOval(
                       child: Image.network(
-                        user!.profileImageUrl,
+                        user!.profileImageUrl!,
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,

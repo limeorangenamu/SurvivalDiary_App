@@ -40,7 +40,6 @@ class CurrentUser {
     required this.interests,
     required this.region,
     required this.bio,
-    required this.profileImageUrl,
     required this.createdAt,
   });
 
@@ -51,7 +50,7 @@ class CurrentUser {
       email: json['email'] as String? ?? '',
       name: json['name'] as String,
       nickname: json['nickname'] as String? ?? '',
-      profileImageUrl: json['profileImageUrl'] as String? ?? '',
+      profileImageUrl: json['profileImageUrl'] as String?,
       phone: json['phone'] as String? ?? '',
       birthDate: json['birthDate'] as String? ?? '',
       gender: json['gender'] as String? ?? '',
@@ -60,7 +59,6 @@ class CurrentUser {
           : const [],
       region: json['region'] as String? ?? '',
       bio: json['bio'] as String? ?? '',
-      profileImageUrl: json['profileImageUrl'] as String?,
       createdAt: json['createdAt'] as String? ?? '',
     );
   }
@@ -70,7 +68,7 @@ class CurrentUser {
   final String email;
   final String name;
   final String nickname;
-  final String profileImageUrl;
+  final String? profileImageUrl;
   String get displayName => nickname.trim().isNotEmpty ? nickname : name;
   final String phone;
   final String birthDate;
@@ -78,7 +76,6 @@ class CurrentUser {
   final List<String> interests;
   final String region;
   final String bio;
-  final String? profileImageUrl;
   final String createdAt;
 }
 
