@@ -22,11 +22,15 @@ class AccountPage extends StatelessWidget {
                 children: [
                   const Icon(Icons.account_circle_outlined, size: 48),
                   const SizedBox(height: 12),
-                  Text(user?.name ?? '사용자',
+                  Text(user?.displayName ?? '사용자',
                       style: Theme.of(context).textTheme.titleLarge),
                   if (user?.email.isNotEmpty == true) ...[
                     const SizedBox(height: 4),
                     Text(user!.email),
+                  ],
+                  if (user?.phone.isNotEmpty == true) ...[
+                    const SizedBox(height: 4),
+                    Text(user!.phone),
                   ],
                 ],
               ),

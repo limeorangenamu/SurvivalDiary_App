@@ -115,7 +115,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final budget = _budget ??
         BudgetSummary.empty(
-          userName: AuthSession.instance.currentUser?.name ?? '',
+          userName: AuthSession.instance.currentUser?.displayName ?? '',
         );
     return SafeArea(
       bottom: false,
@@ -335,7 +335,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
 }
 
 class _NewsListItem extends StatelessWidget {
