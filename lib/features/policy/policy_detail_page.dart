@@ -108,7 +108,7 @@ class _PolicyDetailContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final supportAmount = policy.supportAmount;
     final supportAmountLabel = supportAmount == null
-        ? '지원 내용 확인'
+        ? policy.supportText
         : Formatters.compactAmount(supportAmount);
     final periodLabel = policy.applicationPeriodText ?? '신청 기간 확인 필요';
     final referenceUrls = policy.referenceUrls
@@ -120,9 +120,11 @@ class _PolicyDetailContent extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
         children: [
-          if (arguments.recommendationReasons.isNotEmpty ||
-              arguments.eligibilityStatus ==
-                  PolicyEligibilityStatus.checkRequired) ...[
+          if (arguments.recommendationStatus !=
+                  PolicyRecommendationStatus.discover &&
+              (arguments.recommendationReasons.isNotEmpty ||
+                  arguments.eligibilityStatus ==
+                      PolicyEligibilityStatus.checkRequired)) ...[
             _RecommendationNotice(
               status: arguments.recommendationStatus,
               reasons: arguments.recommendationReasons.isEmpty
@@ -256,7 +258,9 @@ class _PolicyDetailContent extends StatelessWidget {
                             ),
                           ),
                   child: Text(
-                    policy.officialUrl == null ? '온라인 신청 링크 없음' : '신청 사이트 확인',
+                    policy.officialUrl == null
+                        ? '온라인 신청 링크 없음'
+                        : '공식 신청 페이지로 이동',
                   ),
                 ),
               ),

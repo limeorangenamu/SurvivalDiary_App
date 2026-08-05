@@ -127,6 +127,44 @@ class PolicyApiClient {
     }
   }
 
+  Future<PolicySearchResult> recommendPolicies({
+    required String accessToken,
+    PolicyCategory? category,
+    String? keyword,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await _send(
+      () => _client.post(
+        Uri.parse('$_baseUrl/api/policies/recommendations'),
+        headers: _headers(accessToken, hasBody: true),
+        body: jsonEncode(
+          _recommendationBody(
+            category: category,
+            keyword: keyword,
+            page: page,
+            size: size,
+          ),
+        ),
+      ),
+      fallbackMessage: '맞춤 정책을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.',
+    );
+
+    try {
+      return PolicySearchResult.fromJson(_responseData(response));
+    } on FormatException {
+      throw const PolicyApiException(
+        '서버의 맞춤 정책 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    } on TypeError {
+      throw const PolicyApiException(
+        '서버의 맞춤 정책 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    }
+  }
+
   Future<PolicyDetail> getPolicyDetail({
     required String accessToken,
     required String policyId,
@@ -229,6 +267,29 @@ class PolicyApiClient {
       'interests': condition.interests.map(_interestCode).toList(),
       if (resolvedCategory != null)
         'category': switch (resolvedCategory) {
+          PolicyCategory.employment => 'EMPLOYMENT',
+          PolicyCategory.housing => 'HOUSING',
+          PolicyCategory.education => 'EDUCATION',
+          PolicyCategory.welfareCulture => 'WELFARE_CULTURE',
+          PolicyCategory.participationRights => 'PARTICIPATION_RIGHTS',
+        },
+      if (normalizedKeyword != null && normalizedKeyword.isNotEmpty)
+        'keyword': normalizedKeyword,
+      'page': page,
+      'size': size,
+    };
+  }
+
+  Map<String, dynamic> _recommendationBody({
+    PolicyCategory? category,
+    String? keyword,
+    required int page,
+    required int size,
+  }) {
+    final normalizedKeyword = keyword?.trim();
+    return {
+      if (category != null)
+        'category': switch (category) {
           PolicyCategory.employment => 'EMPLOYMENT',
           PolicyCategory.housing => 'HOUSING',
           PolicyCategory.education => 'EDUCATION',
