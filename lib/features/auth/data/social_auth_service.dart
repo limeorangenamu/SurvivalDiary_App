@@ -16,6 +16,12 @@ class SocialAuthService {
 
   final AuthApiClient _apiClient;
 
+  // Kakao apps without business verification can reliably provide the
+  // nickname scope. Other profile fields remain optional on the backend.
+  static const _kakaoProfileScopes = <String>[
+    'profile_nickname',
+  ];
+
   Future<void> login(SocialAuthProvider provider) async {
     _validateConfiguration(provider);
     final providerToken = switch (provider) {
@@ -77,17 +83,47 @@ class SocialAuthService {
   }
 
   Future<OAuthToken> _loginWithKakaoAccountFallback() async {
+    late final OAuthToken token;
     if (!await isKakaoTalkInstalled()) {
-      return UserApi.instance.loginWithKakaoAccount();
-    }
-    try {
-      return await UserApi.instance.loginWithKakaoTalk();
-    } on PlatformException catch (error) {
-      if (error.code != 'NotSupportError' ||
-          !(error.message ?? '').contains('not connected to Kakao account')) {
-        rethrow;
+      token = await UserApi.instance.loginWithKakaoAccount();
+    } else {
+      try {
+        token = await UserApi.instance.loginWithKakaoTalk();
+      } on PlatformException catch (error) {
+        if (error.code != 'NotSupportError' ||
+            !(error.message ?? '').contains('not connected to Kakao account')) {
+          rethrow;
+        }
+        token = await UserApi.instance.loginWithKakaoAccount();
       }
-      return UserApi.instance.loginWithKakaoAccount();
+    }
+
+    return _requestMissingKakaoScopes(token);
+  }
+
+  Future<OAuthToken> _requestMissingKakaoScopes(OAuthToken token) async {
+    try {
+      final scopeInfo = await UserApi.instance.scopes();
+      final agreedScopes = {
+        for (final scope in scopeInfo.scopes ?? <Scope>[])
+          if (scope.agreed) scope.id,
+      };
+      final missingScopes = _kakaoProfileScopes
+          .where((scope) => !agreedScopes.contains(scope))
+          .toList();
+
+      if (missingScopes.isEmpty) return token;
+
+      debugPrint(
+        'Requesting Kakao consent scopes: ${missingScopes.join(', ')}',
+      );
+      return UserApi.instance.loginWithNewScopes(missingScopes);
+    } catch (error, stackTrace) {
+      // A scope that is not enabled in the Kakao console must not prevent
+      // login. The backend will persist every field Kakao actually returns.
+      debugPrint(
+          'Kakao additional consent request failed: $error\n$stackTrace');
+      return token;
     }
   }
 

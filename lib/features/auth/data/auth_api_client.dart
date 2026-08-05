@@ -32,6 +32,7 @@ class CurrentUser {
     required this.id,
     required this.email,
     required this.name,
+    required this.nickname,
     required this.phone,
     required this.birthDate,
     required this.gender,
@@ -44,6 +45,7 @@ class CurrentUser {
       id: (json['userId'] as num).toInt(),
       email: json['email'] as String? ?? '',
       name: json['name'] as String,
+      nickname: json['nickname'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       birthDate: json['birthDate'] as String? ?? '',
       gender: json['gender'] as String? ?? '',
@@ -57,6 +59,8 @@ class CurrentUser {
   int get userId => id;
   final String email;
   final String name;
+  final String nickname;
+  String get displayName => nickname.trim().isNotEmpty ? nickname : name;
   final String phone;
   final String birthDate;
   final String gender;
