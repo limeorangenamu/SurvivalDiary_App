@@ -20,6 +20,8 @@ import '../../features/policy/policy_detail_page.dart';
 import '../../features/policy/policy_external_link_confirm_page.dart';
 import '../../features/policy/policy_list_page.dart';
 import '../../features/policy/data/policy_models.dart';
+import '../../features/profile/profile_edit_page.dart';
+import '../../features/profile/profile_page.dart';
 import '../../features/root/root_shell.dart';
 import '../../features/auth/auth_session.dart';
 import '../theme/app_text_styles.dart';
@@ -54,6 +56,8 @@ class AppRouter {
       AppRoutes.budgetSetting => const BudgetSettingPage(),
       AppRoutes.expenseStats => const ExpenseStatsPage(),
       AppRoutes.detectedExpenses => const DetectedExpensePage(),
+      AppRoutes.profile => const ProfilePage(),
+      AppRoutes.profileEdit => const ProfileEditPage(),
       AppRoutes.policyResults
           when settings.arguments is PolicyFilterCondition =>
         PolicyListPage(condition: settings.arguments! as PolicyFilterCondition),
