@@ -6,6 +6,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import '../../core/services/directions_api_service.dart';
 import '../../core/services/good_price_api_service.dart';
 import '../../core/services/location_service.dart';
+import '../../core/services/public_facility_api_service.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -22,6 +23,7 @@ import 'good_price_store_marker_style.dart';
 import 'good_price_store_visibility.dart';
 import 'place_detail_page.dart';
 import 'widgets/map_canvas.dart';
+import 'widgets/public_facility_detail_sheet.dart';
 
 class SavingMapPage extends StatefulWidget {
   const SavingMapPage({super.key});
@@ -33,21 +35,29 @@ class SavingMapPage extends StatefulWidget {
 class _SavingMapPageState extends State<SavingMapPage> {
   final DirectionsApiService _directionsApiService = DirectionsApiService();
   final GoodPriceApiService _goodPriceApiService = GoodPriceApiService();
+  final PublicFacilityApiService _publicFacilityApiService =
+      PublicFacilityApiService();
   final LocationService _locationService = LocationService();
 
   String _filter = '전체';
   int _sortIndex = 0;
   SavingPlace? _selectedPlace;
   GoodPriceStore? _selectedGoodPriceStore;
+  PublicFacility? _selectedPublicFacility;
   String? _selectedGoodPriceCategoryKey;
   final Map<String, GoodPriceStore> _favoriteGoodPriceStores = {};
   NaverMapController? _mapController;
   List<GoodPriceStore> _goodPriceStores = const [];
+  List<PublicFacility> _publicFacilities = const [];
   bool _isLoadingStores = false;
+  bool _isLoadingPublicFacilities = false;
   String? _storeError;
+  String? _publicFacilityError;
+  bool _publicFacilityFreeOnly = false;
   String? _province;
   String? _district;
   int _storeRequestId = 0;
+  int _publicFacilityRequestId = 0;
   double? _currentLatitude;
   double? _currentLongitude;
   bool _isLocating = false;
@@ -73,6 +83,58 @@ class _SavingMapPageState extends State<SavingMapPage> {
             );
           }).toList();
     return _sortGoodPriceStores(stores);
+  }
+
+  Future<void> _loadPublicFacilities() async {
+    final bounds = _viewportBounds;
+    final latitude = _currentLatitude;
+    final longitude = _currentLongitude;
+    if (bounds == null || latitude == null || longitude == null) {
+      return;
+    }
+    final accessToken = AuthSession.instance.accessToken;
+    if (accessToken == null) {
+      setState(() {
+        _publicFacilityError = '로그인 후 공공시설을 확인할 수 있어요.';
+        _isLoadingPublicFacilities = false;
+      });
+      return;
+    }
+
+    final requestId = ++_publicFacilityRequestId;
+    setState(() {
+      _isLoadingPublicFacilities = true;
+      _publicFacilityError = null;
+    });
+
+    try {
+      final page = await _publicFacilityApiService.fetchFacilities(
+        accessToken: accessToken,
+        southWestLat: bounds.southWest.latitude,
+        southWestLng: bounds.southWest.longitude,
+        northEastLat: bounds.northEast.latitude,
+        northEastLng: bounds.northEast.longitude,
+        latitude: latitude,
+        longitude: longitude,
+        freeOnly: _publicFacilityFreeOnly,
+        sort: _publicFacilityFreeOnly ? 'free' : 'distance',
+      );
+      if (!mounted || requestId != _publicFacilityRequestId) {
+        return;
+      }
+      setState(() {
+        _publicFacilities = page.content;
+        _isLoadingPublicFacilities = false;
+      });
+    } on PublicFacilityApiException catch (error) {
+      if (!mounted || requestId != _publicFacilityRequestId) {
+        return;
+      }
+      setState(() {
+        _publicFacilityError = error.message;
+        _isLoadingPublicFacilities = false;
+      });
+    }
   }
 
   Future<void> _loadGoodPriceStores() async {
@@ -176,9 +238,17 @@ class _SavingMapPageState extends State<SavingMapPage> {
         _currentLongitude = viewport.center.longitude;
         _viewportBounds = viewport.bounds;
         _selectedGoodPriceStore = null;
+        _selectedPublicFacility = null;
         _isLocating = true;
         _locationError = null;
       });
+    }
+    if (_filter == '공공시설') {
+      if (mounted) {
+        setState(() => _isLocating = false);
+      }
+      await _loadPublicFacilities();
+      return;
     }
     if (_filter != '착한가격업소') {
       if (mounted) {
@@ -279,12 +349,16 @@ class _SavingMapPageState extends State<SavingMapPage> {
   }
 
   List<SavingPlace> get _visiblePlaces {
-    if (_filter == '주거지' || _filter == '착한가격업소') {
+    if (_filter == '주거지' || _filter == '착한가격업소' || _filter == '공공시설') {
       return [];
     }
     final result = _filter == '전체'
         ? MockData.places
-            .where((place) => place.type != PlaceType.goodPrice)
+            .where(
+              (place) =>
+                  place.type != PlaceType.goodPrice &&
+                  place.type != PlaceType.publicFacility,
+            )
             .toList()
         : MockData.places
             .where((place) => place.type.label == _filter)
@@ -303,6 +377,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
       _sortIndex = 0;
       _selectedPlace = null;
       _selectedGoodPriceStore = null;
+      _selectedPublicFacility = null;
       _directionsRoute = null;
       _directionsDestinationName = null;
       _isLoadingDirections = false;
@@ -312,6 +387,9 @@ class _SavingMapPageState extends State<SavingMapPage> {
       }
     });
     if (value == '착한가격업소' && _goodPriceStores.isEmpty) {
+      unawaited(_refreshCurrentViewport());
+    }
+    if (value == '공공시설' && _publicFacilities.isEmpty) {
       unawaited(_refreshCurrentViewport());
     }
   }
@@ -336,6 +414,18 @@ class _SavingMapPageState extends State<SavingMapPage> {
   void _selectGoodPriceStore(GoodPriceStore store) {
     setState(() {
       _selectedGoodPriceStore = store;
+      _selectedPublicFacility = null;
+      _directionsRoute = null;
+      _directionsDestinationName = null;
+      _isLoadingDirections = false;
+      _directionsRequestId++;
+    });
+  }
+
+  void _selectPublicFacility(PublicFacility facility) {
+    setState(() {
+      _selectedPublicFacility = facility;
+      _selectedGoodPriceStore = null;
       _directionsRoute = null;
       _directionsDestinationName = null;
       _isLoadingDirections = false;
@@ -355,15 +445,69 @@ class _SavingMapPageState extends State<SavingMapPage> {
     );
   }
 
+  void _showPublicFacilityDetail() {
+    final facility = _selectedPublicFacility;
+    if (facility == null) {
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.68,
+        minChildSize: 0.5,
+        maxChildSize: 0.92,
+        builder: (_, scrollController) => PublicFacilityDetailSheet(
+          facility: facility,
+          scrollController: scrollController,
+          onDirectionsPressed: () {
+            Navigator.of(sheetContext).pop();
+            unawaited(_openPublicFacilityDirections(facility));
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _openSelectedGoodPriceStoreDirections() async {
     final store = _selectedGoodPriceStore;
     if (store == null) {
       return;
     }
-    final goalLatitude = store.latitude;
-    final goalLongitude = store.longitude;
+    await _openDirections(
+      destinationName: store.name,
+      goalLatitude: store.latitude,
+      goalLongitude: store.longitude,
+      missingLocationMessage: '이 업소는 위치 정보가 없어 길찾기를 시작할 수 없어요.',
+    );
+  }
+
+  Future<void> _openSelectedPublicFacilityDirections() async {
+    final facility = _selectedPublicFacility;
+    if (facility == null) {
+      return;
+    }
+    await _openPublicFacilityDirections(facility);
+  }
+
+  Future<void> _openPublicFacilityDirections(PublicFacility facility) {
+    return _openDirections(
+      destinationName: facility.name,
+      goalLatitude: facility.latitude,
+      goalLongitude: facility.longitude,
+      missingLocationMessage: '이 시설은 위치 정보가 없어 길찾기를 시작할 수 없어요.',
+    );
+  }
+
+  Future<void> _openDirections({
+    required String destinationName,
+    required double? goalLatitude,
+    required double? goalLongitude,
+    required String missingLocationMessage,
+  }) async {
     if (goalLatitude == null || goalLongitude == null) {
-      _showDirectionsError('이 업소는 위치 정보가 없어 길찾기를 시작할 수 없어요.');
+      _showDirectionsError(missingLocationMessage);
       return;
     }
     final accessToken = AuthSession.instance.accessToken;
@@ -376,7 +520,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
     setState(() {
       _isLoadingDirections = true;
       _directionsRoute = null;
-      _directionsDestinationName = store.name;
+      _directionsDestinationName = destinationName;
     });
 
     try {
@@ -401,6 +545,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
         _directionsRoute = route;
         _isLoadingDirections = false;
         _selectedGoodPriceStore = null;
+        _selectedPublicFacility = null;
       });
     } on DirectionsApiException catch (error) {
       if (!mounted || requestId != _directionsRequestId) {
@@ -456,6 +601,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
   Widget build(BuildContext context) {
     final places = _visiblePlaces;
     final isGoodPrice = _filter == '착한가격업소';
+    final isPublicFacility = _filter == '공공시설';
     final visibleGoodPriceStores = _visibleGoodPriceStores;
     final categoryGoodPriceStores = visibleGoodPriceStores
         .where(
@@ -487,11 +633,13 @@ class _SavingMapPageState extends State<SavingMapPage> {
             child: SavingMapCanvas(
               places: places,
               goodPriceStores: mapGoodPriceStores,
+              publicFacilities: isPublicFacility ? _publicFacilities : const [],
               directionsRoute: _directionsRoute,
               onPlaceTap: (place) {
                 setState(() => _selectedPlace = place);
               },
               onGoodPriceStoreTap: _selectGoodPriceStore,
+              onPublicFacilityTap: _selectPublicFacility,
               onMapReady: (controller) {
                 _mapController = controller;
                 unawaited(_initializeMapAtCurrentLocation());
@@ -503,6 +651,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
                 unawaited(_handleViewportChanged(viewport));
               },
               selectedGoodPriceStore: _selectedGoodPriceStore,
+              selectedPublicFacility: _selectedPublicFacility,
               isSelectedStoreFavorite: _selectedGoodPriceStore != null &&
                   _favoriteGoodPriceStores.containsKey(
                     _selectedGoodPriceStore!.id,
@@ -512,9 +661,18 @@ class _SavingMapPageState extends State<SavingMapPage> {
                 unawaited(_openSelectedGoodPriceStoreDirections());
               },
               onGoodPriceStoreCardTap: _showGoodPriceStoreDetail,
+              onPublicFacilityDirectionsPressed: () {
+                unawaited(_openSelectedPublicFacilityDirections());
+              },
+              onPublicFacilityCardTap: _showPublicFacilityDetail,
               onGoodPriceStoreDismissed: () {
                 if (_selectedGoodPriceStore != null) {
                   setState(() => _selectedGoodPriceStore = null);
+                }
+              },
+              onPublicFacilityDismissed: () {
+                if (_selectedPublicFacility != null) {
+                  setState(() => _selectedPublicFacility = null);
                 }
               },
             ),
@@ -586,6 +744,29 @@ class _SavingMapPageState extends State<SavingMapPage> {
                 },
               ),
             )
+          else if (isPublicFacility)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              height: 210,
+              child: _PublicFacilityPanel(
+                facilities: _publicFacilities,
+                isLoading: _isLoadingPublicFacilities,
+                error: _publicFacilityError,
+                freeOnly: _publicFacilityFreeOnly,
+                onRetry: _loadPublicFacilities,
+                onFreeOnlyChanged: (value) {
+                  setState(() {
+                    _publicFacilityFreeOnly = value;
+                    _selectedPublicFacility = null;
+                    _publicFacilities = const [];
+                  });
+                  unawaited(_loadPublicFacilities());
+                },
+                onFacilitySelected: _selectPublicFacility,
+              ),
+            )
           else if (_filter == '주거지')
             Positioned(
               left: 16,
@@ -613,6 +794,170 @@ class _SavingMapPageState extends State<SavingMapPage> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _PublicFacilityPanel extends StatelessWidget {
+  const _PublicFacilityPanel({
+    required this.facilities,
+    required this.isLoading,
+    required this.error,
+    required this.freeOnly,
+    required this.onRetry,
+    required this.onFreeOnlyChanged,
+    required this.onFacilitySelected,
+  });
+
+  final List<PublicFacility> facilities;
+  final bool isLoading;
+  final String? error;
+  final bool freeOnly;
+  final VoidCallback onRetry;
+  final ValueChanged<bool> onFreeOnlyChanged;
+  final ValueChanged<PublicFacility> onFacilitySelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text('현재 화면의 공공시설', style: AppTextStyles.sectionTitle),
+              ),
+              Text('${facilities.length}곳', style: AppTextStyles.caption),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: Text(
+                  '무료',
+                  style: freeOnly
+                      ? const TextStyle(color: AppColors.surface)
+                      : null,
+                ),
+                selected: freeOnly,
+                onSelected: onFreeOnlyChanged,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '시설을 누르면 위치와 상세 정보를 확인할 수 있어요.',
+            style: AppTextStyles.captionTiny,
+          ),
+          const SizedBox(height: 10),
+          Expanded(child: _buildContent()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (isLoading && facilities.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 8),
+            Text('공공시설 데이터를 준비하고 있어요.', style: AppTextStyles.bodyMuted),
+          ],
+        ),
+      );
+    }
+    if (error != null && facilities.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              error!,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodyMuted,
+            ),
+            TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          ],
+        ),
+      );
+    }
+    if (facilities.isEmpty) {
+      return const Center(
+        child: Text('현재 지도 화면에 확인된 공공시설이 없어요.', style: AppTextStyles.bodyMuted),
+      );
+    }
+
+    return Stack(
+      children: [
+        ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: facilities.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final facility = facilities[index];
+            return Semantics(
+              button: true,
+              label: '${facility.name}, ${facility.feeLabel}',
+              child: InkWell(
+                onTap: () => onFacilitySelected(facility),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 190,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySoft.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        facility.category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.captionTiny,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        facility.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${facility.distanceLabel} · ${facility.feeLabel}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption.copyWith(
+                          color: facility.isFree
+                              ? AppColors.primaryDeep
+                              : AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+        if (isLoading)
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
+      ],
     );
   }
 }
