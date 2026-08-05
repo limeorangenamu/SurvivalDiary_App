@@ -480,7 +480,12 @@ class _BriefingHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Text(conditionLabel, style: AppTextStyles.bodyMuted),
+              child: Text(
+                conditionLabel,
+                style: AppTextStyles.bodyMuted,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             if (onEditCondition != null)
               TextButton(
@@ -653,9 +658,19 @@ class _PolicySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppTextStyles.sectionTitle),
+        Text(
+          title,
+          style: AppTextStyles.sectionTitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
         const SizedBox(height: 5),
-        Text(subtitle, style: AppTextStyles.caption),
+        Text(
+          subtitle,
+          style: AppTextStyles.caption,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
         const SizedBox(height: 12),
         for (var index = 0; index < policies.length; index++) ...[
           cardBuilder(policies[index]),
@@ -679,74 +694,123 @@ class _PolicyHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      key: ValueKey('policy-card-${policy.policyId}'),
-      onTap: onTap,
-      color: AppColors.primarySoft,
-      borderColor: AppColors.primarySoft,
-      padding: const EdgeInsets.all(18),
-      radius: 18,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const _StatusBadge(
-                  status: PolicyRecommendationStatus.recommended),
-              const Spacer(),
-              if (_deadlineBadge(policy.applicationEndDate) case final label?)
+    return Semantics(
+      button: true,
+      label: '${policy.title} 상세 보기',
+      child: AppCard(
+        key: ValueKey('policy-card-${policy.policyId}'),
+        onTap: onTap,
+        color: AppColors.primarySoft,
+        borderColor: AppColors.primarySoft,
+        padding: const EdgeInsets.all(18),
+        radius: 18,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const _StatusBadge(
+                        status: PolicyRecommendationStatus.recommended,
+                      ),
+                      if (_deadlineBadge(policy.applicationEndDate)
+                          case final label?)
+                        Text(
+                          label,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                _HideMenu(policyId: policy.policyId, onHide: onHide),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              policy.title,
+              style: AppTextStyles.title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _supportLabel(policy),
+              style: AppTextStyles.amount.copyWith(
+                color: AppColors.primaryDeep,
+                fontSize: 21,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (policy.recommendationReasons.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 17,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        policy.recommendationReasons.first,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    policy.category,
+                    style: AppTextStyles.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Text(
-                  label,
+                  '자세히 보기',
                   style: AppTextStyles.caption.copyWith(
-                    color: AppColors.warning,
+                    color: AppColors.primaryDeep,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-              _HideMenu(policyId: policy.policyId, onHide: onHide),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(policy.title, style: AppTextStyles.title),
-          const SizedBox(height: 12),
-          Text(
-            _supportLabel(policy),
-            style: AppTextStyles.amount.copyWith(
-              color: AppColors.primaryDeep,
-              fontSize: 22,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (policy.recommendationReasons.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              policy.recommendationReasons.first,
-              style: AppTextStyles.body,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 2),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: AppColors.primaryDeep,
+                ),
+              ],
             ),
           ],
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text(policy.category, style: AppTextStyles.caption),
-              const Spacer(),
-              Text(
-                '자세히 보기',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.primaryDeep,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 2),
-              const Icon(
-                Icons.arrow_forward_rounded,
-                size: 16,
-                color: AppColors.primaryDeep,
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -767,77 +831,121 @@ class _PolicyCompactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      key: ValueKey('policy-card-${policy.policyId}'),
-      onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      radius: 16,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  policy.title,
-                  style:
-                      AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              _HideMenu(policyId: policy.policyId, onHide: onHide),
-            ],
-          ),
-          if (showStatus) ...[
-            const SizedBox(height: 8),
+    return Semantics(
+      button: true,
+      label: '${policy.title} 상세 보기',
+      child: AppCard(
+        key: ValueKey('policy-card-${policy.policyId}'),
+        onTap: onTap,
+        padding: const EdgeInsets.all(14),
+        radius: 16,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StatusBadge(status: policy.recommendationStatus),
-                if (policy.recommendationReasons.isNotEmpty) ...[
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      policy.recommendationReasons.first,
-                      style: AppTextStyles.captionTiny,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                Expanded(
+                  child: Text(
+                    policy.title,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ),
+                _HideMenu(policyId: policy.policyId, onHide: onHide),
+              ],
+            ),
+            if (showStatus) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _StatusBadge(status: policy.recommendationStatus),
+                  if (policy.recommendationReasons.isNotEmpty) ...[
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        policy.recommendationReasons.first,
+                        style: AppTextStyles.captionTiny,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ],
+              ),
+            ],
+            const SizedBox(height: 10),
+            Text(
+              _supportLabel(policy),
+              style: AppTextStyles.amount.copyWith(
+                color: AppColors.primary,
+                fontSize: 17,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                Expanded(
+                  child: _PolicyMetaText(
+                    icon: Icons.category_outlined,
+                    label: policy.category,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: _PolicyMetaText(
+                    icon: Icons.schedule_rounded,
+                    label: _deadlineBadge(policy.applicationEndDate) ??
+                        policy.applicationPeriodText ??
+                        '기간 확인 필요',
+                    alignEnd: true,
+                  ),
+                ),
               ],
             ),
           ],
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Text(
-                  _supportLabel(policy),
-                  style: AppTextStyles.amount.copyWith(
-                    color: AppColors.primary,
-                    fontSize: 17,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _deadlineBadge(policy.applicationEndDate) ??
-                    policy.applicationPeriodText ??
-                    '기간 확인 필요',
-                style: AppTextStyles.captionTiny,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _PolicyMetaText extends StatelessWidget {
+  const _PolicyMetaText({
+    required this.icon,
+    required this.label,
+    this.alignEnd = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment:
+          alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: AppColors.textTertiary),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            label,
+            style: AppTextStyles.captionTiny,
+            textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -882,6 +990,8 @@ class _StatusBadge extends StatelessWidget {
           color: color,
           fontWeight: FontWeight.w700,
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -896,8 +1006,8 @@ class _HideMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 32,
-      height: 30,
+      width: 44,
+      height: 44,
       child: PopupMenuButton<String>(
         key: ValueKey('policy-menu-$policyId'),
         tooltip: '정책 메뉴',
@@ -974,12 +1084,28 @@ class _InlineError extends StatelessWidget {
       color: AppColors.dangerSoft,
       borderColor: AppColors.dangerSoft,
       padding: const EdgeInsets.all(12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.danger),
-          const SizedBox(width: 8),
-          Expanded(child: Text(message, style: AppTextStyles.caption)),
-          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.error_outline_rounded, color: AppColors.danger),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppTextStyles.caption,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          ),
         ],
       ),
     );
