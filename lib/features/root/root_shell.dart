@@ -19,16 +19,9 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell>
     with WidgetsBindingObserver {
   int _currentIndex = 0;
+  int _homeRefreshVersion = 0;
   final _authSession = AuthSession.instance;
   bool _checkingSession = false;
-
-  static const _pages = [
-    HomePage(),
-    ExpenseAddPage(),
-    PolicyFilterPage(),
-    SavingMapPage(),
-    CommunityPage(),
-  ];
 
   @override
   void initState() {
@@ -74,11 +67,23 @@ class _RootShellState extends State<RootShell>
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      HomePage(refreshVersion: _homeRefreshVersion),
+      const ExpenseAddPage(),
+      const PolicyFilterPage(),
+      const SavingMapPage(),
+      const CommunityPage(),
+    ];
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      body: IndexedStack(index: _currentIndex, children: pages),
       bottomNavigationBar: AppBottomNav(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) => setState(() {
+          _currentIndex = index;
+          if (index == 0) {
+            _homeRefreshVersion++;
+          }
+        }),
       ),
     );
   }

@@ -22,7 +22,10 @@ class ExpenseStatsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('지출 통계')),
-      body: const ExpenseStatsView(),
+      body: const SafeArea(
+        top: false,
+        child: ExpenseStatsView(),
+      ),
     );
   }
 }

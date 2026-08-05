@@ -15,6 +15,7 @@ class MockData {
     dDay: 9,
     weeklyBudget: 245000,
     weeklySpent: 128500,
+    topCategory: ExpenseCategory.food,
   );
 
   static const detectedExpenses = [
