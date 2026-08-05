@@ -59,6 +59,6 @@ class AppConfig {
     if (_apiBaseUrl.isNotEmpty) {
       return _apiBaseUrl;
     }
-    return kIsWeb ? 'http://localhost:8080' : 'http://10.100.105.20:8080';
+    return kIsWeb ? 'http://localhost:8080' : 'http://10.100.105.9:8080';
   }
 }
