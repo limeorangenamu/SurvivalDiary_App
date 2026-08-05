@@ -232,6 +232,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
         eligibilityReasons: policy.eligibilityReasons,
         recommendationStatus: policy.recommendationStatus,
         recommendationReasons: policy.recommendationReasons,
+        summary: policy,
       ),
     );
     if (!mounted || action != PolicyDetailAction.hide) {

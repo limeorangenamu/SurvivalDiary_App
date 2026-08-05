@@ -77,6 +77,7 @@ void main() {
       '/api/users/me/policy-preferences',
     );
     expect(jsonDecode(capturedRequest.body), {
+      'age': 27,
       'regionCode': '11',
       'workStatus': 'UNEMPLOYED',
       'jobSeeking': true,

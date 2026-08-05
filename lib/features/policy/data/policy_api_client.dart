@@ -305,6 +305,7 @@ class PolicyApiClient {
 
   Map<String, dynamic> _preferenceBody(PolicyFilterCondition condition) {
     return {
+      'age': condition.age,
       'regionCode': condition.regionCode,
       if (condition.districtCode != null)
         'districtCode': condition.districtCode,

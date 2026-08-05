@@ -179,6 +179,7 @@ class _HomePolicyBriefingState extends State<HomePolicyBriefing> {
         eligibilityReasons: policy.eligibilityReasons,
         recommendationStatus: policy.recommendationStatus,
         recommendationReasons: policy.recommendationReasons,
+        summary: policy,
       ),
     );
     if (!mounted || action != PolicyDetailAction.hide) {
