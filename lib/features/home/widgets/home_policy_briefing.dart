@@ -263,88 +263,117 @@ class _HomePolicyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deadline = _deadlineLabel(policy.applicationEndDate, today);
-    final reason = policy.recommendationReasons.firstOrNull ?? policy.summary;
-    return AppCard(
-      key: ValueKey('home-policy-${policy.policyId}'),
-      onTap: onTap,
-      color: emphasized ? AppColors.primarySoft : AppColors.surface,
-      borderColor: emphasized ? AppColors.primarySoft : AppColors.border,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              if (policy.recommendationStatus ==
-                  PolicyRecommendationStatus.recommended)
-                const _PolicyTag(
-                  label: '맞춤 추천',
-                  foreground: AppColors.primaryDeep,
-                  background: AppColors.surface,
-                ),
-              if (deadline != null)
+    final reason =
+        (policy.recommendationReasons.firstOrNull ?? policy.summary).trim();
+    return Semantics(
+      button: true,
+      label: '${policy.title} 상세 보기',
+      child: AppCard(
+        key: ValueKey('home-policy-${policy.policyId}'),
+        onTap: onTap,
+        color: emphasized ? AppColors.primarySoft : AppColors.surface,
+        borderColor: emphasized ? AppColors.primarySoft : AppColors.border,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (policy.recommendationStatus ==
+                    PolicyRecommendationStatus.recommended)
+                  const _PolicyTag(
+                    label: '맞춤 추천',
+                    foreground: AppColors.primaryDeep,
+                    background: AppColors.surface,
+                  ),
+                if (deadline != null)
+                  _PolicyTag(
+                    label: deadline,
+                    foreground: AppColors.warning,
+                    background: AppColors.warningSoft,
+                  ),
                 _PolicyTag(
-                  label: deadline,
-                  foreground: AppColors.warning,
-                  background: AppColors.warningSoft,
+                  label: policy.category,
+                  foreground: AppColors.textSecondary,
+                  background: AppColors.surfaceAlt,
                 ),
-              _PolicyTag(
-                label: policy.category,
-                foreground: AppColors.textSecondary,
-                background: AppColors.surfaceAlt,
+              ],
+            ),
+            const SizedBox(height: 11),
+            Text(
+              policy.title,
+              style: AppTextStyles.sectionTitle,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (reason.isNotEmpty) ...[
+              const SizedBox(height: 7),
+              Text(
+                reason,
+                style: AppTextStyles.caption,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
-          ),
-          const SizedBox(height: 11),
-          Text(
-            policy.title,
-            style: AppTextStyles.sectionTitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 7),
-          Text(
-            reason,
-            style: AppTextStyles.caption,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _supportLabel(policy),
-                  style: AppTextStyles.body.copyWith(
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.savings_outlined,
+                  size: 17,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _supportLabel(policy),
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.primaryDeep,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 11),
+            Row(
+              children: [
+                const Icon(
+                  Icons.account_balance_outlined,
+                  size: 15,
+                  color: AppColors.textTertiary,
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    policy.agency,
+                    style: AppTextStyles.captionTiny,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '자세히',
+                  style: AppTextStyles.captionTiny.copyWith(
                     color: AppColors.primaryDeep,
                     fontWeight: FontWeight.w700,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 92,
-                child: Text(
-                  policy.agency,
-                  style: AppTextStyles.captionTiny,
-                  textAlign: TextAlign.end,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 19,
+                  color: AppColors.primaryDeep,
                 ),
-              ),
-              const SizedBox(width: 2),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 19,
-                color: AppColors.textTertiary,
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -363,17 +392,22 @@ class _PolicyTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.captionTiny.copyWith(
-          color: foreground,
-          fontWeight: FontWeight.w700,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 170),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.captionTiny.copyWith(
+            color: foreground,
+            fontWeight: FontWeight.w700,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );
@@ -436,19 +470,28 @@ class _PolicyErrorCard extends StatelessWidget {
       key: const ValueKey('home-policy-error'),
       color: AppColors.dangerSoft,
       borderColor: AppColors.dangerSoft,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.danger),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: AppTextStyles.caption,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.error_outline_rounded, color: AppColors.danger),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppTextStyles.caption,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          ),
         ],
       ),
     );
@@ -473,6 +516,8 @@ class _PolicyEmptyCard extends StatelessWidget {
             child: Text(
               '지금은 맞춤 결과가 없어요. 전체 정책을 둘러보세요.',
               style: AppTextStyles.caption,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
@@ -497,7 +542,14 @@ class _PolicyLoadingCard extends StatelessWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
           SizedBox(width: 12),
-          Text('내게 맞는 정책을 살펴보고 있어요.', style: AppTextStyles.caption),
+          Expanded(
+            child: Text(
+              '내게 맞는 정책을 살펴보고 있어요.',
+              style: AppTextStyles.caption,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

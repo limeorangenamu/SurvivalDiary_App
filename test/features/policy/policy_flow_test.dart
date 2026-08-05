@@ -337,6 +337,73 @@ void main() {
     expect(find.text('청년 일자리 지원'), findsOneWidget);
   });
 
+  testWidgets('긴 정책 정보는 작은 화면에서도 카드 영역을 벗어나지 않는다', (tester) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final client = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        expect(request.url.path, '/api/policies/recommendations');
+        return _successResponse({
+          'items': [
+            _summaryJson(
+              policyId: 'long-hero',
+              category: '교육·직업훈련 및 일자리·창업 지원',
+              title: '청년의 장기적인 취업 준비와 생활 안정을 함께 지원하는 매우 긴 정책 이름',
+              supportAmount: null,
+              supportText: '훈련 참여 수당과 교통비, 상담 서비스 등 정책에서 제공하는 지원 내용을 함께 확인하세요.',
+              recommendationStatus: 'RECOMMENDED',
+              recommendationReasons: const [
+                '현재 구직 상태와 관심 주제를 함께 고려했을 때 우선 확인할 가치가 있는 정책이에요.',
+              ],
+              applicationPeriodText: '기관별 모집 일정이 다르므로 세부 공고에서 신청 기간 확인 필요',
+              agency: '청년정책을 담당하는 매우 긴 이름의 중앙·지역 협력 운영 기관',
+            ),
+            _summaryJson(
+              policyId: 'long-compact',
+              category: '주거·자산형성 및 생활 안정 지원',
+              title: '지역별 세부 조건이 서로 다른 청년 주거비와 생활비 통합 지원 정책',
+              supportAmount: null,
+              supportText: '월세와 생활비의 일부를 신청 조건에 따라 차등 지원합니다.',
+              recommendationStatus: 'CHECK_REQUIRED',
+              recommendationReasons: const [
+                '신청 전에 거주 기간과 세대 구성 조건을 공식 공고에서 확인해야 해요.',
+              ],
+              applicationPeriodText: '예산 소진 시까지 기관별 순차 접수',
+              agency: '지역 청년 주거 통합 지원 센터',
+            ),
+          ],
+          'partialResult': false,
+          'checkedProviderPages': 1,
+          'nextPage': null,
+        });
+      }),
+    );
+
+    await tester.pumpWidget(
+      policyApp(
+        PolicyListPage(
+          condition: _defaultCondition,
+          apiClient: client,
+          accessTokenProvider: () => 'test-access-token',
+        ),
+        client: client,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('policy-card-long-hero')), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('policy-card-long-compact')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('자세히 보기'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('로그인 토큰이 없으면 서버 호출 없이 안내한다', (tester) async {
     var called = false;
     final client = PolicyApiClient(
@@ -526,6 +593,9 @@ Map<String, dynamic> _summaryJson({
   required String title,
   int? supportAmount = 2400000,
   String supportText = '월 최대 20만 원, 최대 12개월',
+  String summary = '청년의 생활비 부담을 줄이는 정책입니다.',
+  String applicationPeriodText = '2026.08.01~2026.08.31',
+  String agency = '청년정책 담당 기관',
   required String recommendationStatus,
   required List<String> recommendationReasons,
 }) {
@@ -534,12 +604,12 @@ Map<String, dynamic> _summaryJson({
     'category': category,
     'categoryType': categoryType,
     'title': title,
-    'summary': '청년의 생활비 부담을 줄이는 정책입니다.',
+    'summary': summary,
     'supportAmount': supportAmount,
     'supportText': supportText,
-    'applicationPeriodText': '2026.08.01~2026.08.31',
+    'applicationPeriodText': applicationPeriodText,
     'target': '만 19~34세',
-    'agency': '청년정책 담당 기관',
+    'agency': agency,
     'eligibilityStatus':
         recommendationStatus == 'CHECK_REQUIRED' ? 'CHECK_REQUIRED' : 'MATCHED',
     'eligibilityReasons': recommendationStatus == 'CHECK_REQUIRED'
