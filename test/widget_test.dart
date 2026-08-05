@@ -37,7 +37,7 @@ void main() {
       SignupRequest(
         email: 'kimin@example.com',
         password: 'password1234',
-        name: 'kimin',
+        nickname: 'kimin',
         phone: '01012345678',
         birthDate: DateTime(2000, 3, 15),
         gender: 'MALE',
@@ -48,7 +48,7 @@ void main() {
 
     expect(payload['email'], 'kimin@example.com');
     expect(payload['password'], 'password1234');
-    expect(payload['name'], 'kimin');
+    expect(payload['nickname'], 'kimin');
     expect(payload['phone'], '01012345678');
     expect(payload['birthDate'], '2000-03-15');
     expect(payload['gender'], 'MALE');
@@ -343,10 +343,11 @@ void main() {
         .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.pumpAndSettle();
 
-    final notificationButton = tester.widget<IconButton>(
+    expect(
       find.byKey(const ValueKey('notification-button')),
+      findsNothing,
     );
-    expect(notificationButton.style, isNull);
+    expect(find.byKey(const ValueKey('account-button')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('bottom-diary')));
     await tester.pumpAndSettle();

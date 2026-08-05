@@ -6,10 +6,13 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../../core/services/directions_api_service.dart';
 import '../../../core/services/good_price_api_service.dart';
+import '../../../core/services/public_facility_api_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models.dart';
 import '../good_price_store_marker_style.dart';
+import '../public_facility_marker_style.dart';
 import 'good_price_store_map_card.dart';
+import 'public_facility_map_card.dart';
 
 class MapViewport {
   const MapViewport({required this.center, required this.bounds});
@@ -23,32 +26,44 @@ class SavingMapCanvas extends StatefulWidget {
     super.key,
     required this.places,
     required this.goodPriceStores,
+    required this.publicFacilities,
     required this.directionsRoute,
     required this.onPlaceTap,
     required this.onGoodPriceStoreTap,
+    required this.onPublicFacilityTap,
     required this.onMapReady,
     required this.onViewportChanged,
     required this.selectedGoodPriceStore,
+    required this.selectedPublicFacility,
     required this.isSelectedStoreFavorite,
     required this.onFavoritePressed,
     required this.onDirectionsPressed,
     required this.onGoodPriceStoreCardTap,
+    required this.onPublicFacilityDirectionsPressed,
+    required this.onPublicFacilityCardTap,
     required this.onGoodPriceStoreDismissed,
+    required this.onPublicFacilityDismissed,
   });
 
   final List<SavingPlace> places;
   final List<GoodPriceStore> goodPriceStores;
+  final List<PublicFacility> publicFacilities;
   final DirectionsRoute? directionsRoute;
   final ValueChanged<SavingPlace> onPlaceTap;
   final ValueChanged<GoodPriceStore> onGoodPriceStoreTap;
+  final ValueChanged<PublicFacility> onPublicFacilityTap;
   final ValueChanged<NaverMapController> onMapReady;
   final ValueChanged<MapViewport> onViewportChanged;
   final GoodPriceStore? selectedGoodPriceStore;
+  final PublicFacility? selectedPublicFacility;
   final bool isSelectedStoreFavorite;
   final VoidCallback onFavoritePressed;
   final VoidCallback onDirectionsPressed;
   final VoidCallback onGoodPriceStoreCardTap;
+  final VoidCallback onPublicFacilityDirectionsPressed;
+  final VoidCallback onPublicFacilityCardTap;
   final VoidCallback onGoodPriceStoreDismissed;
+  final VoidCallback onPublicFacilityDismissed;
 
   @override
   State<SavingMapCanvas> createState() => _SavingMapCanvasState();
@@ -57,14 +72,17 @@ class SavingMapCanvas extends StatefulWidget {
 class _SavingMapCanvasState extends State<SavingMapCanvas> {
   NaverMapController? _controller;
   final Map<String, Future<NOverlayImage>> _goodPriceMarkerIcons = {};
+  final Map<String, Future<NOverlayImage>> _publicFacilityMarkerIcons = {};
   int _markerSyncId = 0;
   NPoint? _selectedStoreScreenPoint;
+  NPoint? _selectedFacilityScreenPoint;
 
   @override
   void didUpdateWidget(covariant SavingMapCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.places != widget.places ||
-        oldWidget.goodPriceStores != widget.goodPriceStores) {
+        oldWidget.goodPriceStores != widget.goodPriceStores ||
+        oldWidget.publicFacilities != widget.publicFacilities) {
       unawaited(_syncMarkers());
     }
     if (oldWidget.directionsRoute != widget.directionsRoute) {
@@ -76,6 +94,14 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
         _selectedStoreScreenPoint = null;
       } else {
         unawaited(_updateSelectedStoreScreenPoint());
+      }
+    }
+    if (oldWidget.selectedPublicFacility?.id !=
+        widget.selectedPublicFacility?.id) {
+      if (widget.selectedPublicFacility == null) {
+        _selectedFacilityScreenPoint = null;
+      } else {
+        unawaited(_updateSelectedFacilityScreenPoint());
       }
     }
   }
@@ -103,10 +129,16 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
               await _syncMarkers();
               await _syncDirectionsRoute();
             },
-            onMapTapped: (_, __) => widget.onGoodPriceStoreDismissed(),
+            onMapTapped: (_, __) {
+              widget.onGoodPriceStoreDismissed();
+              widget.onPublicFacilityDismissed();
+            },
             onCameraChange: (_, __) {
               if (widget.selectedGoodPriceStore != null) {
                 widget.onGoodPriceStoreDismissed();
+              }
+              if (widget.selectedPublicFacility != null) {
+                widget.onPublicFacilityDismissed();
               }
             },
             onCameraIdle: () {
@@ -117,7 +149,63 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
         if (widget.selectedGoodPriceStore != null &&
             _selectedStoreScreenPoint != null)
           Positioned.fill(child: _buildSelectedStoreOverlay()),
+        if (widget.selectedPublicFacility != null &&
+            _selectedFacilityScreenPoint != null)
+          Positioned.fill(child: _buildSelectedFacilityOverlay()),
       ],
+    );
+  }
+
+  Widget _buildSelectedFacilityOverlay() {
+    final facility = widget.selectedPublicFacility!;
+    final point = _selectedFacilityScreenPoint!;
+    const cardWidth = 270.0;
+    const cardHeight = 158.0;
+    return IgnorePointer(
+      ignoring: false,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxLeft = (constraints.maxWidth - cardWidth - 8)
+              .clamp(8.0, double.infinity);
+          final left = (point.x - cardWidth / 2).clamp(8.0, maxLeft);
+          final top = (point.y - cardHeight - 62).clamp(
+            8.0,
+            (constraints.maxHeight - cardHeight - 8)
+                .clamp(8.0, double.infinity),
+          );
+          final pointerLeft = (point.x - left - 7).clamp(
+            14.0,
+            cardWidth - 28,
+          );
+          return Stack(
+            children: [
+              Positioned(
+                left: left,
+                top: top,
+                width: cardWidth,
+                height: cardHeight,
+                child: PublicFacilityMapCard(
+                  facility: facility,
+                  onDirectionsPressed: widget.onPublicFacilityDirectionsPressed,
+                  onTap: widget.onPublicFacilityCardTap,
+                ),
+              ),
+              Positioned(
+                left: left + pointerLeft,
+                top: top + cardHeight - 6,
+                child: Transform.rotate(
+                  angle: 0.785398,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    color: AppColors.surface,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -193,6 +281,23 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
     setState(() => _selectedStoreScreenPoint = point);
   }
 
+  Future<void> _updateSelectedFacilityScreenPoint() async {
+    final controller = _controller;
+    final facility = widget.selectedPublicFacility;
+    if (controller == null || facility == null || !facility.hasCoordinates) {
+      return;
+    }
+    final point = await controller.latLngToScreenLocation(
+      NLatLng(facility.latitude!, facility.longitude!),
+    );
+    if (!mounted ||
+        controller != _controller ||
+        facility.id != widget.selectedPublicFacility?.id) {
+      return;
+    }
+    setState(() => _selectedFacilityScreenPoint = point);
+  }
+
   Future<void> _notifyViewportChanged() async {
     final controller = _controller;
     if (controller == null) {
@@ -242,6 +347,25 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
       );
       marker.setOnTapListener((_) {
         widget.onGoodPriceStoreTap(store);
+      });
+      markers.add(marker);
+    }
+    for (final facility in widget.publicFacilities.where(
+      (facility) => facility.hasCoordinates,
+    )) {
+      final icon = await _publicFacilityMarkerIcon(facility.category);
+      if (!mounted || syncId != _markerSyncId || controller != _controller) {
+        return;
+      }
+      final marker = NMarker(
+        id: 'public-facility-${facility.id}',
+        position: NLatLng(facility.latitude!, facility.longitude!),
+        icon: icon,
+        size: const Size(44, 52),
+        caption: NOverlayCaption(text: facility.name),
+      );
+      marker.setOnTapListener((_) {
+        widget.onPublicFacilityTap(facility);
       });
       markers.add(marker);
     }
@@ -296,6 +420,18 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
       final style = GoodPriceStoreMarkerStyle.fromCategory(normalizedCategory);
       return NOverlayImage.fromWidget(
         widget: GoodPriceStoreMarkerIcon(style: style),
+        size: const Size(44, 52),
+        context: context,
+      );
+    });
+  }
+
+  Future<NOverlayImage> _publicFacilityMarkerIcon(String category) {
+    final normalizedCategory = category.trim();
+    return _publicFacilityMarkerIcons.putIfAbsent(normalizedCategory, () {
+      final style = PublicFacilityMarkerStyle.fromCategory(normalizedCategory);
+      return NOverlayImage.fromWidget(
+        widget: PublicFacilityMarkerIcon(style: style),
         size: const Size(44, 52),
         context: context,
       );

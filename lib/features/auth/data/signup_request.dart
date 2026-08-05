@@ -2,7 +2,7 @@ class SignupRequest {
   const SignupRequest({
     required this.email,
     required this.password,
-    required this.name,
+    required this.nickname,
     required this.phone,
     this.birthDate,
     this.gender,
@@ -12,7 +12,7 @@ class SignupRequest {
 
   final String email;
   final String password;
-  final String name;
+  final String nickname;
   final String phone;
   final DateTime? birthDate;
   final String? gender;
@@ -23,7 +23,7 @@ class SignupRequest {
     return {
       'email': email,
       'password': password,
-      'name': name,
+      'nickname': nickname,
       'phone': phone,
       'birthDate': birthDate?.toIso8601String().split('T').first,
       'gender': gender,

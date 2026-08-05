@@ -32,10 +32,15 @@ class CurrentUser {
     required this.id,
     required this.email,
     required this.name,
+    required this.nickname,
     required this.phone,
     required this.birthDate,
     required this.gender,
     required this.interests,
+    required this.region,
+    required this.bio,
+    required this.profileImageUrl,
+    required this.createdAt,
   });
 
   factory CurrentUser.fromJson(Map<String, dynamic> json) {
@@ -44,12 +49,17 @@ class CurrentUser {
       id: (json['userId'] as num).toInt(),
       email: json['email'] as String? ?? '',
       name: json['name'] as String,
+      nickname: json['nickname'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       birthDate: json['birthDate'] as String? ?? '',
       gender: json['gender'] as String? ?? '',
       interests: rawInterest is String && rawInterest.isNotEmpty
           ? rawInterest.split(',')
           : const [],
+      region: json['region'] as String? ?? '',
+      bio: json['bio'] as String? ?? '',
+      profileImageUrl: json['profileImageUrl'] as String?,
+      createdAt: json['createdAt'] as String? ?? '',
     );
   }
 
@@ -57,10 +67,16 @@ class CurrentUser {
   int get userId => id;
   final String email;
   final String name;
+  final String nickname;
+  String get displayName => nickname.trim().isNotEmpty ? nickname : name;
   final String phone;
   final String birthDate;
   final String gender;
   final List<String> interests;
+  final String region;
+  final String bio;
+  final String? profileImageUrl;
+  final String createdAt;
 }
 
 class AuthApiException implements Exception {
