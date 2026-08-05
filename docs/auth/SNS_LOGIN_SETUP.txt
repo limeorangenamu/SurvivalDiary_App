@@ -107,7 +107,7 @@ JWT_SECRET
 
 flutter clean
 flutter pub get
-flutter run --dart-define-from-file=config/local.json
+flutter run
 
 7. 문제 확인
 ------------

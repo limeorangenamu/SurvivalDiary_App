@@ -12,6 +12,7 @@ import 'features/auth/auth_session.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.load();
 
   if (AppConfig.kakaoNativeAppKey.isNotEmpty) {
     KakaoSdk.init(nativeAppKey: AppConfig.kakaoNativeAppKey);

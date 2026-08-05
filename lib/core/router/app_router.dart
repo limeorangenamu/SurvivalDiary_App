@@ -5,6 +5,7 @@ import '../../features/auth/onboarding_page.dart';
 import '../../features/auth/login_page.dart';
 import '../../features/auth/signup_page.dart';
 import '../../features/auth/signup_success_page.dart';
+import '../../features/auth/account_page.dart';
 import '../../features/community/post_detail_page.dart';
 import '../../features/community/post_write_page.dart';
 import '../../features/diary/budget_setting_page.dart';
@@ -47,6 +48,7 @@ class AppRouter {
       AppRoutes.login => const LoginPage(),
       AppRoutes.signup => const SignupPage(),
       AppRoutes.signupSuccess => const SignupSuccessPage(),
+      AppRoutes.account => const AccountPage(),
       AppRoutes.notification => const NotificationPage(),
       AppRoutes.dailySummary => const DailySummaryPage(),
       AppRoutes.budgetSetting => const BudgetSettingPage(),

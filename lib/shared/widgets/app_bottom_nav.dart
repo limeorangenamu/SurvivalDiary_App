@@ -7,7 +7,7 @@ enum AppTab { home, diary, policy, map, community }
 extension AppTabExtension on AppTab {
   String get label => switch (this) {
         AppTab.home => '홈',
-        AppTab.diary => '일기',
+        AppTab.diary => '가계부',
         AppTab.policy => '정책',
         AppTab.map => '지도',
         AppTab.community => '커뮤니티',

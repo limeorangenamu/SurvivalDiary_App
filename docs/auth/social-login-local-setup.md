@@ -14,13 +14,14 @@
 앱은 반드시 설정 파일을 Dart define으로 전달해 빌드한다.
 
 ```powershell
-C:\utils\flutter\bin\flutter.bat run --dart-define-from-file=config/local.json
+flutter run
 ```
 
 Android Studio의 Flutter Run Configuration에도 다음 Additional run args를 등록한다.
 
 ```text
---dart-define-from-file=config/local.json
+// `config/local.json` is loaded by the Android Gradle build and exposed to Dart automatically.
+// `--dart-define-from-file=config/local.json` remains supported as an optional override.
 ```
 
 USB 실기기에서 PC의 로컬 백엔드를 사용할 때만 포트 전달을 설정한다.

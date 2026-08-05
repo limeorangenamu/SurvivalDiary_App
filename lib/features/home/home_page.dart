@@ -122,13 +122,16 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
-                        IconButton(
-                          key: const ValueKey('account-button'),
-                          tooltip: '계정',
-                          onPressed: () => _showAccountMenu(context),
-                          icon: const Icon(Icons.account_circle_outlined),
-                        ),
                       ],
+                    ),
+                    IconButton(
+                      key: const ValueKey('account-button'),
+                      tooltip: '계정',
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.account,
+                      ),
+                      icon: const Icon(Icons.account_circle_outlined),
                     ),
                   ],
                 ),
@@ -293,30 +296,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<void> _showAccountMenu(BuildContext context) async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('로그아웃'),
-        content: Text(
-          '${AuthSession.instance.currentUser?.name ?? '사용자'}님, 로그아웃할까요?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('로그아웃'),
-          ),
-        ],
-      ),
-    );
-    if (shouldLogout != true || !context.mounted) return;
-
-    await AuthSession.instance.logout();
-  }
 }
 
 class _NewsListItem extends StatelessWidget {
