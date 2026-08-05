@@ -77,6 +77,7 @@ void main() {
       '/api/users/me/policy-preferences',
     );
     expect(jsonDecode(capturedRequest.body), {
+      'age': 27,
       'regionCode': '11',
       'workStatus': 'UNEMPLOYED',
       'jobSeeking': true,
@@ -152,6 +153,39 @@ void main() {
       result.items.single.recommendationStatus,
       PolicyRecommendationStatus.checkRequired,
     );
+  });
+
+  test('맞춤 추천은 저장 조건 대신 탐색 조건만 전송한다', () async {
+    late http.Request capturedRequest;
+    final client = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        capturedRequest = request;
+        return _successResponse({
+          'items': [_summaryJson()],
+          'partialResult': false,
+          'checkedProviderPages': 1,
+          'nextPage': null,
+        });
+      }),
+    );
+
+    await client.recommendPolicies(
+      accessToken: 'access-token',
+      category: PolicyCategory.housing,
+      keyword: '  월세  ',
+      page: 2,
+    );
+
+    expect(capturedRequest.method, 'POST');
+    expect(capturedRequest.url.path, '/api/policies/recommendations');
+    expect(capturedRequest.headers['Authorization'], 'Bearer access-token');
+    expect(jsonDecode(capturedRequest.body), {
+      'category': 'HOUSING',
+      'keyword': '월세',
+      'page': 2,
+      'size': 20,
+    });
   });
 
   test('정책 ID를 인코딩해 상세를 조회하고 nullable 필드를 변환한다', () async {

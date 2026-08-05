@@ -40,6 +40,7 @@ class BudgetSummary {
     required this.dDay,
     required this.weeklyBudget,
     required this.weeklySpent,
+    required this.topCategory,
   });
 
   final String userName;
@@ -50,6 +51,7 @@ class BudgetSummary {
   final int dDay;
   final int weeklyBudget;
   final int weeklySpent;
+  final ExpenseCategory? topCategory;
 
   factory BudgetSummary.empty({String userName = ''}) => BudgetSummary(
         userName: userName,
@@ -60,14 +62,18 @@ class BudgetSummary {
         dDay: 0,
         weeklyBudget: 0,
         weeklySpent: 0,
+        topCategory: null,
       );
 
   double get dailyProgress =>
       dailyLimit == 0 ? 0 : (spentToday / dailyLimit).clamp(0, 1);
   double get weeklyProgress =>
       weeklyBudget == 0 ? 0 : (weeklySpent / weeklyBudget).clamp(0, 1);
+  int get dailyUsagePercent => dailyLimit == 0
+      ? 0
+      : ((spentToday / dailyLimit) * 100).round().clamp(0, 999).toInt();
   bool get isNearLimit => dailyProgress >= 0.6 && dailyProgress < 1;
-  bool get isOverLimit => spentToday >= dailyLimit;
+  bool get isOverLimit => dailyLimit > 0 && spentToday >= dailyLimit;
 }
 
 class DetectedExpense {
@@ -305,26 +311,6 @@ class SavingPlace {
   final double offsetY;
   final double latitude;
   final double longitude;
-}
-
-class HousingDeal {
-  const HousingDeal({
-    required this.id,
-    required this.propertyName,
-    required this.dealType,
-    required this.amount,
-    required this.dealDate,
-    required this.area,
-    required this.floor,
-  });
-
-  final String id;
-  final String propertyName;
-  final String dealType;
-  final int amount;
-  final DateTime dealDate;
-  final double area;
-  final int floor;
 }
 
 class CommunityPost {

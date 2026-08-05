@@ -29,13 +29,22 @@ class AppConfig {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
         final native = await _channel.invokeMapMethod<String, String>('get');
-        _apiBaseUrl = _preferConfigured(_configuredApiBaseUrl, native?['apiBaseUrl']);
+        _apiBaseUrl = _preferConfigured(
+          _configuredApiBaseUrl,
+          native?['apiBaseUrl'],
+        );
         kakaoNativeAppKey = _preferConfigured(
-          _configuredKakaoNativeAppKey, native?['kakaoNativeAppKey']);
+          _configuredKakaoNativeAppKey,
+          native?['kakaoNativeAppKey'],
+        );
         naverLoginClientId = _preferConfigured(
-          _configuredNaverLoginClientId, native?['naverLoginClientId']);
+          _configuredNaverLoginClientId,
+          native?['naverLoginClientId'],
+        );
         naverLoginClientSecret = _preferConfigured(
-          _configuredNaverLoginClientSecret, native?['naverLoginClientSecret']);
+          _configuredNaverLoginClientSecret,
+          native?['naverLoginClientSecret'],
+        );
       } on PlatformException catch (error) {
         debugPrint('Native app configuration unavailable: $error');
       }
@@ -50,6 +59,6 @@ class AppConfig {
     if (_apiBaseUrl.isNotEmpty) {
       return _apiBaseUrl;
     }
-    return kIsWeb ? 'http://localhost:8080' : 'http://10.100.105.28:8080';
+    return kIsWeb ? 'http://localhost:8080' : 'http://10.100.105.9:8080';
   }
 }

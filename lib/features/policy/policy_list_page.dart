@@ -9,7 +9,6 @@ import '../../core/utils/formatters.dart';
 import '../../data/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/empty_state_view.dart';
-import '../../shared/widgets/pill_chip.dart';
 import '../auth/auth_session.dart';
 import 'data/policy_api_client.dart';
 import 'data/policy_models.dart';
@@ -37,23 +36,18 @@ class PolicyListPage extends StatefulWidget {
 }
 
 class _PolicyListPageState extends State<PolicyListPage> {
-  final TextEditingController _searchController = TextEditingController();
-  final Map<PolicyCategory, _PolicySectionState> _sections = {
-    for (final category in PolicyCategory.values)
-      category: _PolicySectionState(),
-  };
+  final _searchController = TextEditingController();
   final Set<String> _hiddenPolicyIds = {};
-  List<PolicySummary> _flatPolicies = [];
-  Object? _screenError;
-  Object? _flatError;
-  int? _flatNextPage;
-  bool _flatLoading = true;
-  bool _flatLoadingMore = false;
-  int _sortIndex = 0;
-  int _loadGeneration = 0;
-  String _keyword = '';
 
-  bool get _isGrouped => widget.condition.category == null && _keyword.isEmpty;
+  List<PolicySummary> _policies = [];
+  Object? _error;
+  int? _nextPage;
+  int _generation = 0;
+  bool _loading = true;
+  bool _loadingMore = false;
+  String _keyword = '';
+  PolicyCategory? _category;
+  _PolicySort _sort = _PolicySort.recommendation;
 
   @override
   void initState() {
@@ -79,7 +73,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
   }
 
   Future<void> _reload() async {
-    final generation = ++_loadGeneration;
+    final generation = ++_generation;
     late final String accessToken;
     try {
       accessToken = _requireAccessToken();
@@ -88,214 +82,99 @@ class _PolicyListPageState extends State<PolicyListPage> {
         return;
       }
       setState(() {
-        _screenError = error;
-        _flatLoading = false;
+        _error = error;
+        _loading = false;
       });
       return;
     }
 
-    if (!mounted) {
-      return;
-    }
-    setState(() => _screenError = null);
-    if (_isGrouped) {
-      await _loadAllSections(accessToken, generation);
-    } else {
-      await _loadFlat(accessToken, reset: true, generation: generation);
-    }
-  }
-
-  Future<void> _loadAllSections(String accessToken, int generation) async {
     setState(() {
-      for (final state in _sections.values) {
-        state
-          ..items.clear()
-          ..nextPage = null
-          ..error = null
-          ..loading = true
-          ..loadingMore = false;
-      }
+      _policies = [];
+      _nextPage = null;
+      _error = null;
+      _loading = true;
     });
-    await Future.wait(
-      PolicyCategory.values.map(
-        (category) => _loadSection(
-          accessToken,
-          category,
-          reset: true,
-          generation: generation,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _loadSection(
-    String accessToken,
-    PolicyCategory category, {
-    required bool reset,
-    required int generation,
-  }) async {
-    final state = _sections[category]!;
-    final page = reset ? 1 : state.nextPage;
-    if (page == null) {
-      return;
-    }
-    if (!reset) {
-      setState(() {
-        state
-          ..loadingMore = true
-          ..error = null;
-      });
-    }
 
     try {
-      final result = await widget.apiClient.searchPolicies(
+      final result = await widget.apiClient.recommendPolicies(
         accessToken: accessToken,
-        condition: widget.condition,
-        category: category,
-        page: page,
+        category: _category,
+        keyword: _keyword,
       );
-      if (!mounted || generation != _loadGeneration) {
+      if (!mounted || generation != _generation) {
         return;
       }
       setState(() {
-        final existingIds = state.items.map((item) => item.policyId).toSet();
-        for (final policy in result.items) {
-          if (!_hiddenPolicyIds.contains(policy.policyId) &&
-              existingIds.add(policy.policyId)) {
-            state.items.add(policy);
-          }
-        }
-        state
-          ..nextPage = result.nextPage
-          ..error = null
-          ..loading = false
-          ..loadingMore = false;
+        _policies = result.items
+            .where((policy) => !_hiddenPolicyIds.contains(policy.policyId))
+            .toList();
+        _nextPage = result.nextPage;
+        _loading = false;
       });
     } catch (error) {
-      if (!mounted || generation != _loadGeneration) {
+      if (!mounted || generation != _generation) {
         return;
       }
       setState(() {
-        state
-          ..error = error
-          ..loading = false
-          ..loadingMore = false;
+        _error = error;
+        _loading = false;
       });
     }
   }
 
-  Future<void> _loadFlat(
-    String accessToken, {
-    required bool reset,
-    required int generation,
-  }) async {
-    final page = reset ? 1 : _flatNextPage;
-    if (page == null) {
+  Future<void> _loadMore() async {
+    final page = _nextPage;
+    if (page == null || _loadingMore) {
       return;
     }
-    setState(() {
-      if (reset) {
-        _flatPolicies = [];
-        _flatNextPage = null;
-        _flatLoading = true;
-      } else {
-        _flatLoadingMore = true;
-      }
-      _flatError = null;
-    });
 
+    late final String accessToken;
     try {
-      final result = await widget.apiClient.searchPolicies(
+      accessToken = _requireAccessToken();
+    } on PolicyApiException catch (error) {
+      setState(() => _error = error);
+      return;
+    }
+
+    final generation = _generation;
+    setState(() => _loadingMore = true);
+    try {
+      final result = await widget.apiClient.recommendPolicies(
         accessToken: accessToken,
-        condition: widget.condition,
+        category: _category,
         keyword: _keyword,
         page: page,
       );
-      if (!mounted || generation != _loadGeneration) {
+      if (!mounted || generation != _generation) {
         return;
       }
       setState(() {
-        final existingIds = _flatPolicies.map((item) => item.policyId).toSet();
+        final ids = _policies.map((policy) => policy.policyId).toSet();
         for (final policy in result.items) {
           if (!_hiddenPolicyIds.contains(policy.policyId) &&
-              existingIds.add(policy.policyId)) {
-            _flatPolicies.add(policy);
+              ids.add(policy.policyId)) {
+            _policies.add(policy);
           }
         }
-        _flatNextPage = result.nextPage;
-        _flatLoading = false;
-        _flatLoadingMore = false;
+        _nextPage = result.nextPage;
+        _loadingMore = false;
       });
     } catch (error) {
-      if (!mounted || generation != _loadGeneration) {
+      if (!mounted || generation != _generation) {
         return;
       }
       setState(() {
-        _flatError = error;
-        _flatLoading = false;
-        _flatLoadingMore = false;
+        _error = error;
+        _loadingMore = false;
       });
     }
-  }
-
-  void _retry() => unawaited(_reload());
-
-  void _retrySection(PolicyCategory category) {
-    late final String accessToken;
-    try {
-      accessToken = _requireAccessToken();
-    } on PolicyApiException catch (error) {
-      setState(() => _screenError = error);
-      return;
-    }
-    unawaited(
-      _loadSection(
-        accessToken,
-        category,
-        reset: true,
-        generation: _loadGeneration,
-      ),
-    );
-  }
-
-  void _loadMoreSection(PolicyCategory category) {
-    late final String accessToken;
-    try {
-      accessToken = _requireAccessToken();
-    } on PolicyApiException catch (error) {
-      setState(() => _screenError = error);
-      return;
-    }
-    unawaited(
-      _loadSection(
-        accessToken,
-        category,
-        reset: false,
-        generation: _loadGeneration,
-      ),
-    );
-  }
-
-  void _loadMoreFlat() {
-    late final String accessToken;
-    try {
-      accessToken = _requireAccessToken();
-    } on PolicyApiException catch (error) {
-      setState(() => _screenError = error);
-      return;
-    }
-    unawaited(
-      _loadFlat(
-        accessToken,
-        reset: false,
-        generation: _loadGeneration,
-      ),
-    );
   }
 
   void _search() {
-    FocusScope.of(context).unfocus();
     final keyword = _searchController.text.trim();
+    if (keyword == _keyword) {
+      return;
+    }
     setState(() => _keyword = keyword);
     unawaited(_reload());
   }
@@ -309,554 +188,861 @@ class _PolicyListPageState extends State<PolicyListPage> {
     unawaited(_reload());
   }
 
-  void _editCondition() {
-    final onEditCondition = widget.onEditCondition;
-    if (onEditCondition != null) {
-      onEditCondition();
+  void _selectCategory(PolicyCategory? category) {
+    if (_category == category) {
       return;
     }
-    Navigator.pop(context);
-  }
-
-  List<PolicySummary> _sortedPolicies(List<PolicySummary> source) {
-    final result = [...source];
-    if (_sortIndex == 0) {
-      final originalIndexes = <String, int>{
-        for (var index = 0; index < source.length; index++)
-          source[index].policyId: index,
-      };
-      result.sort((a, b) {
-        final rankComparison = _recommendationRank(
-          b.recommendationStatus,
-        ).compareTo(_recommendationRank(a.recommendationStatus));
-        if (rankComparison != 0) {
-          return rankComparison;
-        }
-        return originalIndexes[a.policyId]!.compareTo(
-          originalIndexes[b.policyId]!,
-        );
-      });
-    } else if (_sortIndex == 1) {
-      result.sort(
-        (a, b) => _deadlineSortValue(
-          a.applicationPeriodText,
-        ).compareTo(_deadlineSortValue(b.applicationPeriodText)),
-      );
-    } else if (_sortIndex == 2) {
-      result.sort((a, b) {
-        final aAmount = a.supportAmount;
-        final bAmount = b.supportAmount;
-        if (aAmount == null && bAmount == null) {
-          return 0;
-        }
-        if (aAmount == null) {
-          return 1;
-        }
-        if (bAmount == null) {
-          return -1;
-        }
-        return bAmount.compareTo(aAmount);
-      });
-    }
-    return result;
-  }
-
-  int _recommendationRank(PolicyRecommendationStatus status) =>
-      switch (status) {
-        PolicyRecommendationStatus.recommended => 3,
-        PolicyRecommendationStatus.checkRequired => 2,
-        PolicyRecommendationStatus.discover => 1,
-      };
-
-  DateTime _deadlineSortValue(String? period) {
-    final matches = RegExp(
-      r'(\d{4})[.\-/]?(\d{2})[.\-/]?(\d{2})',
-    ).allMatches(period ?? '').toList();
-    if (matches.isEmpty) {
-      return DateTime(9999);
-    }
-    final match = matches.last;
-    return DateTime.tryParse(
-          '${match.group(1)}-${match.group(2)}-${match.group(3)}',
-        ) ??
-        DateTime(9999);
+    setState(() => _category = category);
+    unawaited(_reload());
   }
 
   void _hidePolicy(PolicySummary policy) {
-    final flatIndex = _flatPolicies.indexWhere(
-      (item) => item.policyId == policy.policyId,
-    );
-    final sectionIndexes = <PolicyCategory, int>{};
-    for (final entry in _sections.entries) {
-      final index = entry.value.items.indexWhere(
-        (item) => item.policyId == policy.policyId,
-      );
-      if (index >= 0) {
-        sectionIndexes[entry.key] = index;
-      }
-    }
     setState(() {
       _hiddenPolicyIds.add(policy.policyId);
-      _flatPolicies.removeWhere((item) => item.policyId == policy.policyId);
-      for (final state in _sections.values) {
-        state.items.removeWhere((item) => item.policyId == policy.policyId);
-      }
+      _policies.removeWhere((item) => item.policyId == policy.policyId);
     });
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${policy.title}을 추천에서 숨겼어요.'),
-        action: SnackBarAction(
-          label: '실행취소',
-          onPressed: () {
-            setState(() {
-              _hiddenPolicyIds.remove(policy.policyId);
-              if (flatIndex >= 0 &&
-                  !_flatPolicies.any(
-                    (item) => item.policyId == policy.policyId,
-                  )) {
-                _flatPolicies.insert(
-                  flatIndex.clamp(0, _flatPolicies.length),
-                  policy,
-                );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('${policy.title} 정책을 목록에서 숨겼어요.'),
+          action: SnackBarAction(
+            label: '실행취소',
+            onPressed: () {
+              if (!mounted) {
+                return;
               }
-              for (final entry in sectionIndexes.entries) {
-                final items = _sections[entry.key]!.items;
-                if (!items.any((item) => item.policyId == policy.policyId)) {
-                  items.insert(entry.value.clamp(0, items.length), policy);
-                }
-              }
-            });
-          },
+              setState(() {
+                _hiddenPolicyIds.remove(policy.policyId);
+                _policies.add(policy);
+              });
+            },
+          ),
         ),
-      ),
-    );
+      );
   }
 
-  List<String> get _conditionLabels {
-    final condition = widget.condition;
-    return [
-      '만 ${condition.age}세',
-      condition.region,
-      if (condition.district != null) condition.district!,
-      if (condition.workStatus != null) condition.workStatus!.label,
-      if (condition.jobSeeking == true) '구직 중',
-      if (condition.educationStatus != null) condition.educationStatus!.label,
-      if (condition.category != null) condition.category!.label,
-    ];
+  Future<void> _openPolicy(PolicySummary policy) async {
+    final action = await Navigator.pushNamed<dynamic>(
+      context,
+      AppRoutes.policyDetail,
+      arguments: PolicyDetailArguments(
+        policyId: policy.policyId,
+        eligibilityStatus: policy.eligibilityStatus,
+        eligibilityReasons: policy.eligibilityReasons,
+        recommendationStatus: policy.recommendationStatus,
+        recommendationReasons: policy.recommendationReasons,
+        summary: policy,
+      ),
+    );
+    if (!mounted || action != PolicyDetailAction.hide) {
+      return;
+    }
+    _hidePolicy(policy);
+  }
+
+  List<PolicySummary> _sorted(Iterable<PolicySummary> policies) {
+    final result = policies.toList();
+    result.sort((a, b) {
+      return switch (_sort) {
+        _PolicySort.recommendation =>
+          _recommendationRank(b).compareTo(_recommendationRank(a)),
+        _PolicySort.deadline => _compareNullableDate(
+            a.applicationEndDate,
+            b.applicationEndDate,
+          ),
+        _PolicySort.support =>
+          (b.supportAmount ?? -1).compareTo(a.supportAmount ?? -1),
+      };
+    });
+    return result;
+  }
+
+  int _recommendationRank(PolicySummary policy) {
+    final statusRank = switch (policy.recommendationStatus) {
+      PolicyRecommendationStatus.recommended => 300,
+      PolicyRecommendationStatus.checkRequired => 200,
+      PolicyRecommendationStatus.discover => 100,
+    };
+    return statusRank + policy.recommendationReasons.length;
+  }
+
+  int _compareNullableDate(DateTime? a, DateTime? b) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final aGroup =
+        a == null ? 2 : (DateUtils.dateOnly(a).isBefore(today) ? 1 : 0);
+    final bGroup =
+        b == null ? 2 : (DateUtils.dateOnly(b).isBefore(today) ? 1 : 0);
+    if (aGroup != bGroup) {
+      return aGroup.compareTo(bGroup);
+    }
+    if (a == null || b == null) {
+      return 0;
+    }
+    return aGroup == 1 ? b.compareTo(a) : a.compareTo(b);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('맞춤 정책 결과')),
-      body: Column(
-        children: [
-          _ConditionHeader(
-            conditionLabels: _conditionLabels,
-            sortIndex: _sortIndex,
-            onSortChanged: (value) => setState(() => _sortIndex = value),
-            onEditCondition: _editCondition,
-            searchController: _searchController,
-            onSearch: _search,
-            onClearSearch: _clearSearch,
-          ),
-          Expanded(
-            child: _screenError != null
-                ? _PolicyLoadError(error: _screenError, onRetry: _retry)
-                : _isGrouped
-                    ? _buildGroupedList()
-                    : _buildFlatList(),
-          ),
-        ],
+    final recommended = _sorted(
+      _policies.where(
+        (policy) =>
+            policy.recommendationStatus ==
+            PolicyRecommendationStatus.recommended,
       ),
     );
-  }
-
-  Widget _buildGroupedList() {
-    final shownPolicyIds = <String>{};
-    return ListView(
-      key: const PageStorageKey('policy-grouped-scroll'),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-      children: [
-        for (final category in PolicyCategory.values) ...[
-          _PolicyCategorySection(
-            category: category,
-            policies: _sortedPolicies(
-              _sections[category]!
-                  .items
-                  .where((policy) => shownPolicyIds.add(policy.policyId))
-                  .toList(),
-            ),
-            state: _sections[category]!,
-            onRetry: () => _retrySection(category),
-            onLoadMore: () => _loadMoreSection(category),
-            cardBuilder: _buildPolicyCard,
-          ),
-          const SizedBox(height: 16),
-        ],
-      ],
+    final checkRequired = _sorted(
+      _policies.where(
+        (policy) =>
+            policy.recommendationStatus ==
+            PolicyRecommendationStatus.checkRequired,
+      ),
     );
-  }
+    final discover = _sorted(
+      _policies.where(
+        (policy) =>
+            policy.recommendationStatus == PolicyRecommendationStatus.discover,
+      ),
+    );
 
-  Widget _buildFlatList() {
-    if (_flatLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_flatError != null && _flatPolicies.isEmpty) {
-      return _PolicyLoadError(error: _flatError, onRetry: _retry);
-    }
-    final policies = _sortedPolicies(_flatPolicies);
-    if (policies.isEmpty) {
-      if (_flatNextPage != null) {
-        return ListView(
+    return Scaffold(
+      appBar: AppBar(title: const Text('맞춤 정책')),
+      body: RefreshIndicator(
+        onRefresh: _reload,
+        child: ListView(
+          key: const PageStorageKey('policy-briefing-scroll'),
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
           children: [
-            const AppCard(
-              color: AppColors.surfaceAlt,
-              borderColor: AppColors.border,
-              padding: EdgeInsets.all(14),
-              child: Text(
-                '이번 페이지에는 조건에 맞는 정책이 없어요. 다음 페이지도 확인해 보세요.',
-                style: AppTextStyles.caption,
+            _BriefingHeader(
+              condition: widget.condition,
+              recommendedCount: recommended.length,
+              loading: _loading,
+              searchController: _searchController,
+              keyword: _keyword,
+              category: _category,
+              sort: _sort,
+              onEditCondition: widget.onEditCondition,
+              onSearch: _search,
+              onClearSearch: _clearSearch,
+              onCategoryChanged: _selectCategory,
+              onSortChanged: (value) => setState(() => _sort = value),
+            ),
+            const SizedBox(height: 18),
+            if (_loading)
+              const _PolicyLoading()
+            else if (_error != null && _policies.isEmpty)
+              _PolicyLoadError(error: _error, onRetry: _reload)
+            else if (_policies.isEmpty)
+              EmptyStateView(
+                icon: Icons.search_off_rounded,
+                title: _keyword.isEmpty ? '지금 보여드릴 정책이 없어요' : '검색 결과가 없어요',
+                description: _keyword.isEmpty
+                    ? '다른 분야를 선택하거나 잠시 후 다시 확인해 주세요.'
+                    : '다른 정책명으로 다시 검색해 보세요.',
+                actionLabel: _keyword.isEmpty ? '전체 정책 보기' : '검색 초기화',
+                onAction: _keyword.isEmpty
+                    ? () => _selectCategory(null)
+                    : _clearSearch,
+              )
+            else if (_keyword.isNotEmpty)
+              _PolicySection(
+                key: const ValueKey('policy-search-results'),
+                title: '“$_keyword” 검색 결과',
+                subtitle: '${_policies.length}개의 정책을 찾았어요.',
+                policies: _sorted(_policies),
+                cardBuilder: (policy) => _PolicyCompactCard(
+                  policy: policy,
+                  showStatus: policy.recommendationStatus !=
+                      PolicyRecommendationStatus.discover,
+                  onHide: () => _hidePolicy(policy),
+                  onTap: () => _openPolicy(policy),
+                ),
+              )
+            else ...[
+              if (recommended.isNotEmpty)
+                _RecommendedSection(
+                  policies: recommended,
+                  onHide: _hidePolicy,
+                  onTap: _openPolicy,
+                ),
+              if (recommended.isNotEmpty && checkRequired.isNotEmpty)
+                const SizedBox(height: 26),
+              if (checkRequired.isNotEmpty)
+                _PolicySection(
+                  key: const ValueKey('policy-check-section'),
+                  title: '조건을 확인해 볼 정책',
+                  subtitle: '관련성은 있지만 신청 전에 확인할 내용이 있어요.',
+                  policies: checkRequired,
+                  cardBuilder: (policy) => _PolicyCompactCard(
+                    policy: policy,
+                    showStatus: true,
+                    onHide: () => _hidePolicy(policy),
+                    onTap: () => _openPolicy(policy),
+                  ),
+                ),
+              if ((recommended.isNotEmpty || checkRequired.isNotEmpty) &&
+                  discover.isNotEmpty)
+                const SizedBox(height: 26),
+              if (discover.isNotEmpty)
+                _PolicySection(
+                  key: const ValueKey('policy-discover-section'),
+                  title: '더 둘러볼 정책',
+                  subtitle: '추천 조건과 관계없이 함께 확인할 수 있어요.',
+                  policies: discover,
+                  cardBuilder: (policy) => _PolicyCompactCard(
+                    policy: policy,
+                    showStatus: false,
+                    onHide: () => _hidePolicy(policy),
+                    onTap: () => _openPolicy(policy),
+                  ),
+                ),
+            ],
+            if (_error != null && _policies.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _InlineError(error: _error!, onRetry: _loadMore),
+            ],
+            if (_nextPage != null) ...[
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                key: const ValueKey('policy-load-more'),
+                onPressed: _loadingMore ? null : _loadMore,
+                icon: _loadingMore
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.expand_more_rounded),
+                label: Text(_loadingMore ? '정책을 불러오는 중...' : '정책 더 보기'),
               ),
-            ),
-            const SizedBox(height: 12),
-            _LoadMoreButton(
-              key: const ValueKey('policy-load-more'),
-              loading: _flatLoadingMore,
-              onPressed: _loadMoreFlat,
-            ),
+            ],
           ],
-        );
-      }
-      return EmptyStateView(
-        icon: Icons.search_off_rounded,
-        title: _keyword.isEmpty ? '조건에 맞는 정책이 없어요' : '검색 결과가 없어요',
-        description: _keyword.isEmpty
-            ? '조건을 조금 넓히면 더 많은 지원 정책을 볼 수 있어요.'
-            : '다른 정책명으로 다시 검색해 보세요.',
-        actionLabel: _keyword.isEmpty ? '조건 수정' : '검색 초기화',
-        onAction: _keyword.isEmpty ? _editCondition : _clearSearch,
-      );
-    }
-    return ListView(
-      key: const PageStorageKey('policy-list-scroll'),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-      children: [
-        if (_flatError != null)
-          _InlineLoadError(error: _flatError!, onRetry: _loadMoreFlat),
-        for (var index = 0; index < policies.length; index++) ...[
-          _buildPolicyCard(policies[index]),
-          if (index < policies.length - 1) const SizedBox(height: 10),
-        ],
-        if (_flatNextPage != null) ...[
-          const SizedBox(height: 12),
-          _LoadMoreButton(
-            key: const ValueKey('policy-load-more'),
-            loading: _flatLoadingMore,
-            onPressed: _loadMoreFlat,
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildPolicyCard(PolicySummary policy) {
-    return _PolicyCard(
-      policy: policy,
-      onHide: () => _hidePolicy(policy),
-      onTap: () => Navigator.pushNamed(
-        context,
-        AppRoutes.policyDetail,
-        arguments: PolicyDetailArguments(
-          policyId: policy.policyId,
-          eligibilityStatus: policy.eligibilityStatus,
-          eligibilityReasons: policy.eligibilityReasons,
-          recommendationStatus: policy.recommendationStatus,
-          recommendationReasons: policy.recommendationReasons,
         ),
       ),
     );
   }
 }
 
-class _ConditionHeader extends StatelessWidget {
-  const _ConditionHeader({
-    required this.conditionLabels,
-    required this.sortIndex,
-    required this.onSortChanged,
-    required this.onEditCondition,
+class _BriefingHeader extends StatelessWidget {
+  const _BriefingHeader({
+    required this.condition,
+    required this.recommendedCount,
+    required this.loading,
     required this.searchController,
+    required this.keyword,
+    required this.category,
+    required this.sort,
+    required this.onEditCondition,
     required this.onSearch,
     required this.onClearSearch,
+    required this.onCategoryChanged,
+    required this.onSortChanged,
   });
 
-  final List<String> conditionLabels;
-  final int sortIndex;
-  final ValueChanged<int> onSortChanged;
-  final VoidCallback onEditCondition;
+  final PolicyFilterCondition condition;
+  final int recommendedCount;
+  final bool loading;
   final TextEditingController searchController;
+  final String keyword;
+  final PolicyCategory? category;
+  final _PolicySort sort;
+  final VoidCallback? onEditCondition;
   final VoidCallback onSearch;
   final VoidCallback onClearSearch;
+  final ValueChanged<PolicyCategory?> onCategoryChanged;
+  final ValueChanged<_PolicySort> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppCard(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text('선택한 조건', style: AppTextStyles.sectionTitle),
-                    ),
-                    TextButton(
-                      key: const ValueKey('policy-edit-condition-button'),
-                      onPressed: onEditCondition,
-                      child: const Text('조건 수정'),
-                    ),
-                  ],
-                ),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final label in conditionLabels)
-                      Chip(
-                        label: Text(label),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                  ],
+    final conditionLabel = [
+      condition.region,
+      condition.district ?? '전체',
+      '만 ${condition.age}세',
+      if (condition.jobSeeking == true) '구직 중',
+      if (condition.workStatus != null && condition.jobSeeking != true)
+        condition.workStatus!.label,
+      if (condition.educationStatus != null) condition.educationStatus!.label,
+    ].join(' · ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          loading
+              ? '나에게 맞는 정책을 찾고 있어요'
+              : recommendedCount > 0
+                  ? '놓치면 아쉬운 정책이 $recommendedCount개 있어요'
+                  : '오늘 확인할 정책을 모았어요',
+          style: AppTextStyles.title,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                conditionLabel,
+                style: AppTextStyles.bodyMuted,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (onEditCondition != null)
+              TextButton(
+                key: const ValueKey('policy-edit-condition-button'),
+                onPressed: onEditCondition,
+                child: const Text('조건 수정'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          key: const ValueKey('policy-keyword-field'),
+          controller: searchController,
+          textInputAction: TextInputAction.search,
+          maxLength: 50,
+          onSubmitted: (_) => onSearch(),
+          decoration: InputDecoration(
+            hintText: '정책 이름을 검색해 보세요',
+            counterText: '',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: keyword.isNotEmpty
+                ? IconButton(
+                    key: const ValueKey('policy-search-clear'),
+                    onPressed: onClearSearch,
+                    tooltip: '검색 초기화',
+                    icon: const Icon(Icons.close_rounded),
+                  )
+                : IconButton(
+                    key: const ValueKey('policy-keyword-search-button'),
+                    onPressed: onSearch,
+                    tooltip: '검색',
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          key: const ValueKey('policy-category-filter'),
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _CategoryChip(
+                key: const ValueKey('policy-category-all'),
+                label: '전체',
+                selected: category == null,
+                onSelected: () => onCategoryChanged(null),
+              ),
+              for (final value in PolicyCategory.values) ...[
+                const SizedBox(width: 8),
+                _CategoryChip(
+                  key: ValueKey('policy-category-${value.name}'),
+                  label: value.label,
+                  selected: category == value,
+                  onSelected: () => onCategoryChanged(value),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            '입력한 조건과 관련된 정책을 보여드려요. '
-            '실제 신청 자격은 공식 공고에서 확인해 주세요.',
-            style: AppTextStyles.caption,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: searchController,
-                  builder: (context, value, child) {
-                    return TextField(
-                      key: const ValueKey('policy-keyword-field'),
-                      controller: searchController,
-                      textInputAction: TextInputAction.search,
-                      maxLength: 50,
-                      onSubmitted: (_) => onSearch(),
-                      decoration: InputDecoration(
-                        labelText: '정책명 검색',
-                        hintText: '예: 월세, 취업 지원',
-                        counterText: '',
-                        prefixIcon: const Icon(Icons.search_rounded),
-                        suffixIcon: value.text.isEmpty
-                            ? null
-                            : IconButton(
-                                key: const ValueKey('policy-search-clear'),
-                                tooltip: '검색어 지우기',
-                                onPressed: onClearSearch,
-                                icon: const Icon(Icons.close_rounded),
-                              ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                key: const ValueKey('policy-keyword-search-button'),
-                onPressed: onSearch,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(72, 52),
-                  maximumSize: const Size(88, 52),
-                ),
-                child: const Text('검색'),
-              ),
             ],
           ),
-          const SizedBox(height: 12),
-          SortToggle(
-            options: const ['추천순', '마감임박순', '지원금액순'],
-            selectedIndex: sortIndex,
-            onChanged: onSortChanged,
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: PopupMenuButton<_PolicySort>(
+            key: const ValueKey('policy-sort-menu'),
+            initialValue: sort,
+            onSelected: onSortChanged,
+            itemBuilder: (context) => [
+              for (final value in _PolicySort.values)
+                PopupMenuItem(value: value, child: Text(value.label)),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.swap_vert_rounded, size: 18),
+                  const SizedBox(width: 4),
+                  Text(sort.label, style: AppTextStyles.caption),
+                ],
+              ),
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _PolicySectionState {
-  final List<PolicySummary> items = [];
-  int? nextPage;
-  Object? error;
-  bool loading = false;
-  bool loadingMore = false;
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+    );
+  }
 }
 
-class _PolicyCategorySection extends StatelessWidget {
-  const _PolicyCategorySection({
-    required this.category,
+class _RecommendedSection extends StatelessWidget {
+  const _RecommendedSection({
     required this.policies,
-    required this.state,
-    required this.onRetry,
-    required this.onLoadMore,
+    required this.onHide,
+    required this.onTap,
+  });
+
+  final List<PolicySummary> policies;
+  final ValueChanged<PolicySummary> onHide;
+  final ValueChanged<PolicySummary> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey('policy-recommended-section'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('내게 잘 맞는 정책', style: AppTextStyles.sectionTitle),
+        const SizedBox(height: 5),
+        const Text(
+          '저장한 상황과 신청 조건이 잘 맞는 순서예요.',
+          style: AppTextStyles.caption,
+        ),
+        const SizedBox(height: 12),
+        _PolicyHeroCard(
+          policy: policies.first,
+          onHide: () => onHide(policies.first),
+          onTap: () => onTap(policies.first),
+        ),
+        for (final policy in policies.skip(1)) ...[
+          const SizedBox(height: 10),
+          _PolicyCompactCard(
+            policy: policy,
+            showStatus: true,
+            onHide: () => onHide(policy),
+            onTap: () => onTap(policy),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PolicySection extends StatelessWidget {
+  const _PolicySection({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.policies,
     required this.cardBuilder,
   });
 
-  final PolicyCategory category;
+  final String title;
+  final String subtitle;
   final List<PolicySummary> policies;
-  final _PolicySectionState state;
-  final VoidCallback onRetry;
-  final VoidCallback onLoadMore;
   final Widget Function(PolicySummary policy) cardBuilder;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      key: ValueKey('policy-category-section-${category.name}'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: _categoryColor(category).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                _categoryIcon(category),
-                color: _categoryColor(category),
-                size: 19,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '${category.label} 정책',
-                style: AppTextStyles.sectionTitle,
-              ),
-            ),
-            if (!state.loading)
-              Text('${policies.length}개', style: AppTextStyles.caption),
-          ],
+        Text(
+          title,
+          style: AppTextStyles.sectionTitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: 10),
-        if (state.loading)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 22),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        else if (state.error != null && policies.isEmpty)
-          _InlineLoadError(error: state.error!, onRetry: onRetry)
-        else if (policies.isEmpty) ...[
-          AppCard(
-            color: AppColors.surfaceAlt,
-            borderColor: AppColors.border,
-            padding: const EdgeInsets.all(14),
-            child: Text(
-              state.nextPage == null
-                  ? '현재 조건에 맞는 ${category.label} 정책이 없어요.'
-                  : '이번 페이지에는 조건에 맞는 ${category.label} 정책이 없어요.',
-              style: AppTextStyles.caption,
-            ),
-          ),
-          if (state.nextPage != null) ...[
-            const SizedBox(height: 10),
-            _LoadMoreButton(
-              key: ValueKey('policy-load-more-${category.name}'),
-              loading: state.loadingMore,
-              onPressed: onLoadMore,
-            ),
-          ],
-        ] else ...[
-          for (var index = 0; index < policies.length; index++) ...[
-            cardBuilder(policies[index]),
-            if (index < policies.length - 1) const SizedBox(height: 10),
-          ],
-          if (state.error != null) ...[
-            const SizedBox(height: 10),
-            _InlineLoadError(error: state.error!, onRetry: onLoadMore),
-          ],
-          if (state.nextPage != null) ...[
-            const SizedBox(height: 10),
-            _LoadMoreButton(
-              key: ValueKey('policy-load-more-${category.name}'),
-              loading: state.loadingMore,
-              onPressed: onLoadMore,
-            ),
-          ],
+        const SizedBox(height: 5),
+        Text(
+          subtitle,
+          style: AppTextStyles.caption,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 12),
+        for (var index = 0; index < policies.length; index++) ...[
+          cardBuilder(policies[index]),
+          if (index < policies.length - 1) const SizedBox(height: 10),
         ],
       ],
     );
   }
 }
 
-class _InlineLoadError extends StatelessWidget {
-  const _InlineLoadError({required this.error, required this.onRetry});
+class _PolicyHeroCard extends StatelessWidget {
+  const _PolicyHeroCard({
+    required this.policy,
+    required this.onHide,
+    required this.onTap,
+  });
 
-  final Object error;
-  final VoidCallback onRetry;
+  final PolicySummary policy;
+  final VoidCallback onHide;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final message = error is PolicyApiException
-        ? (error as PolicyApiException).message
-        : '추가 정책을 불러오지 못했어요.';
-    return AppCard(
-      color: AppColors.dangerSoft,
-      borderColor: AppColors.dangerSoft,
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.danger),
-          const SizedBox(width: 8),
-          Expanded(child: Text(message, style: AppTextStyles.caption)),
-          TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+    return Semantics(
+      button: true,
+      label: '${policy.title} 상세 보기',
+      child: AppCard(
+        key: ValueKey('policy-card-${policy.policyId}'),
+        onTap: onTap,
+        color: AppColors.primarySoft,
+        borderColor: AppColors.primarySoft,
+        padding: const EdgeInsets.all(18),
+        radius: 18,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const _StatusBadge(
+                        status: PolicyRecommendationStatus.recommended,
+                      ),
+                      if (_deadlineBadge(policy.applicationEndDate)
+                          case final label?)
+                        Text(
+                          label,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                _HideMenu(policyId: policy.policyId, onHide: onHide),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              policy.title,
+              style: AppTextStyles.title,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _supportLabel(policy),
+              style: AppTextStyles.amount.copyWith(
+                color: AppColors.primaryDeep,
+                fontSize: 21,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (policy.recommendationReasons.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 17,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        policy.recommendationReasons.first,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    policy.category,
+                    style: AppTextStyles.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '자세히 보기',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primaryDeep,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: AppColors.primaryDeep,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PolicyCompactCard extends StatelessWidget {
+  const _PolicyCompactCard({
+    required this.policy,
+    required this.showStatus,
+    required this.onHide,
+    required this.onTap,
+  });
+
+  final PolicySummary policy;
+  final bool showStatus;
+  final VoidCallback onHide;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '${policy.title} 상세 보기',
+      child: AppCard(
+        key: ValueKey('policy-card-${policy.policyId}'),
+        onTap: onTap,
+        padding: const EdgeInsets.all(14),
+        radius: 16,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    policy.title,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                _HideMenu(policyId: policy.policyId, onHide: onHide),
+              ],
+            ),
+            if (showStatus) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _StatusBadge(status: policy.recommendationStatus),
+                  if (policy.recommendationReasons.isNotEmpty) ...[
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        policy.recommendationReasons.first,
+                        style: AppTextStyles.captionTiny,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+            const SizedBox(height: 10),
+            Text(
+              _supportLabel(policy),
+              style: AppTextStyles.amount.copyWith(
+                color: AppColors.primary,
+                fontSize: 17,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                Expanded(
+                  child: _PolicyMetaText(
+                    icon: Icons.category_outlined,
+                    label: policy.category,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: _PolicyMetaText(
+                    icon: Icons.schedule_rounded,
+                    label: _deadlineBadge(policy.applicationEndDate) ??
+                        policy.applicationPeriodText ??
+                        '기간 확인 필요',
+                    alignEnd: true,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PolicyMetaText extends StatelessWidget {
+  const _PolicyMetaText({
+    required this.icon,
+    required this.label,
+    this.alignEnd = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment:
+          alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: AppColors.textTertiary),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            label,
+            style: AppTextStyles.captionTiny,
+            textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+
+  final PolicyRecommendationStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color, background) = switch (status) {
+      PolicyRecommendationStatus.recommended => (
+          '내게 추천',
+          AppColors.primaryDeep,
+          AppColors.surface
+        ),
+      PolicyRecommendationStatus.checkRequired => (
+          '조건 확인 필요',
+          AppColors.warning,
+          AppColors.warningSoft
+        ),
+      PolicyRecommendationStatus.discover => (
+          '',
+          AppColors.textSecondary,
+          AppColors.surfaceAlt
+        ),
+    };
+    if (label.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      key: ValueKey('policy-status-${status.name}'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.captionTiny.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+}
+
+class _HideMenu extends StatelessWidget {
+  const _HideMenu({required this.policyId, required this.onHide});
+
+  final String policyId;
+  final VoidCallback onHide;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: PopupMenuButton<String>(
+        key: ValueKey('policy-menu-$policyId'),
+        tooltip: '정책 메뉴',
+        icon: const Icon(
+          Icons.more_horiz_rounded,
+          size: 19,
+          color: AppColors.textTertiary,
+        ),
+        padding: EdgeInsets.zero,
+        onSelected: (value) {
+          if (value == 'hide') {
+            onHide();
+          }
+        },
+        itemBuilder: (_) => const [
+          PopupMenuItem(value: 'hide', child: Text('관심 없음')),
         ],
       ),
     );
   }
 }
 
-class _LoadMoreButton extends StatelessWidget {
-  const _LoadMoreButton(
-      {super.key, required this.loading, required this.onPressed});
-
-  final bool loading;
-  final VoidCallback onPressed;
+class _PolicyLoading extends StatelessWidget {
+  const _PolicyLoading();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: loading ? null : onPressed,
-        icon: loading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.expand_more_rounded),
-        label: Text(loading ? '불러오는 중' : '더보기'),
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 52),
+      child: Column(
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('저장한 조건으로 정책을 정리하고 있어요.', style: AppTextStyles.bodyMuted),
+        ],
       ),
     );
   }
@@ -872,7 +1058,7 @@ class _PolicyLoadError extends StatelessWidget {
   Widget build(BuildContext context) {
     final message = error is PolicyApiException
         ? (error! as PolicyApiException).message
-        : '정책 목록을 불러오지 못했어요.';
+        : '맞춤 정책을 불러오지 못했어요.';
     return EmptyStateView(
       icon: Icons.cloud_off_rounded,
       title: '정책 목록을 불러오지 못했어요',
@@ -883,196 +1069,42 @@ class _PolicyLoadError extends StatelessWidget {
   }
 }
 
-class _PolicyCard extends StatelessWidget {
-  const _PolicyCard({
-    required this.policy,
-    required this.onHide,
-    required this.onTap,
-  });
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.error, required this.onRetry});
 
-  final PolicySummary policy;
-  final VoidCallback onHide;
-  final VoidCallback onTap;
-
-  String get _supportLabel {
-    final amount = policy.supportAmount;
-    return amount == null ? '지원 내용 확인' : Formatters.compactAmount(amount);
-  }
-
-  String get _periodLabel => policy.applicationPeriodText ?? '신청 기간 확인 필요';
-
-  String get _recommendationLabel => switch (policy.recommendationStatus) {
-        PolicyRecommendationStatus.recommended => '맞춤 추천',
-        PolicyRecommendationStatus.checkRequired => '조건 확인 필요',
-        PolicyRecommendationStatus.discover => '함께 보기',
-      };
-
-  Color get _recommendationColor => switch (policy.recommendationStatus) {
-        PolicyRecommendationStatus.recommended => AppColors.primaryDeep,
-        PolicyRecommendationStatus.checkRequired => AppColors.warning,
-        PolicyRecommendationStatus.discover => AppColors.textSecondary,
-      };
-
-  Color get _recommendationBackground => switch (policy.recommendationStatus) {
-        PolicyRecommendationStatus.recommended => AppColors.primarySoft,
-        PolicyRecommendationStatus.checkRequired => AppColors.warningSoft,
-        PolicyRecommendationStatus.discover => AppColors.surfaceAlt,
-      };
-
-  Key get _recommendationKey => switch (policy.recommendationStatus) {
-        PolicyRecommendationStatus.recommended =>
-          ValueKey('policy-recommended-${policy.policyId}'),
-        PolicyRecommendationStatus.checkRequired =>
-          ValueKey('policy-check-required-${policy.policyId}'),
-        PolicyRecommendationStatus.discover =>
-          ValueKey('policy-discover-${policy.policyId}'),
-      };
+  final Object error;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final categoryColor = _categoryColor(policy.categoryType);
+    final message = error is PolicyApiException
+        ? (error as PolicyApiException).message
+        : '추가 정책을 불러오지 못했어요.';
     return AppCard(
-      key: ValueKey('policy-card-${policy.policyId}'),
-      onTap: onTap,
+      color: AppColors.dangerSoft,
+      borderColor: AppColors.dangerSoft,
       padding: const EdgeInsets.all(12),
-      radius: 14,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 44,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    _categoryIcon(policy.categoryType),
-                    color: categoryColor,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  policy.category,
-                  style: AppTextStyles.captionTiny,
-                  maxLines: 1,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.error_outline_rounded, color: AppColors.danger),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppTextStyles.caption,
+                  maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        policy.title,
-                        style: AppTextStyles.body.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    SizedBox(
-                      width: 30,
-                      height: 30,
-                      child: PopupMenuButton<String>(
-                        key: ValueKey('policy-menu-${policy.policyId}'),
-                        tooltip: '정책 메뉴',
-                        icon: const Icon(
-                          Icons.more_vert_rounded,
-                          size: 18,
-                          color: AppColors.textTertiary,
-                        ),
-                        padding: EdgeInsets.zero,
-                        onSelected: (value) {
-                          if (value == 'hide') {
-                            onHide();
-                          }
-                        },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'hide', child: Text('관심 없음')),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Container(
-                      key: _recommendationKey,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _recommendationBackground,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        _recommendationLabel,
-                        style: AppTextStyles.captionTiny.copyWith(
-                          color: _recommendationColor,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (policy.recommendationReasons.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          policy.recommendationReasons.first,
-                          style: AppTextStyles.captionTiny,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        _supportLabel,
-                        style: AppTextStyles.amount.copyWith(
-                          color: AppColors.primary,
-                          fontSize: 17,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text('지원 예상', style: AppTextStyles.captionTiny),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _periodLabel,
-                        style: AppTextStyles.captionTiny,
-                        textAlign: TextAlign.end,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(onPressed: onRetry, child: const Text('다시 시도')),
           ),
         ],
       ),
@@ -1080,20 +1112,36 @@ class _PolicyCard extends StatelessWidget {
   }
 }
 
-Color _categoryColor(PolicyCategory? category) => switch (category) {
-      PolicyCategory.employment => AppColors.info,
-      PolicyCategory.housing => AppColors.categoryFood,
-      PolicyCategory.education => AppColors.warning,
-      PolicyCategory.welfareCulture => AppColors.categoryCafe,
-      PolicyCategory.participationRights => AppColors.categoryTransport,
-      null => AppColors.categoryEtc,
-    };
+enum _PolicySort { recommendation, deadline, support }
 
-IconData _categoryIcon(PolicyCategory? category) => switch (category) {
-      PolicyCategory.employment => Icons.work_outline_rounded,
-      PolicyCategory.housing => Icons.home_work_outlined,
-      PolicyCategory.education => Icons.school_outlined,
-      PolicyCategory.welfareCulture => Icons.volunteer_activism_outlined,
-      PolicyCategory.participationRights => Icons.campaign_outlined,
-      null => Icons.policy_outlined,
-    };
+extension on _PolicySort {
+  String get label => switch (this) {
+        _PolicySort.recommendation => '추천순',
+        _PolicySort.deadline => '마감 임박순',
+        _PolicySort.support => '지원 금액순',
+      };
+}
+
+String _supportLabel(PolicySummary policy) {
+  final amount = policy.supportAmount;
+  if (amount != null) {
+    return Formatters.compactAmount(amount);
+  }
+  final support = policy.supportText.trim();
+  return support.isEmpty ? '지원 내용 확인' : support;
+}
+
+String? _deadlineBadge(DateTime? deadline) {
+  if (deadline == null) {
+    return null;
+  }
+  final today = DateUtils.dateOnly(DateTime.now());
+  final days = DateUtils.dateOnly(deadline).difference(today).inDays;
+  if (days < 0) {
+    return '마감';
+  }
+  if (days == 0) {
+    return '오늘 마감';
+  }
+  return 'D-$days';
+}

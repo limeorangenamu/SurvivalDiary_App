@@ -38,6 +38,10 @@ class CurrentUser {
     required this.birthDate,
     required this.gender,
     required this.interests,
+    required this.region,
+    required this.bio,
+    required this.profileImageUrl,
+    required this.createdAt,
   });
 
   factory CurrentUser.fromJson(Map<String, dynamic> json) {
@@ -54,6 +58,10 @@ class CurrentUser {
       interests: rawInterest is String && rawInterest.isNotEmpty
           ? rawInterest.split(',')
           : const [],
+      region: json['region'] as String? ?? '',
+      bio: json['bio'] as String? ?? '',
+      profileImageUrl: json['profileImageUrl'] as String?,
+      createdAt: json['createdAt'] as String? ?? '',
     );
   }
 
@@ -68,6 +76,10 @@ class CurrentUser {
   final String birthDate;
   final String gender;
   final List<String> interests;
+  final String region;
+  final String bio;
+  final String? profileImageUrl;
+  final String createdAt;
 }
 
 class AuthApiException implements Exception {

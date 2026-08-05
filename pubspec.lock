@@ -323,6 +323,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.35"
+<<<<<<< HEAD
   flutter_quill:
     dependency: "direct main"
     description:
@@ -347,6 +348,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "11.0.0"
+=======
+>>>>>>> origin/main
   flutter_secure_storage:
     dependency: "direct main"
     description:
@@ -510,7 +513,7 @@ packages:
     source: hosted
     version: "1.6.0"
   http_parser:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http_parser
       sha256: "178d74305e7866013777bab2c3d8726205dc5a4dd935297175b19a23a2e66571"
@@ -581,6 +584,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.2.2"
+<<<<<<< HEAD
   intl:
     dependency: transitive
     description:
@@ -597,6 +601,8 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.1"
+=======
+>>>>>>> origin/main
   jni:
     dependency: transitive
     description:
