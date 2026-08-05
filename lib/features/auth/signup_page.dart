@@ -149,7 +149,7 @@ class _SignupPageState extends State<SignupPage> {
         SignupRequest(
           email: _emailController.text.trim(),
           password: _passwordController.text,
-          name: _nameController.text.trim(),
+          nickname: _nameController.text.trim(),
           phone: _phoneController.text.replaceAll(RegExp(r'\D'), ''),
           birthDate: _parseBirthDate(_birthDateDigits),
           gender: _selectedGender,
@@ -279,7 +279,7 @@ class _SignupPageState extends State<SignupPage> {
   String _validationMessage(int step) {
     switch (step) {
       case 0:
-        return '이름을 입력해 주세요.';
+        return '닉네임을 입력해 주세요.';
       case 1:
         return '올바른 이메일 주소를 입력해 주세요.';
       case 2:
@@ -549,8 +549,8 @@ class _SignupPageState extends State<SignupPage> {
           title: '정말 반갑습니다!\n어떻게 불러드리면 될까요?',
           child: _LargeTextField(
             key: const ValueKey('signup-name-field'),
-            label: '이름',
-            hintText: '이름',
+            label: '닉네임',
+            hintText: '닉네임',
             controller: _nameController,
             focusNode: _nameFocusNode,
             textInputAction: TextInputAction.next,
@@ -1179,7 +1179,7 @@ class _ReviewPanel extends StatelessWidget {
         ),
         _ReviewRow(label: '비밀번호', value: '입력됨', onTap: onEditPassword),
         _ReviewRow(label: '이메일', value: email, onTap: onEditEmail),
-        _ReviewRow(label: '이름', value: name, onTap: onEditName),
+        _ReviewRow(label: '닉네임', value: name, onTap: onEditName),
       ],
     );
   }
