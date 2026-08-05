@@ -343,10 +343,11 @@ void main() {
         .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.pumpAndSettle();
 
-    final notificationButton = tester.widget<IconButton>(
+    expect(
       find.byKey(const ValueKey('notification-button')),
+      findsNothing,
     );
-    expect(notificationButton.style, isNull);
+    expect(find.byKey(const ValueKey('account-button')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('bottom-diary')));
     await tester.pumpAndSettle();

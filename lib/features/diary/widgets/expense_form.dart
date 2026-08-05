@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -24,6 +25,8 @@ class ExpenseForm extends StatefulWidget {
 }
 
 class _ExpenseFormState extends State<ExpenseForm> {
+  static const _maxExpenseAmount = 2147483647;
+
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
@@ -43,11 +46,13 @@ class _ExpenseFormState extends State<ExpenseForm> {
   }
 
   Future<DateTime?> _pickDate() {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final selectedDate = _date == null ? today : DateUtils.dateOnly(_date!);
     return showDatePicker(
       context: context,
-      initialDate: _date ?? DateTime.now(),
+      initialDate: selectedDate.isAfter(today) ? today : selectedDate,
       firstDate: DateTime(2024),
-      lastDate: DateTime(2028),
+      lastDate: today,
       helpText: '지출 날짜 선택',
     );
   }
@@ -212,6 +217,10 @@ class _ExpenseFormState extends State<ExpenseForm> {
             key: const ValueKey('expense-amount-field'),
             controller: _amountController,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(10),
+            ],
             decoration: const InputDecoration(
               labelText: '금액',
               hintText: '숫자만 입력',
@@ -226,12 +235,24 @@ class _ExpenseFormState extends State<ExpenseForm> {
               if (amount == null || amount <= 0) {
                 return '올바른 금액을 입력해 주세요.';
               }
+              if (amount > _maxExpenseAmount) {
+                return '금액은 2,147,483,647원 이하로 입력해 주세요.';
+              }
               return null;
             },
           ),
           const SizedBox(height: 12),
           FormField<DateTime>(
-            validator: (value) => value == null ? '날짜를 선택해 주세요.' : null,
+            validator: (value) {
+              if (value == null) {
+                return '날짜를 선택해 주세요.';
+              }
+              if (DateUtils.dateOnly(value)
+                  .isAfter(DateUtils.dateOnly(DateTime.now()))) {
+                return '오늘 이후 날짜는 선택할 수 없어요.';
+              }
+              return null;
+            },
             builder: (field) => InkWell(
               onTap: () async {
                 final selected = await _pickDate();

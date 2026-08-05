@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/router/app_routes.dart';
@@ -7,26 +9,56 @@ import '../../core/utils/formatters.dart';
 import '../../data/mock_data.dart';
 import '../../data/models.dart';
 import '../auth/auth_session.dart';
+import '../diary/notification_detection/notification_expense_repository.dart';
 import 'data/home_api_client.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/pig_mascot.dart';
 import '../../shared/widgets/section_header.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.refreshVersion = 0});
+
+  final int refreshVersion;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  final _detectedExpenseRepository = NotificationExpenseRepository.instance;
   BudgetSummary? _budget;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _detectedExpenseRepository.addListener(_handleDetectedExpensesChanged);
+    unawaited(_detectedExpenseRepository.start());
     _loadSummary();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshVersion != oldWidget.refreshVersion) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(_refreshHome());
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _detectedExpenseRepository.removeListener(_handleDetectedExpensesChanged);
+    super.dispose();
+  }
+
+  void _handleDetectedExpensesChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _loadSummary() async {
@@ -46,6 +78,39 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _refreshHome() async {
+    await Future.wait([
+      _loadSummary(),
+      _detectedExpenseRepository.refresh(),
+    ]);
+  }
+
+  Future<void> _openBudgetSetting() async {
+    final savedAmount =
+        await Navigator.pushNamed(context, AppRoutes.budgetSetting);
+    if (savedAmount is int && mounted) {
+      await _loadSummary();
+    }
+  }
+
+  Future<void> _openDetectedExpenses() async {
+    await Navigator.pushNamed(context, AppRoutes.detectedExpenses);
+    if (!mounted) return;
+    await _refreshHome();
+  }
+
+  Future<void> _openExpenseStats() async {
+    await Navigator.pushNamed(context, AppRoutes.expenseStats);
+    if (!mounted) return;
+    await _loadSummary();
+  }
+
+  Future<void> _openProfile() async {
+    await Navigator.pushNamed(context, AppRoutes.profile);
+    if (!mounted) return;
+    await _loadSummary();
+  }
+
   @override
   Widget build(BuildContext context) {
     final budget = _budget ??
@@ -54,9 +119,12 @@ class _HomePageState extends State<HomePage> {
         );
     return SafeArea(
       bottom: false,
-      child: CustomScrollView(
-        key: const PageStorageKey('home-scroll'),
-        slivers: [
+      child: RefreshIndicator(
+        onRefresh: _refreshHome,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          key: const PageStorageKey('home-scroll'),
+          slivers: [
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             sliver: SliverList.list(
@@ -98,39 +166,10 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                     ),
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        IconButton(
-                          key: const ValueKey('notification-button'),
-                          tooltip: '알림',
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.notification,
-                          ),
-                          icon: const Icon(Icons.notifications_none_rounded),
-                        ),
-                        Positioned(
-                          right: 7,
-                          top: 7,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.danger,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                     IconButton(
                       key: const ValueKey('account-button'),
-                      tooltip: '계정',
-                      onPressed: () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.account,
-                      ),
+                      tooltip: '마이페이지',
+                      onPressed: _openProfile,
                       icon: const Icon(Icons.account_circle_outlined),
                     ),
                   ],
@@ -138,8 +177,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 18),
                 _BudgetHeroCard(
                   budget: budget,
-                  onSetting: () =>
-                      Navigator.pushNamed(context, AppRoutes.budgetSetting),
+                  onSetting: _openBudgetSetting,
                 ),
                 if (budget.isNearLimit || budget.isOverLimit) ...[
                   const SizedBox(height: 12),
@@ -192,9 +230,9 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _SummaryTile(
-                        icon: Icons.savings_outlined,
-                        label: '오늘 절약',
-                        value: Formatters.amount(budget.savedToday),
+                        icon: Icons.donut_small_rounded,
+                        label: '예산 사용률',
+                        value: '${budget.dailyUsagePercent}%',
                         color: AppColors.primary,
                       ),
                     ),
@@ -203,12 +241,12 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: _SummaryTile(
-                        icon: Icons.restaurant_rounded,
+                        icon: budget.topCategory?.icon ?? Icons.category_outlined,
                         label: '카테고리 1위',
-                        value: '식비',
-                        color: AppColors.categoryFood,
+                        value: budget.topCategory?.label ?? '아직 없음',
+                        color: budget.topCategory?.color ?? AppColors.textTertiary,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -256,18 +294,19 @@ class _HomePageState extends State<HomePage> {
                 const SectionHeader(title: '빠른 메뉴'),
                 const SizedBox(height: 10),
                 AppCard(
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.detectedExpenses),
-                  child: const _QuickMenuContent(
+                  onTap: _openDetectedExpenses,
+                  child: _QuickMenuContent(
                     icon: Icons.notifications_active_outlined,
+                    badgeCount: _detectedExpenseRepository.items.length,
                     title: '감지된 결제 확인',
-                    subtitle: '등록을 기다리는 결제 4건',
+                    subtitle: _detectedExpenseRepository.items.isEmpty
+                        ? '확인이 필요한 결제가 없어요'
+                        : '등록을 기다리는 결제 ${_detectedExpenseRepository.items.length}건',
                   ),
                 ),
                 const SizedBox(height: 10),
                 AppCard(
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.expenseStats),
+                  onTap: _openExpenseStats,
                   child: const _QuickMenuContent(
                     icon: Icons.insights_rounded,
                     title: '지출 통계 보기',
@@ -291,7 +330,8 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -422,7 +462,10 @@ class _BudgetHeroCard extends StatelessWidget {
                 value: Formatters.amount(budget.dailyLimit),
               ),
               const SizedBox(width: 18),
-              _HeroMeta(label: '월급날까지', value: 'D-${budget.dDay}'),
+              _HeroMeta(
+                label: '오늘 지출',
+                value: Formatters.amount(budget.spentToday),
+              ),
               const Spacer(),
               IconButton(
                 tooltip: '금액 설정',
@@ -547,24 +590,58 @@ class _QuickMenuContent extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.primarySoft,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: AppColors.primary),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primarySoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: AppColors.primary),
+            ),
+            if (badgeCount > 0)
+              Positioned(
+                right: -7,
+                top: -7,
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minWidth: 22,
+                    minHeight: 22,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.danger,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppColors.surface, width: 2),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    badgeCount > 99 ? '99+' : '$badgeCount',
+                    style: const TextStyle(
+                      color: AppColors.surface,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(width: 12),
         Expanded(
