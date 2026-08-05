@@ -85,7 +85,11 @@ class AppRouter {
         ),
       AppRoutes.postDetail when settings.arguments is CommunityPost =>
         PostDetailPage(post: settings.arguments! as CommunityPost),
-      AppRoutes.postWrite => const PostWritePage(),
+      AppRoutes.postWrite => PostWritePage(
+          post: settings.arguments is CommunityPost
+              ? settings.arguments! as CommunityPost
+              : null,
+        ),
       _ => const _UnknownRoutePage(),
     };
     return MaterialPageRoute<dynamic>(settings: settings, builder: (_) => page);

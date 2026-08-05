@@ -9,16 +9,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
   http: ^1.6.0
   http_parser: ^4.1.2
-  image_picker: ^1.2.0
   flutter_secure_storage: ^10.3.1
   kakao_flutter_sdk_user: ^2.0.0+1
   flutter_naver_login: ^2.1.1
   flutter_naver_map: ^1.4.4
   geolocator: ^14.0.3
   url_launcher: 6.3.2
+  image_picker: ^1.2.3
+  flutter_quill: ^11.5.0
+  flutter_quill_extensions: ^11.0.0
 
 dev_dependencies:
   flutter_test:

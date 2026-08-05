@@ -100,11 +100,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 itemCount: slides.length,
                 onPageChanged: (index) {
                   setState(() => _currentIndex = index);
-                  if (index == slides.length - 1) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      _openEmailLogin();
-                    });
-                  }
                 },
                 itemBuilder: (context, index) =>
                     _SlideView(slide: slides[index]),
@@ -373,8 +368,8 @@ class _AuthBottomArea extends StatelessWidget {
             children: [
               TextButton(
                 key: const ValueKey('email-login-button'),
-                onPressed: () => Navigator.of(context)
-                    .pushReplacementNamed(AppRoutes.login),
+                onPressed: () =>
+                    Navigator.of(context).pushReplacementNamed(AppRoutes.login),
                 style: TextButton.styleFrom(
                   minimumSize: const Size(120, 44),
                 ),

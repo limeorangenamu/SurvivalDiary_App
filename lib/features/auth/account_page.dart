@@ -20,7 +20,19 @@ class AccountPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.account_circle_outlined, size: 48),
+                  if (user?.profileImageUrl?.isNotEmpty == true)
+                    ClipOval(
+                      child: Image.network(
+                        user!.profileImageUrl!,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.account_circle_outlined, size: 48),
+                      ),
+                    )
+                  else
+                    const Icon(Icons.account_circle_outlined, size: 48),
                   const SizedBox(height: 12),
                   Text(user?.displayName ?? '사용자',
                       style: Theme.of(context).textTheme.titleLarge),
