@@ -11,14 +11,20 @@ import '../../data/models.dart';
 import '../auth/auth_session.dart';
 import '../diary/notification_detection/notification_expense_repository.dart';
 import 'data/home_api_client.dart';
+import 'widgets/home_policy_briefing.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/pig_mascot.dart';
 import '../../shared/widgets/section_header.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, this.refreshVersion = 0});
+  const HomePage({
+    super.key,
+    this.refreshVersion = 0,
+    this.onOpenPolicies,
+  });
 
   final int refreshVersion;
+  final VoidCallback? onOpenPolicies;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -28,6 +34,7 @@ class _HomePageState extends State<HomePage> {
   final _detectedExpenseRepository = NotificationExpenseRepository.instance;
   BudgetSummary? _budget;
   String? _errorMessage;
+  int _policyRefreshVersion = 0;
 
   @override
   void initState() {
@@ -43,7 +50,7 @@ class _HomePageState extends State<HomePage> {
     if (widget.refreshVersion != oldWidget.refreshVersion) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          unawaited(_refreshHome());
+          unawaited(_refreshHome(refreshPolicies: false));
         }
       });
     }
@@ -78,7 +85,10 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _refreshHome() async {
+  Future<void> _refreshHome({bool refreshPolicies = true}) async {
+    if (mounted && refreshPolicies) {
+      setState(() => _policyRefreshVersion++);
+    }
     await Future.wait([
       _loadSummary(),
       _detectedExpenseRepository.refresh(),
@@ -111,6 +121,10 @@ class _HomePageState extends State<HomePage> {
     await _loadSummary();
   }
 
+  void _openPolicies() {
+    widget.onOpenPolicies?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final budget = _budget ??
@@ -125,211 +139,218 @@ class _HomePageState extends State<HomePage> {
           physics: const AlwaysScrollableScrollPhysics(),
           key: const PageStorageKey('home-scroll'),
           slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            sliver: SliverList.list(
-              children: [
-                if (_errorMessage != null) ...[
-                  AppCard(
-                    color: AppColors.dangerSoft,
-                    borderColor: AppColors.danger,
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline,
-                            color: AppColors.danger),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(_errorMessage!)),
-                        IconButton(
-                          onPressed: _loadSummary,
-                          icon: const Icon(Icons.refresh),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              sliver: SliverList.list(
+                children: [
+                  if (_errorMessage != null) ...[
+                    AppCard(
+                      color: AppColors.dangerSoft,
+                      borderColor: AppColors.danger,
+                      child: Row(
                         children: [
-                          Text(
-                            '안녕하세요, ${budget.userName}님! 👋',
-                            style: AppTextStyles.title,
-                          ),
-                          const SizedBox(height: 3),
-                          const Text(
-                            '오늘도 가볍게 지갑을 지켜봐요.',
-                            style: AppTextStyles.bodyMuted,
+                          const Icon(Icons.error_outline,
+                              color: AppColors.danger),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(_errorMessage!)),
+                          IconButton(
+                            onPressed: _loadSummary,
+                            icon: const Icon(Icons.refresh),
                           ),
                         ],
                       ),
                     ),
-                    IconButton(
-                      key: const ValueKey('account-button'),
-                      tooltip: '마이페이지',
-                      onPressed: _openProfile,
-                      icon: const Icon(Icons.account_circle_outlined),
-                    ),
+                    const SizedBox(height: 12),
                   ],
-                ),
-                const SizedBox(height: 18),
-                _BudgetHeroCard(
-                  budget: budget,
-                  onSetting: _openBudgetSetting,
-                ),
-                if (budget.isNearLimit || budget.isOverLimit) ...[
-                  const SizedBox(height: 12),
-                  AppCard(
-                    color: budget.isOverLimit
-                        ? AppColors.dangerSoft
-                        : AppColors.warningSoft,
-                    borderColor: budget.isOverLimit
-                        ? AppColors.danger
-                        : AppColors.warning,
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          color: budget.isOverLimit
-                              ? AppColors.danger
-                              : AppColors.warning,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            budget.isOverLimit
-                                ? '오늘 한도를 넘었어요. 남은 지출을 한번 점검해요.'
-                                : '오늘 예산의 60% 이상을 사용했어요.',
-                            style: AppTextStyles.body,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                SectionHeader(
-                  title: '오늘의 요약',
-                  actionLabel: '자세히',
-                  onAction: () =>
-                      Navigator.pushNamed(context, AppRoutes.dailySummary),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _SummaryTile(
-                        icon: Icons.payments_outlined,
-                        label: '오늘 지출',
-                        value: Formatters.amount(budget.spentToday),
-                        color: AppColors.categoryFood,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _SummaryTile(
-                        icon: Icons.donut_small_rounded,
-                        label: '예산 사용률',
-                        value: '${budget.dailyUsagePercent}%',
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _SummaryTile(
-                        icon: budget.topCategory?.icon ?? Icons.category_outlined,
-                        label: '카테고리 1위',
-                        value: budget.topCategory?.label ?? '아직 없음',
-                        color: budget.topCategory?.color ?? AppColors.textTertiary,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _SummaryTile(
-                        icon: Icons.account_balance_wallet_outlined,
-                        label: '잔여 예산',
-                        value: Formatters.amount(budget.remainingToday),
-                        color: AppColors.info,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 22),
-                AppCard(
-                  color: AppColors.primarySoft,
-                  borderColor: AppColors.primarySoft,
-                  child: Row(
+                  Row(
                     children: [
-                      const PigMascot(size: 52),
-                      const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '오늘의 한 줄 절약 팁',
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.primaryDeep,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              '안녕하세요, ${budget.userName}님! 👋',
+                              style: AppTextStyles.title,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
                             const Text(
-                              '커피 한 잔을 텀블러로 바꾸면 이번 주 교통비를 만들 수 있어요.',
-                              style: AppTextStyles.body,
+                              '오늘도 가볍게 지갑을 지켜봐요.',
+                              style: AppTextStyles.bodyMuted,
                             ),
                           ],
                         ),
                       ),
+                      IconButton(
+                        key: const ValueKey('account-button'),
+                        tooltip: '마이페이지',
+                        onPressed: _openProfile,
+                        icon: const Icon(Icons.account_circle_outlined),
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 24),
-                const SectionHeader(title: '빠른 메뉴'),
-                const SizedBox(height: 10),
-                AppCard(
-                  onTap: _openDetectedExpenses,
-                  child: _QuickMenuContent(
-                    icon: Icons.notifications_active_outlined,
-                    badgeCount: _detectedExpenseRepository.items.length,
-                    title: '감지된 결제 확인',
-                    subtitle: _detectedExpenseRepository.items.isEmpty
-                        ? '확인이 필요한 결제가 없어요'
-                        : '등록을 기다리는 결제 ${_detectedExpenseRepository.items.length}건',
+                  const SizedBox(height: 18),
+                  _BudgetHeroCard(
+                    budget: budget,
+                    onSetting: _openBudgetSetting,
                   ),
-                ),
-                const SizedBox(height: 10),
-                AppCard(
-                  onTap: _openExpenseStats,
-                  child: const _QuickMenuContent(
-                    icon: Icons.insights_rounded,
-                    title: '지출 통계 보기',
-                    subtitle: '이번 달 소비 흐름을 확인해요',
+                  if (budget.isNearLimit || budget.isOverLimit) ...[
+                    const SizedBox(height: 12),
+                    AppCard(
+                      color: budget.isOverLimit
+                          ? AppColors.dangerSoft
+                          : AppColors.warningSoft,
+                      borderColor: budget.isOverLimit
+                          ? AppColors.danger
+                          : AppColors.warning,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: budget.isOverLimit
+                                ? AppColors.danger
+                                : AppColors.warning,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              budget.isOverLimit
+                                  ? '오늘 한도를 넘었어요. 남은 지출을 한번 점검해요.'
+                                  : '오늘 예산의 60% 이상을 사용했어요.',
+                              style: AppTextStyles.body,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  SectionHeader(
+                    title: '오늘의 요약',
+                    actionLabel: '자세히',
+                    onAction: () =>
+                        Navigator.pushNamed(context, AppRoutes.dailySummary),
                   ),
-                ),
-                const SizedBox(height: 24),
-                SectionHeader(
-                  title: '맞춤 뉴스',
-                  actionLabel: '더보기',
-                  onAction: () {},
-                ),
-                const SizedBox(height: 8),
-                for (var index = 0;
-                    index < MockData.homeNews.length;
-                    index++) ...[
-                  _NewsListItem(news: MockData.homeNews[index]),
-                  if (index != MockData.homeNews.length - 1)
-                    const Divider(height: 14),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryTile(
+                          icon: Icons.payments_outlined,
+                          label: '오늘 지출',
+                          value: Formatters.amount(budget.spentToday),
+                          color: AppColors.categoryFood,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _SummaryTile(
+                          icon: Icons.donut_small_rounded,
+                          label: '예산 사용률',
+                          value: '${budget.dailyUsagePercent}%',
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryTile(
+                          icon: budget.topCategory?.icon ??
+                              Icons.category_outlined,
+                          label: '카테고리 1위',
+                          value: budget.topCategory?.label ?? '아직 없음',
+                          color: budget.topCategory?.color ??
+                              AppColors.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _SummaryTile(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: '잔여 예산',
+                          value: Formatters.amount(budget.remainingToday),
+                          color: AppColors.info,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  HomePolicyBriefing(
+                    refreshVersion: _policyRefreshVersion,
+                    onOpenPolicies: _openPolicies,
+                  ),
+                  const SizedBox(height: 22),
+                  AppCard(
+                    color: AppColors.primarySoft,
+                    borderColor: AppColors.primarySoft,
+                    child: Row(
+                      children: [
+                        const PigMascot(size: 52),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '오늘의 한 줄 절약 팁',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.primaryDeep,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                '커피 한 잔을 텀블러로 바꾸면 이번 주 교통비를 만들 수 있어요.',
+                                style: AppTextStyles.body,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const SectionHeader(title: '빠른 메뉴'),
+                  const SizedBox(height: 10),
+                  AppCard(
+                    onTap: _openDetectedExpenses,
+                    child: _QuickMenuContent(
+                      icon: Icons.notifications_active_outlined,
+                      badgeCount: _detectedExpenseRepository.items.length,
+                      title: '감지된 결제 확인',
+                      subtitle: _detectedExpenseRepository.items.isEmpty
+                          ? '확인이 필요한 결제가 없어요'
+                          : '등록을 기다리는 결제 ${_detectedExpenseRepository.items.length}건',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  AppCard(
+                    onTap: _openExpenseStats,
+                    child: const _QuickMenuContent(
+                      icon: Icons.insights_rounded,
+                      title: '지출 통계 보기',
+                      subtitle: '이번 달 소비 흐름을 확인해요',
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SectionHeader(
+                    title: '맞춤 뉴스',
+                    actionLabel: '더보기',
+                    onAction: () {},
+                  ),
+                  const SizedBox(height: 8),
+                  for (var index = 0;
+                      index < MockData.homeNews.length;
+                      index++) ...[
+                    _NewsListItem(news: MockData.homeNews[index]),
+                    if (index != MockData.homeNews.length - 1)
+                      const Divider(height: 14),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
           ],
         ),
       ),
