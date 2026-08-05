@@ -243,8 +243,8 @@ class _PolicyListPageState extends State<PolicyListPage> {
         _PolicySort.recommendation =>
           _recommendationRank(b).compareTo(_recommendationRank(a)),
         _PolicySort.deadline => _compareNullableDate(
-            _deadlineOf(a.applicationPeriodText),
-            _deadlineOf(b.applicationPeriodText),
+            a.applicationEndDate,
+            b.applicationEndDate,
           ),
         _PolicySort.support =>
           (b.supportAmount ?? -1).compareTo(a.supportAmount ?? -1),
@@ -263,16 +263,18 @@ class _PolicyListPageState extends State<PolicyListPage> {
   }
 
   int _compareNullableDate(DateTime? a, DateTime? b) {
-    if (a == null && b == null) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final aGroup =
+        a == null ? 2 : (DateUtils.dateOnly(a).isBefore(today) ? 1 : 0);
+    final bGroup =
+        b == null ? 2 : (DateUtils.dateOnly(b).isBefore(today) ? 1 : 0);
+    if (aGroup != bGroup) {
+      return aGroup.compareTo(bGroup);
+    }
+    if (a == null || b == null) {
       return 0;
     }
-    if (a == null) {
-      return 1;
-    }
-    if (b == null) {
-      return -1;
-    }
-    return a.compareTo(b);
+    return aGroup == 1 ? b.compareTo(a) : a.compareTo(b);
   }
 
   @override
@@ -687,8 +689,7 @@ class _PolicyHeroCard extends StatelessWidget {
               const _StatusBadge(
                   status: PolicyRecommendationStatus.recommended),
               const Spacer(),
-              if (_deadlineBadge(policy.applicationPeriodText)
-                  case final label?)
+              if (_deadlineBadge(policy.applicationEndDate) case final label?)
                 Text(
                   label,
                   style: AppTextStyles.caption.copyWith(
@@ -821,7 +822,7 @@ class _PolicyCompactCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                _deadlineBadge(policy.applicationPeriodText) ??
+                _deadlineBadge(policy.applicationEndDate) ??
                     policy.applicationPeriodText ??
                     '기간 확인 필요',
                 style: AppTextStyles.captionTiny,
@@ -999,8 +1000,7 @@ String _supportLabel(PolicySummary policy) {
   return support.isEmpty ? '지원 내용 확인' : support;
 }
 
-String? _deadlineBadge(String? text) {
-  final deadline = _deadlineOf(text);
+String? _deadlineBadge(DateTime? deadline) {
   if (deadline == null) {
     return null;
   }
@@ -1013,20 +1013,4 @@ String? _deadlineBadge(String? text) {
     return '오늘 마감';
   }
   return 'D-$days';
-}
-
-DateTime? _deadlineOf(String? text) {
-  if (text == null || text.trim().isEmpty) {
-    return null;
-  }
-  final matches = RegExp(r'(20\d{2})[.\-/]?(\d{2})[.\-/]?(\d{2})')
-      .allMatches(text)
-      .toList();
-  if (matches.isEmpty) {
-    return null;
-  }
-  final match = matches.last;
-  return DateTime.tryParse(
-    '${match.group(1)}-${match.group(2)}-${match.group(3)}',
-  );
 }

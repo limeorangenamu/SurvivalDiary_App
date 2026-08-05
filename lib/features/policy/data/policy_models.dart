@@ -115,6 +115,7 @@ class PolicySummary {
     required this.supportAmount,
     required this.supportText,
     required this.applicationPeriodText,
+    required this.applicationEndDate,
     required this.target,
     required this.agency,
     required this.eligibilityStatus,
@@ -135,6 +136,7 @@ class PolicySummary {
       supportAmount: _nullableInt(json, 'supportAmount'),
       supportText: _requiredString(json, 'supportText'),
       applicationPeriodText: _nullableString(json, 'applicationPeriodText'),
+      applicationEndDate: _nullableDate(json, 'applicationEndDate'),
       target: _requiredString(json, 'target'),
       agency: _requiredString(json, 'agency'),
       eligibilityStatus: eligibilityStatus,
@@ -157,6 +159,7 @@ class PolicySummary {
   final int? supportAmount;
   final String supportText;
   final String? applicationPeriodText;
+  final DateTime? applicationEndDate;
   final String target;
   final String agency;
   final PolicyEligibilityStatus eligibilityStatus;
@@ -175,6 +178,7 @@ class PolicyDetail {
     required this.supportAmount,
     required this.supportText,
     required this.applicationPeriodText,
+    required this.applicationEndDate,
     required this.target,
     required this.agency,
     required this.operatingAgency,
@@ -194,6 +198,7 @@ class PolicyDetail {
       supportAmount: _nullableInt(json, 'supportAmount'),
       supportText: _requiredString(json, 'supportText'),
       applicationPeriodText: _nullableString(json, 'applicationPeriodText'),
+      applicationEndDate: _nullableDate(json, 'applicationEndDate'),
       target: _requiredString(json, 'target'),
       agency: _requiredString(json, 'agency'),
       operatingAgency: _requiredString(json, 'operatingAgency'),
@@ -212,6 +217,7 @@ class PolicyDetail {
   final int? supportAmount;
   final String supportText;
   final String? applicationPeriodText;
+  final DateTime? applicationEndDate;
   final String target;
   final String agency;
   final String operatingAgency;
@@ -280,6 +286,21 @@ int? _nullableInt(Map<String, dynamic> json, String key) {
     throw const FormatException();
   }
   return value.toInt();
+}
+
+DateTime? _nullableDate(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value == null) {
+    return null;
+  }
+  if (value is! String) {
+    throw const FormatException();
+  }
+  final parsed = DateTime.tryParse(value.trim());
+  if (parsed == null) {
+    throw const FormatException();
+  }
+  return DateTime(parsed.year, parsed.month, parsed.day);
 }
 
 List<String> _stringList(Map<String, dynamic> json, String key) {

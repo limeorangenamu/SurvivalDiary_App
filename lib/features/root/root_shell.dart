@@ -16,8 +16,7 @@ class RootShell extends StatefulWidget {
   State<RootShell> createState() => _RootShellState();
 }
 
-class _RootShellState extends State<RootShell>
-    with WidgetsBindingObserver {
+class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
   int _homeRefreshVersion = 0;
   final _authSession = AuthSession.instance;
@@ -68,7 +67,10 @@ class _RootShellState extends State<RootShell>
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomePage(refreshVersion: _homeRefreshVersion),
+      HomePage(
+        refreshVersion: _homeRefreshVersion,
+        onOpenPolicies: () => setState(() => _currentIndex = 2),
+      ),
       const ExpenseAddPage(),
       const PolicyFilterPage(),
       const SavingMapPage(),
