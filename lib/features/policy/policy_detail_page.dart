@@ -12,6 +12,7 @@ import 'data/policy_api_client.dart';
 import 'data/policy_models.dart';
 
 typedef PolicyDetailAccessTokenProvider = String? Function();
+typedef PolicyDetailNowProvider = DateTime Function();
 
 class PolicyDetailPage extends StatefulWidget {
   PolicyDetailPage({
@@ -19,6 +20,7 @@ class PolicyDetailPage extends StatefulWidget {
     required this.arguments,
     PolicyApiClient? apiClient,
     PolicyDetailAccessTokenProvider? accessTokenProvider,
+    this.nowProvider,
   })  : apiClient = apiClient ?? PolicyApiClient(),
         accessTokenProvider =
             accessTokenProvider ?? (() => AuthSession.instance.accessToken);
@@ -26,6 +28,7 @@ class PolicyDetailPage extends StatefulWidget {
   final PolicyDetailArguments arguments;
   final PolicyApiClient apiClient;
   final PolicyDetailAccessTokenProvider accessTokenProvider;
+  final PolicyDetailNowProvider? nowProvider;
 
   @override
   State<PolicyDetailPage> createState() => _PolicyDetailPageState();
@@ -83,6 +86,7 @@ class _PolicyDetailPageState extends State<PolicyDetailPage> {
         return _PolicyDetailContent(
           policy: snapshot.requireData,
           arguments: widget.arguments,
+          now: (widget.nowProvider ?? DateTime.now)(),
         );
       },
     );
@@ -90,10 +94,15 @@ class _PolicyDetailPageState extends State<PolicyDetailPage> {
 }
 
 class _PolicyDetailContent extends StatelessWidget {
-  const _PolicyDetailContent({required this.policy, required this.arguments});
+  const _PolicyDetailContent({
+    required this.policy,
+    required this.arguments,
+    required this.now,
+  });
 
   final PolicyDetail policy;
   final PolicyDetailArguments arguments;
+  final DateTime now;
 
   IconData get _categoryIcon => switch (policy.categoryType) {
         PolicyCategory.employment => Icons.work_outline_rounded,
@@ -106,112 +115,81 @@ class _PolicyDetailContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final supportAmount = policy.supportAmount;
-    final supportAmountLabel = supportAmount == null
-        ? policy.supportText
-        : Formatters.compactAmount(supportAmount);
-    final periodLabel = policy.applicationPeriodText ?? '신청 기간 확인 필요';
     final referenceUrls = policy.referenceUrls
         .where((url) => url != policy.officialUrl)
         .toList(growable: false);
+    final reasons = arguments.recommendationReasons.isEmpty
+        ? arguments.eligibilityReasons
+        : arguments.recommendationReasons;
+    final showRecommendation =
+        arguments.recommendationStatus != PolicyRecommendationStatus.discover &&
+            (reasons.isNotEmpty ||
+                arguments.eligibilityStatus ==
+                    PolicyEligibilityStatus.checkRequired);
 
     return Scaffold(
       appBar: const _PolicyDetailAppBar(),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
         children: [
-          if (arguments.recommendationStatus !=
-                  PolicyRecommendationStatus.discover &&
-              (arguments.recommendationReasons.isNotEmpty ||
-                  arguments.eligibilityStatus ==
-                      PolicyEligibilityStatus.checkRequired)) ...[
-            _RecommendationNotice(
-              status: arguments.recommendationStatus,
-              reasons: arguments.recommendationReasons.isEmpty
-                  ? arguments.eligibilityReasons
-                  : arguments.recommendationReasons,
-            ),
-            const SizedBox(height: 10),
-          ],
           AppCard(
             color: AppColors.primarySoft,
             borderColor: AppColors.primarySoft,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Icon(_categoryIcon, color: AppColors.primary, size: 30),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        policy.category,
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.primaryDeep,
-                          fontWeight: FontWeight.w700,
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_categoryIcon, color: AppColors.primary, size: 18),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          policy.category,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primaryDeep,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Text(policy.title, style: AppTextStyles.title),
                 const SizedBox(height: 8),
                 Text(policy.description, style: AppTextStyles.bodyMuted),
-                const SizedBox(height: 18),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _SummaryValue(
-                        label: '예상 지원액',
-                        value: supportAmountLabel,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _SummaryValue(
-                        label: '신청 기간',
-                        value: periodLabel,
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
+          if (showRecommendation) ...[
+            const SizedBox(height: 10),
+            _RecommendationNotice(
+              status: arguments.recommendationStatus,
+              reasons: reasons,
+            ),
+          ],
           const SizedBox(height: 18),
-          _InfoSection(
-            icon: Icons.payments_outlined,
-            title: '지원 내용',
-            content: policy.supportText,
+          _PolicyOverviewCard(policy: policy, now: now),
+          const SizedBox(height: 10),
+          _ApplicationPreparationSection(
+            applicationMethod: policy.applicationMethod,
+            documents: policy.documents,
           ),
           const SizedBox(height: 10),
-          _InfoSection(
-            icon: Icons.person_outline_rounded,
-            title: '지원 대상',
-            content: policy.target,
+          _AgencySection(
+            agency: policy.agency,
+            operatingAgency: policy.operatingAgency,
           ),
-          const SizedBox(height: 10),
-          _InfoSection(
-            icon: Icons.account_balance_outlined,
-            title: '주관 기관',
-            content: policy.agency,
-          ),
-          const SizedBox(height: 10),
-          _InfoSection(
-            icon: Icons.business_outlined,
-            title: '운영 기관',
-            content: policy.operatingAgency,
-          ),
-          const SizedBox(height: 10),
-          _InfoSection(
-            icon: Icons.how_to_reg_outlined,
-            title: '신청 방법',
-            content: policy.applicationMethod,
-          ),
-          const SizedBox(height: 10),
-          _DocumentsSection(documents: policy.documents),
           if (referenceUrls.isNotEmpty) ...[
             const SizedBox(height: 10),
             _ReferenceLinksSection(
@@ -232,13 +210,15 @@ class _PolicyDetailContent extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
+                  key: const ValueKey('policy-hide-from-detail-button'),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52),
                   ),
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('추천 목록에서 숨겼어요.')),
+                  onPressed: () => Navigator.pop(
+                    context,
+                    PolicyDetailAction.hide,
                   ),
-                  child: const Text('관심 없음'),
+                  child: const Text('목록 숨기기'),
                 ),
               ),
               const SizedBox(width: 10),
@@ -258,14 +238,138 @@ class _PolicyDetailContent extends StatelessWidget {
                             ),
                           ),
                   child: Text(
-                    policy.officialUrl == null
-                        ? '온라인 신청 링크 없음'
-                        : '공식 신청 페이지로 이동',
+                    policy.officialUrl == null ? '온라인 신청 경로 없음' : '신청 사이트 확인',
                   ),
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PolicyOverviewCard extends StatelessWidget {
+  const _PolicyOverviewCard({required this.policy, required this.now});
+
+  final PolicyDetail policy;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final supportAmount = policy.supportAmount;
+    final deadline = _deadlinePresentation(policy.applicationEndDate, now);
+    return AppCard(
+      key: const ValueKey('policy-overview-card'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('한눈에 보기', style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 14),
+          _OverviewRow(
+            icon: Icons.payments_outlined,
+            label: supportAmount == null ? '지원 혜택' : '지원 금액',
+            value: supportAmount == null
+                ? policy.supportText
+                : Formatters.compactAmount(supportAmount),
+            description: supportAmount == null ? null : policy.supportText,
+          ),
+          const Divider(height: 24),
+          _OverviewRow(
+            icon: Icons.event_available_outlined,
+            label: '신청 기간',
+            value: policy.applicationPeriodText ?? '신청 기간 확인 필요',
+            badge: deadline,
+          ),
+          const Divider(height: 24),
+          _OverviewRow(
+            icon: Icons.person_outline_rounded,
+            label: '지원 대상',
+            value: policy.target,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewRow extends StatelessWidget {
+  const _OverviewRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.description,
+    this.badge,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? description;
+  final _DeadlinePresentation? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.primarySoft,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 21),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text(label, style: AppTextStyles.caption)),
+                  if (badge != null) _DeadlineBadge(presentation: badge!),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+              ),
+              if (description != null && description!.trim() != value) ...[
+                const SizedBox(height: 4),
+                Text(description!, style: AppTextStyles.caption),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeadlineBadge extends StatelessWidget {
+  const _DeadlineBadge({required this.presentation});
+
+  final _DeadlinePresentation presentation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('policy-deadline-badge'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: presentation.background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        presentation.label,
+        style: AppTextStyles.captionTiny.copyWith(
+          color: presentation.foreground,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -279,9 +383,9 @@ class _RecommendationNotice extends StatelessWidget {
   final List<String> reasons;
 
   String get _title => switch (status) {
-        PolicyRecommendationStatus.recommended => '이 정책을 추천하는 이유',
-        PolicyRecommendationStatus.checkRequired => '신청 조건을 확인해 주세요',
-        PolicyRecommendationStatus.discover => '함께 살펴볼 정책이에요',
+        PolicyRecommendationStatus.recommended => '나에게 맞는 이유',
+        PolicyRecommendationStatus.checkRequired => '신청 전에 확인할 조건',
+        PolicyRecommendationStatus.discover => '함께 살펴볼 정책',
       };
 
   Color get _color => switch (status) {
@@ -297,7 +401,7 @@ class _RecommendationNotice extends StatelessWidget {
       };
 
   IconData get _icon => switch (status) {
-        PolicyRecommendationStatus.recommended => Icons.recommend_outlined,
+        PolicyRecommendationStatus.recommended => Icons.auto_awesome_rounded,
         PolicyRecommendationStatus.checkRequired => Icons.fact_check_outlined,
         PolicyRecommendationStatus.discover => Icons.explore_outlined,
       };
@@ -313,6 +417,8 @@ class _RecommendationNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayReasons =
+        reasons.isEmpty ? const ['입력한 조건과 관련된 정책으로 함께 살펴볼 수 있어요.'] : reasons;
     return AppCard(
       key: _key,
       color: _background,
@@ -330,23 +436,98 @@ class _RecommendationNotice extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            reasons.isEmpty
-                ? '입력한 조건과 관련된 정책으로 함께 살펴볼 수 있어요.'
-                : reasons.join('\n'),
-            style: AppTextStyles.caption,
-          ),
+          const SizedBox(height: 10),
+          for (final (index, reason) in displayReasons.indexed) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Icon(
+                    status == PolicyRecommendationStatus.checkRequired
+                        ? Icons.info_outline_rounded
+                        : Icons.check_circle_outline_rounded,
+                    color: _color,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Expanded(child: Text(reason, style: AppTextStyles.caption)),
+              ],
+            ),
+            if (index != displayReasons.length - 1) const SizedBox(height: 7),
+          ],
         ],
       ),
     );
   }
 }
 
-class _DocumentsSection extends StatelessWidget {
-  const _DocumentsSection({required this.documents});
+class _ApplicationPreparationSection extends StatelessWidget {
+  const _ApplicationPreparationSection({
+    required this.applicationMethod,
+    required this.documents,
+  });
 
+  final String applicationMethod;
   final List<String> documents;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      key: const ValueKey('policy-application-preparation'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.how_to_reg_outlined, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text('신청 준비', style: AppTextStyles.sectionTitle),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Text('신청 방법', style: AppTextStyles.caption),
+          const SizedBox(height: 4),
+          Text(applicationMethod, style: AppTextStyles.bodyMuted),
+          const Divider(height: 24),
+          const Text('제출 서류', style: AppTextStyles.caption),
+          const SizedBox(height: 7),
+          if (documents.isEmpty)
+            const Text(
+              '필요한 서류는 공식 공고에서 확인해 주세요.',
+              style: AppTextStyles.bodyMuted,
+            )
+          else
+            for (final document in documents) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 18,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(document, style: AppTextStyles.body)),
+                ],
+              ),
+              if (document != documents.last) const SizedBox(height: 7),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AgencySection extends StatelessWidget {
+  const _AgencySection({required this.agency, required this.operatingAgency});
+
+  final String agency;
+  final String operatingAgency;
 
   @override
   Widget build(BuildContext context) {
@@ -356,36 +537,45 @@ class _DocumentsSection extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.description_outlined, color: AppColors.primary),
+              Icon(Icons.account_balance_outlined, color: AppColors.primary),
               SizedBox(width: 8),
-              Text('제출 서류', style: AppTextStyles.sectionTitle),
+              Text('담당 기관', style: AppTextStyles.sectionTitle),
             ],
           ),
           const SizedBox(height: 12),
-          if (documents.isEmpty)
-            const Text(
-              '필요한 서류는 공식 공고에서 확인해 주세요.',
-              style: AppTextStyles.bodyMuted,
-            )
-          else
-            for (final document in documents)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.check_circle_outline_rounded,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(document, style: AppTextStyles.body)),
-                  ],
-                ),
-              ),
+          _AgencyRow(label: '주관', value: agency),
+          const SizedBox(height: 8),
+          _AgencyRow(label: '운영', value: operatingAgency),
         ],
       ),
+    );
+  }
+}
+
+class _AgencyRow extends StatelessWidget {
+  const _AgencyRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 42,
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceAlt,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(label, style: AppTextStyles.captionTiny),
+        ),
+        const SizedBox(width: 9),
+        Expanded(child: Text(value, style: AppTextStyles.bodyMuted)),
+      ],
     );
   }
 }
@@ -496,56 +686,52 @@ class _PolicyDetailAppBar extends StatelessWidget
   }
 }
 
-class _SummaryValue extends StatelessWidget {
-  const _SummaryValue({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.captionTiny),
-        const SizedBox(height: 3),
-        Text(
-          value,
-          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-        ),
-      ],
+_DeadlinePresentation? _deadlinePresentation(
+  DateTime? endDate,
+  DateTime now,
+) {
+  if (endDate == null) {
+    return null;
+  }
+  final today = DateUtils.dateOnly(now);
+  final deadline = DateUtils.dateOnly(endDate);
+  final days = deadline.difference(today).inDays;
+  if (days < 0) {
+    return const _DeadlinePresentation(
+      label: '접수 마감',
+      foreground: AppColors.danger,
+      background: AppColors.dangerSoft,
     );
   }
+  if (days == 0) {
+    return const _DeadlinePresentation(
+      label: '오늘 마감',
+      foreground: AppColors.warning,
+      background: AppColors.warningSoft,
+    );
+  }
+  if (days <= 30) {
+    return _DeadlinePresentation(
+      label: 'D-$days',
+      foreground: AppColors.warning,
+      background: AppColors.warningSoft,
+    );
+  }
+  return _DeadlinePresentation(
+    label: '${endDate.month}/${endDate.day} 마감',
+    foreground: AppColors.primaryDeep,
+    background: AppColors.primarySoft,
+  );
 }
 
-class _InfoSection extends StatelessWidget {
-  const _InfoSection({
-    required this.icon,
-    required this.title,
-    required this.content,
+class _DeadlinePresentation {
+  const _DeadlinePresentation({
+    required this.label,
+    required this.foreground,
+    required this.background,
   });
 
-  final IconData icon;
-  final String title;
-  final String content;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Text(title, style: AppTextStyles.sectionTitle),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(content, style: AppTextStyles.bodyMuted),
-        ],
-      ),
-    );
-  }
+  final String label;
+  final Color foreground;
+  final Color background;
 }

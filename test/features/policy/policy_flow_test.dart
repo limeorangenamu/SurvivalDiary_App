@@ -29,11 +29,12 @@ void main() {
       onGenerateRoute: (settings) {
         if (settings.name == AppRoutes.policyDetail &&
             settings.arguments is PolicyDetailArguments) {
-          return MaterialPageRoute<void>(
+          return MaterialPageRoute<PolicyDetailAction>(
             builder: (_) => PolicyDetailPage(
               arguments: settings.arguments! as PolicyDetailArguments,
               apiClient: resolvedClient,
               accessTokenProvider: () => 'test-access-token',
+              nowProvider: () => DateTime(2026, 8, 5),
             ),
           );
         }
@@ -268,8 +269,43 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('정책 상세'), findsOneWidget);
-    expect(find.text('이 정책을 추천하는 이유'), findsOneWidget);
+    expect(find.text('나에게 맞는 이유'), findsOneWidget);
+    expect(find.text('한눈에 보기'), findsOneWidget);
+    expect(find.text('지원 금액'), findsOneWidget);
+    expect(find.text('D-26'), findsOneWidget);
+    expect(find.text('신청 사이트 확인'), findsOneWidget);
     expect(find.text('최대 300만 원을 지원해요.'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(find.text('신청 준비'), findsOneWidget);
+  });
+
+  testWidgets('상세에서 숨긴 정책은 추천 목록에서 제거하고 실행취소할 수 있다', (tester) async {
+    await tester.pumpWidget(
+      policyApp(
+        PolicyListPage(
+          condition: _defaultCondition,
+          apiClient: apiClient,
+          accessTokenProvider: () => 'test-access-token',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('policy-card-policy-employment')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('policy-hide-from-detail-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('청년 일자리 지원'), findsNothing);
+    expect(find.textContaining('정책을 목록에서 숨겼어요.'), findsOneWidget);
+    await tester.tap(find.text('실행취소'));
+    await tester.pumpAndSettle();
+    expect(find.text('청년 일자리 지원'), findsOneWidget);
   });
 
   testWidgets('로그인 토큰이 없으면 서버 호출 없이 안내한다', (tester) async {
@@ -481,6 +517,7 @@ Map<String, dynamic> _detailJson(String policyId) {
     'supportAmount': 3000000,
     'supportText': '최대 300만 원을 지원해요.',
     'applicationPeriodText': '2026.08.01~2026.08.31',
+    'applicationEndDate': '2026-08-31',
     'target': '만 19~34세 구직 청년',
     'agency': '청년정책 담당 기관',
     'operatingAgency': '정책 운영 기관',

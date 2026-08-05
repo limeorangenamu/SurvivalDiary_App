@@ -222,8 +222,8 @@ class _PolicyListPageState extends State<PolicyListPage> {
       );
   }
 
-  void _openPolicy(PolicySummary policy) {
-    Navigator.pushNamed(
+  Future<void> _openPolicy(PolicySummary policy) async {
+    final action = await Navigator.pushNamed<PolicyDetailAction>(
       context,
       AppRoutes.policyDetail,
       arguments: PolicyDetailArguments(
@@ -234,6 +234,10 @@ class _PolicyListPageState extends State<PolicyListPage> {
         recommendationReasons: policy.recommendationReasons,
       ),
     );
+    if (!mounted || action != PolicyDetailAction.hide) {
+      return;
+    }
+    _hidePolicy(policy);
   }
 
   List<PolicySummary> _sorted(Iterable<PolicySummary> policies) {

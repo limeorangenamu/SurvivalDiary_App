@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:project_survival_diary/core/router/app_routes.dart';
 import 'package:project_survival_diary/core/theme/app_theme.dart';
 import 'package:project_survival_diary/features/home/widgets/home_policy_briefing.dart';
 import 'package:project_survival_diary/features/policy/data/policy_api_client.dart';
+import 'package:project_survival_diary/features/policy/data/policy_models.dart';
 
 void main() {
   testWidgets('홈에 맞춤 추천과 30일 이내 마감 정책을 함께 보여준다', (tester) async {
@@ -116,6 +118,83 @@ void main() {
     expect(find.text('한 번만 조건을 알려주세요'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('home-policy-setup')));
     expect(opened, isTrue);
+  });
+
+  testWidgets('상세에서 숨긴 정책은 홈에서도 제거하고 실행취소할 수 있다', (tester) async {
+    final client = PolicyApiClient(
+      baseUrl: 'http://localhost:8080',
+      client: MockClient((request) async {
+        if (request.url.path == '/api/users/me/policy-preferences') {
+          return _success({
+            'saved': true,
+            'age': 29,
+            'regionCode': '26',
+            'districtCode': null,
+            'workStatus': null,
+            'jobSeeking': null,
+            'educationStatus': null,
+            'interests': <String>[],
+          });
+        }
+        return _success({
+          'items': [
+            _policy(
+              id: 'hide-target',
+              title: '숨길 정책',
+              status: 'RECOMMENDED',
+              reason: '현재 상황과 관련된 정책이에요.',
+            ),
+          ],
+          'partialResult': false,
+          'checkedProviderPages': 1,
+          'nextPage': null,
+        });
+      }),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        onGenerateRoute: (settings) {
+          if (settings.name == AppRoutes.policyDetail) {
+            return MaterialPageRoute<PolicyDetailAction>(
+              builder: (context) => Scaffold(
+                body: Center(
+                  child: FilledButton(
+                    key: const ValueKey('test-hide-policy'),
+                    onPressed: () => Navigator.pop(
+                      context,
+                      PolicyDetailAction.hide,
+                    ),
+                    child: const Text('숨기기'),
+                  ),
+                ),
+              ),
+            );
+          }
+          return null;
+        },
+        home: Scaffold(
+          body: HomePolicyBriefing(
+            apiClient: client,
+            accessTokenProvider: () => 'access-token',
+            onOpenPolicies: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('home-policy-hide-target')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('test-hide-policy')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('숨길 정책'), findsNothing);
+    expect(find.textContaining('정책을 홈에서 숨겼어요.'), findsOneWidget);
+    await tester.tap(find.text('실행취소'));
+    await tester.pumpAndSettle();
+    expect(find.text('숨길 정책'), findsOneWidget);
   });
 }
 

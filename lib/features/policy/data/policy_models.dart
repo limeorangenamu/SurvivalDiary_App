@@ -243,6 +243,8 @@ class PolicyDetailArguments {
   final List<String> recommendationReasons;
 }
 
+enum PolicyDetailAction { hide }
+
 enum PolicyExternalLinkType { application, reference }
 
 class PolicyExternalLinkArguments {
