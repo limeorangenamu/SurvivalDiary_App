@@ -37,6 +37,31 @@ class PolicyDetailPage extends StatefulWidget {
 class _PolicyDetailPageState extends State<PolicyDetailPage> {
   late Future<PolicyDetail> _detailFuture;
 
+  PolicyDetail? get _fallbackDetail {
+    final summary = widget.arguments.summary;
+    if (summary == null) {
+      return null;
+    }
+    return PolicyDetail(
+      policyId: summary.policyId,
+      category: summary.category,
+      categoryType: summary.categoryType,
+      title: summary.title,
+      description: summary.summary,
+      supportAmount: summary.supportAmount,
+      supportText: summary.supportText,
+      applicationPeriodText: summary.applicationPeriodText,
+      applicationEndDate: summary.applicationEndDate,
+      target: summary.target,
+      agency: summary.agency,
+      operatingAgency: summary.agency,
+      applicationMethod: '상세 조회 후 확인할 수 있어요.',
+      documents: const [],
+      officialUrl: null,
+      referenceUrls: const [],
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -72,12 +97,35 @@ class _PolicyDetailPageState extends State<PolicyDetailPage> {
       future: _detailFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
+          final fallbackDetail = _fallbackDetail;
+          if (fallbackDetail != null) {
+            return _PolicyDetailContent(
+              policy: fallbackDetail,
+              arguments: widget.arguments,
+              now: (widget.nowProvider ?? DateTime.now)(),
+              notice: '목록에서 받은 기본 정보를 먼저 보여드리고 있어요. 상세 정보는 불러오는 대로 갱신됩니다.',
+            );
+          }
           return const Scaffold(
             appBar: _PolicyDetailAppBar(),
             body: Center(child: CircularProgressIndicator()),
           );
         }
         if (snapshot.hasError) {
+          final fallbackDetail = _fallbackDetail;
+          if (fallbackDetail != null) {
+            final error = snapshot.error;
+            final message = error is PolicyApiException
+                ? error.message
+                : '정책 상세를 불러오지 못했어요.';
+            return _PolicyDetailContent(
+              policy: fallbackDetail,
+              arguments: widget.arguments,
+              now: (widget.nowProvider ?? DateTime.now)(),
+              notice: '$message 목록에서 받은 기본 정보를 대신 보여드리고 있어요.',
+              onRetry: _retry,
+            );
+          }
           return _PolicyDetailErrorPage(
             error: snapshot.error,
             onRetry: _retry,
@@ -98,11 +146,15 @@ class _PolicyDetailContent extends StatelessWidget {
     required this.policy,
     required this.arguments,
     required this.now,
+    this.notice,
+    this.onRetry,
   });
 
   final PolicyDetail policy;
   final PolicyDetailArguments arguments;
   final DateTime now;
+  final String? notice;
+  final VoidCallback? onRetry;
 
   IconData get _categoryIcon => switch (policy.categoryType) {
         PolicyCategory.employment => Icons.work_outline_rounded,
@@ -132,6 +184,10 @@ class _PolicyDetailContent extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 110),
         children: [
+          if (notice != null) ...[
+            _PolicyDetailNotice(message: notice!, onRetry: onRetry),
+            const SizedBox(height: 10),
+          ],
           AppCard(
             color: AppColors.primarySoft,
             borderColor: AppColors.primarySoft,
@@ -245,6 +301,34 @@ class _PolicyDetailContent extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PolicyDetailNotice extends StatelessWidget {
+  const _PolicyDetailNotice({required this.message, this.onRetry});
+
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      key: const ValueKey('policy-detail-fallback-notice'),
+      color: AppColors.primarySoft,
+      borderColor: AppColors.primarySoft,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, color: AppColors.primaryDeep),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message, style: AppTextStyles.caption)),
+          if (onRetry != null) ...[
+            const SizedBox(width: 8),
+            TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          ],
+        ],
       ),
     );
   }

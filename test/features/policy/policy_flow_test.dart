@@ -150,6 +150,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(capturedBodies.first, {
+      'age': 27,
       'regionCode': '11',
       'districtCode': '11110',
       'workStatus': 'UNEMPLOYED',
@@ -280,6 +281,34 @@ void main() {
     expect(find.text('신청 준비'), findsOneWidget);
   });
 
+  testWidgets('상세 API가 실패해도 목록의 기본 정보로 상세 화면을 연다', (tester) async {
+    final fallbackClient = _policyApiClient(detailUnavailable: true);
+    await tester.pumpWidget(
+      policyApp(
+        PolicyListPage(
+          condition: _defaultCondition,
+          apiClient: fallbackClient,
+          accessTokenProvider: () => 'test-access-token',
+        ),
+        client: fallbackClient,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('policy-card-policy-employment')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('정책 상세'), findsOneWidget);
+    expect(find.text('청년 일자리 지원'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('policy-detail-fallback-notice')),
+      findsOneWidget,
+    );
+    expect(find.text('다시 시도'), findsOneWidget);
+  });
+
   testWidgets('상세에서 숨긴 정책은 추천 목록에서 제거하고 실행취소할 수 있다', (tester) async {
     await tester.pumpWidget(
       policyApp(
@@ -355,6 +384,7 @@ const _defaultCondition = PolicyFilterCondition(
 PolicyApiClient _policyApiClient({
   void Function(Map<String, dynamic> body)? onBody,
   void Function(Map<String, dynamic> body)? onRecommendation,
+  bool detailUnavailable = false,
 }) {
   return PolicyApiClient(
     baseUrl: 'http://test.example',
@@ -429,6 +459,19 @@ PolicyApiClient _policyApiClient({
 
       if (request.method == 'GET' &&
           request.url.path.startsWith('/api/policies/')) {
+        if (detailUnavailable) {
+          return http.Response(
+            jsonEncode({
+              'success': false,
+              'error': {
+                'code': 'Y002',
+                'message': '정책 정보를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.',
+              },
+            }),
+            503,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          );
+        }
         return _successResponse(_detailJson(request.url.pathSegments.last));
       }
       return http.Response('{}', 404);

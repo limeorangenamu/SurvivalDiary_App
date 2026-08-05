@@ -234,6 +234,7 @@ class PolicyDetailArguments {
     required this.eligibilityReasons,
     this.recommendationStatus = PolicyRecommendationStatus.discover,
     this.recommendationReasons = const [],
+    this.summary,
   });
 
   final String policyId;
@@ -241,6 +242,7 @@ class PolicyDetailArguments {
   final List<String> eligibilityReasons;
   final PolicyRecommendationStatus recommendationStatus;
   final List<String> recommendationReasons;
+  final PolicySummary? summary;
 }
 
 enum PolicyDetailAction { hide }
