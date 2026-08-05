@@ -5,9 +5,9 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../core/services/directions_api_service.dart';
 import '../../core/services/good_price_api_service.dart';
+import '../../core/services/housing_rent_api_service.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/public_facility_api_service.dart';
-import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -21,6 +21,9 @@ import 'good_price_store_detail_page.dart';
 import 'good_price_store_distance.dart';
 import 'good_price_store_marker_style.dart';
 import 'good_price_store_visibility.dart';
+import 'housing_deal_detail_page.dart';
+import 'housing_deal_marker_style.dart';
+import 'housing_lawd_code.dart';
 import 'place_detail_page.dart';
 import 'widgets/map_canvas.dart';
 import 'widgets/public_facility_detail_sheet.dart';
@@ -37,6 +40,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
   final GoodPriceApiService _goodPriceApiService = GoodPriceApiService();
   final PublicFacilityApiService _publicFacilityApiService =
       PublicFacilityApiService();
+  final HousingRentApiService _housingRentApiService = HousingRentApiService();
   final LocationService _locationService = LocationService();
 
   String _filter = '전체';
@@ -44,6 +48,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
   SavingPlace? _selectedPlace;
   GoodPriceStore? _selectedGoodPriceStore;
   PublicFacility? _selectedPublicFacility;
+  HousingRentDeal? _selectedHousingDeal;
   String? _selectedGoodPriceCategoryKey;
   final Map<String, GoodPriceStore> _favoriteGoodPriceStores = {};
   NaverMapController? _mapController;
@@ -54,6 +59,10 @@ class _SavingMapPageState extends State<SavingMapPage> {
   String? _storeError;
   String? _publicFacilityError;
   bool _publicFacilityFreeOnly = false;
+  List<HousingRentDeal> _housingDeals = const [];
+  bool _isLoadingHousingDeals = false;
+  String? _housingDealError;
+  int _housingRequestId = 0;
   String? _province;
   String? _district;
   int _storeRequestId = 0;
@@ -83,6 +92,19 @@ class _SavingMapPageState extends State<SavingMapPage> {
             );
           }).toList();
     return _sortGoodPriceStores(stores);
+  }
+
+  List<HousingRentDeal> get _visibleHousingDeals {
+    final bounds = _viewportBounds;
+    if (bounds == null) {
+      return _housingDeals;
+    }
+    return _housingDeals.where((deal) {
+      if (!deal.hasCoordinates) {
+        return false;
+      }
+      return bounds.containsPoint(NLatLng(deal.latitude!, deal.longitude!));
+    }).toList(growable: false);
   }
 
   Future<void> _loadPublicFacilities() async {
@@ -186,6 +208,66 @@ class _SavingMapPageState extends State<SavingMapPage> {
     }
   }
 
+  Future<void> _loadHousingDeals() async {
+    final province = _province;
+    final district = _district;
+    if (province == null || district == null) {
+      return;
+    }
+    final lawdCode = housingLawdCodeFor(
+      province: province,
+      district: district,
+    );
+    if (lawdCode == null) {
+      setState(() {
+        _housingDealError = '$province $district의 실거래 지역코드를 확인하지 못했어요.';
+        _isLoadingHousingDeals = false;
+      });
+      return;
+    }
+    final accessToken = AuthSession.instance.accessToken;
+    if (accessToken == null) {
+      setState(() {
+        _housingDealError = '로그인 후 주거 실거래를 확인할 수 있어요.';
+        _isLoadingHousingDeals = false;
+      });
+      return;
+    }
+
+    final requestId = ++_housingRequestId;
+    setState(() {
+      _isLoadingHousingDeals = true;
+      _housingDealError = null;
+    });
+    try {
+      final deals = await _housingRentApiService.fetchDeals(
+        accessToken: accessToken,
+        condition: HousingRentSearchCondition(
+          region: '$province $district',
+          lawdCode: lawdCode,
+          neighborhood: '',
+        ),
+        endMonth: DateTime.now(),
+        limit: 50,
+      );
+      if (!mounted || requestId != _housingRequestId) {
+        return;
+      }
+      setState(() {
+        _housingDeals = deals;
+        _isLoadingHousingDeals = false;
+      });
+    } on HousingRentApiException catch (error) {
+      if (!mounted || requestId != _housingRequestId) {
+        return;
+      }
+      setState(() {
+        _housingDealError = error.message;
+        _isLoadingHousingDeals = false;
+      });
+    }
+  }
+
   Future<void> _moveToCurrentLocation({bool showMessage = false}) async {
     try {
       final position = await _locationService.getCurrentPosition();
@@ -239,6 +321,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
         _viewportBounds = viewport.bounds;
         _selectedGoodPriceStore = null;
         _selectedPublicFacility = null;
+        _selectedHousingDeal = null;
         _isLocating = true;
         _locationError = null;
       });
@@ -250,7 +333,9 @@ class _SavingMapPageState extends State<SavingMapPage> {
       await _loadPublicFacilities();
       return;
     }
-    if (_filter != '착한가격업소') {
+    final isGoodPrice = _filter == '착한가격업소';
+    final isHousing = _filter == '주거지';
+    if (!isGoodPrice && !isHousing) {
       if (mounted) {
         setState(() => _isLocating = false);
       }
@@ -272,11 +357,18 @@ class _SavingMapPageState extends State<SavingMapPage> {
         _district = region.district;
         _isLocating = false;
         if (regionChanged) {
-          _goodPriceStores = const [];
+          if (isGoodPrice) {
+            _goodPriceStores = const [];
+          }
+          if (isHousing) {
+            _housingDeals = const [];
+          }
         }
       });
-      if (regionChanged || _goodPriceStores.isEmpty) {
+      if (isGoodPrice && (regionChanged || _goodPriceStores.isEmpty)) {
         await _loadGoodPriceStores();
+      } else if (isHousing && (regionChanged || _housingDeals.isEmpty)) {
+        await _loadHousingDeals();
       }
     } catch (error) {
       if (!mounted || requestId != _viewportRequestId) {
@@ -378,6 +470,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
       _selectedPlace = null;
       _selectedGoodPriceStore = null;
       _selectedPublicFacility = null;
+      _selectedHousingDeal = null;
       _directionsRoute = null;
       _directionsDestinationName = null;
       _isLoadingDirections = false;
@@ -387,6 +480,8 @@ class _SavingMapPageState extends State<SavingMapPage> {
       }
     });
     if (value == '착한가격업소' && _goodPriceStores.isEmpty) {
+      unawaited(_refreshCurrentViewport());
+    } else if (value == '주거지') {
       unawaited(_refreshCurrentViewport());
     }
     if (value == '공공시설' && _publicFacilities.isEmpty) {
@@ -415,6 +510,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
     setState(() {
       _selectedGoodPriceStore = store;
       _selectedPublicFacility = null;
+      _selectedHousingDeal = null;
       _directionsRoute = null;
       _directionsDestinationName = null;
       _isLoadingDirections = false;
@@ -426,6 +522,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
     setState(() {
       _selectedPublicFacility = facility;
       _selectedGoodPriceStore = null;
+      _selectedHousingDeal = null;
       _directionsRoute = null;
       _directionsDestinationName = null;
       _isLoadingDirections = false;
@@ -466,6 +563,26 @@ class _SavingMapPageState extends State<SavingMapPage> {
             unawaited(_openPublicFacilityDirections(facility));
           },
         ),
+      ),
+    );
+  }
+
+  void _selectHousingDeal(HousingRentDeal deal) {
+    setState(() {
+      _selectedHousingDeal = deal;
+      _selectedGoodPriceStore = null;
+      _selectedPublicFacility = null;
+    });
+  }
+
+  void _showHousingDealDetail() {
+    final deal = _selectedHousingDeal;
+    if (deal == null) {
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => HousingDealDetailPage(deal: deal),
       ),
     );
   }
@@ -546,6 +663,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
         _isLoadingDirections = false;
         _selectedGoodPriceStore = null;
         _selectedPublicFacility = null;
+        _selectedHousingDeal = null;
       });
     } on DirectionsApiException catch (error) {
       if (!mounted || requestId != _directionsRequestId) {
@@ -602,7 +720,9 @@ class _SavingMapPageState extends State<SavingMapPage> {
     final places = _visiblePlaces;
     final isGoodPrice = _filter == '착한가격업소';
     final isPublicFacility = _filter == '공공시설';
+    final isHousing = _filter == '주거지';
     final visibleGoodPriceStores = _visibleGoodPriceStores;
+    final visibleHousingDeals = _visibleHousingDeals;
     final categoryGoodPriceStores = visibleGoodPriceStores
         .where(
           (store) => goodPriceStoreMatchesCategory(
@@ -634,12 +754,14 @@ class _SavingMapPageState extends State<SavingMapPage> {
               places: places,
               goodPriceStores: mapGoodPriceStores,
               publicFacilities: isPublicFacility ? _publicFacilities : const [],
+              housingDeals: isHousing ? visibleHousingDeals : const [],
               directionsRoute: _directionsRoute,
               onPlaceTap: (place) {
                 setState(() => _selectedPlace = place);
               },
               onGoodPriceStoreTap: _selectGoodPriceStore,
               onPublicFacilityTap: _selectPublicFacility,
+              onHousingDealTap: _selectHousingDeal,
               onMapReady: (controller) {
                 _mapController = controller;
                 unawaited(_initializeMapAtCurrentLocation());
@@ -652,6 +774,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
               },
               selectedGoodPriceStore: _selectedGoodPriceStore,
               selectedPublicFacility: _selectedPublicFacility,
+              selectedHousingDeal: _selectedHousingDeal,
               isSelectedStoreFavorite: _selectedGoodPriceStore != null &&
                   _favoriteGoodPriceStores.containsKey(
                     _selectedGoodPriceStore!.id,
@@ -673,6 +796,12 @@ class _SavingMapPageState extends State<SavingMapPage> {
               onPublicFacilityDismissed: () {
                 if (_selectedPublicFacility != null) {
                   setState(() => _selectedPublicFacility = null);
+                }
+              },
+              onHousingDealCardTap: _showHousingDealDetail,
+              onHousingDealDismissed: () {
+                if (_selectedHousingDeal != null) {
+                  setState(() => _selectedHousingDeal = null);
                 }
               },
             ),
@@ -772,14 +901,16 @@ class _SavingMapPageState extends State<SavingMapPage> {
               left: 16,
               right: 16,
               bottom: 16,
-              child: SingleChildScrollView(
-                key: const PageStorageKey('map-scroll'),
-                child: _HousingSummaryCard(
-                  onTap: () => Navigator.pushNamed(
-                    context,
-                    AppRoutes.housingRegion,
-                  ),
-                ),
+              height: 150,
+              child: _HousingDealPanel(
+                deals: visibleHousingDeals,
+                isLoading: _isLoadingHousingDeals,
+                error: _housingDealError,
+                regionLabel: _viewportRegionLabel,
+                isLocating: _isLocating,
+                locationError: _locationError,
+                onRetry: _loadHousingDeals,
+                onLocationRetry: _refreshCurrentViewport,
               ),
             )
           else if (_selectedPlace != null)
@@ -1289,37 +1420,196 @@ class _GoodPriceCategorySummary extends StatelessWidget {
   }
 }
 
-class _HousingSummaryCard extends StatelessWidget {
-  const _HousingSummaryCard({required this.onTap});
+class _HousingDealPanel extends StatelessWidget {
+  const _HousingDealPanel({
+    required this.deals,
+    required this.isLoading,
+    required this.error,
+    required this.regionLabel,
+    required this.isLocating,
+    required this.locationError,
+    required this.onRetry,
+    required this.onLocationRetry,
+  });
 
-  final VoidCallback onTap;
+  final List<HousingRentDeal> deals;
+  final bool isLoading;
+  final String? error;
+  final String? regionLabel;
+  final bool isLocating;
+  final String? locationError;
+  final VoidCallback onRetry;
+  final VoidCallback onLocationRetry;
 
   @override
   Widget build(BuildContext context) {
+    final singleFamily =
+        deals.where((deal) => deal.propertyType == '단독/다가구').length;
+    final officetel = deals.where((deal) => deal.propertyType == '오피스텔').length;
+    final jeonse = deals.where((deal) => deal.dealType == '전세').length;
+    final monthlyRent = deals.where((deal) => deal.dealType == '월세').length;
     return AppCard(
-      color: AppColors.primarySoft,
-      borderColor: AppColors.primary,
-      onTap: onTap,
-      child: const Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.apartment_rounded, color: AppColors.primary, size: 30),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('주거 실거래 지역 선택', style: AppTextStyles.sectionTitle),
-                SizedBox(height: 4),
-                Text(
-                  '시·도부터 동까지 선택해 거래를 조회해요.',
-                  style: AppTextStyles.caption,
+          Row(
+            children: [
+              const Expanded(
+                child: Text('주거 실거래', style: AppTextStyles.sectionTitle),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
                 ),
-              ],
+                decoration: BoxDecoration(
+                  color: AppColors.primarySoft,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${deals.length}건',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primaryDeep,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            regionLabel == null
+                ? '현재 지도 화면의 지역을 확인하고 있어요.'
+                : '$regionLabel · 최근 3개월 최신 거래',
+            style: AppTextStyles.captionTiny,
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: _buildContent(
+              singleFamily: singleFamily,
+              officetel: officetel,
+              jeonse: jeonse,
+              monthlyRent: monthlyRent,
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
         ],
       ),
+    );
+  }
+
+  Widget _buildContent({
+    required int singleFamily,
+    required int officetel,
+    required int jeonse,
+    required int monthlyRent,
+  }) {
+    if (isLocating || (isLoading && deals.isEmpty)) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (locationError != null) {
+      return _HousingPanelError(
+        message: locationError!,
+        onRetry: onLocationRetry,
+      );
+    }
+    if (error != null && deals.isEmpty) {
+      return _HousingPanelError(message: error!, onRetry: onRetry);
+    }
+    if (deals.isEmpty) {
+      return const Center(
+        child: Text(
+          '현재 지도 화면에 표시할 최근 거래가 없어요.',
+          style: AppTextStyles.bodyMuted,
+        ),
+      );
+    }
+    final singleStyle = HousingDealMarkerStyle.fromPropertyType('단독/다가구');
+    final officetelStyle = HousingDealMarkerStyle.fromPropertyType('오피스텔');
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _HousingCount(
+          icon: singleStyle.icon,
+          color: singleStyle.color,
+          label: '단독/다가구',
+          count: singleFamily,
+        ),
+        _HousingCount(
+          icon: officetelStyle.icon,
+          color: officetelStyle.color,
+          label: '오피스텔',
+          count: officetel,
+        ),
+        _HousingCount(
+          icon: Icons.key_rounded,
+          color: AppColors.primary,
+          label: '전세',
+          count: jeonse,
+        ),
+        _HousingCount(
+          icon: Icons.payments_outlined,
+          color: AppColors.danger,
+          label: '월세',
+          count: monthlyRent,
+        ),
+      ],
+    );
+  }
+}
+
+class _HousingCount extends StatelessWidget {
+  const _HousingCount({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.count,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: color, size: 23),
+        const SizedBox(height: 3),
+        Text(label, style: AppTextStyles.captionTiny),
+        Text(
+          '$count건',
+          style: AppTextStyles.caption.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HousingPanelError extends StatelessWidget {
+  const _HousingPanelError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            message,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.bodyMuted,
+          ),
+        ),
+        TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+      ],
     );
   }
 }

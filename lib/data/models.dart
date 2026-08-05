@@ -313,26 +313,6 @@ class SavingPlace {
   final double longitude;
 }
 
-class HousingDeal {
-  const HousingDeal({
-    required this.id,
-    required this.propertyName,
-    required this.dealType,
-    required this.amount,
-    required this.dealDate,
-    required this.area,
-    required this.floor,
-  });
-
-  final String id;
-  final String propertyName;
-  final String dealType;
-  final int amount;
-  final DateTime dealDate;
-  final double area;
-  final int floor;
-}
-
 class CommunityPost {
   const CommunityPost({
     required this.id,

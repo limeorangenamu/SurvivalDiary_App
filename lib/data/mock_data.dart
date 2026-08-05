@@ -105,36 +105,6 @@ class MockData {
 
   static const List<SavingPlace> places = [];
 
-  static final housingDeals = [
-    HousingDeal(
-      id: 'deal-1',
-      propertyName: '역삼 청년주택',
-      dealType: '전세',
-      amount: 235000000,
-      dealDate: DateTime(2026, 7, 18),
-      area: 29.8,
-      floor: 8,
-    ),
-    HousingDeal(
-      id: 'deal-2',
-      propertyName: '테헤란 스테이',
-      dealType: '월세',
-      amount: 850000,
-      dealDate: DateTime(2026, 6, 29),
-      area: 24.1,
-      floor: 5,
-    ),
-    HousingDeal(
-      id: 'deal-3',
-      propertyName: '강남 센트럴빌',
-      dealType: '매매',
-      amount: 515000000,
-      dealDate: DateTime(2026, 5, 11),
-      area: 41.2,
-      floor: 12,
-    ),
-  ];
-
   static const posts = [
     CommunityPost(
       id: 'post-1',
