@@ -33,6 +33,7 @@ class CurrentUser {
     required this.email,
     required this.name,
     required this.nickname,
+    required this.profileImageUrl,
     required this.phone,
     required this.birthDate,
     required this.gender,
@@ -46,6 +47,7 @@ class CurrentUser {
       email: json['email'] as String? ?? '',
       name: json['name'] as String,
       nickname: json['nickname'] as String? ?? '',
+      profileImageUrl: json['profileImageUrl'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       birthDate: json['birthDate'] as String? ?? '',
       gender: json['gender'] as String? ?? '',
@@ -60,6 +62,7 @@ class CurrentUser {
   final String email;
   final String name;
   final String nickname;
+  final String profileImageUrl;
   String get displayName => nickname.trim().isNotEmpty ? nickname : name;
   final String phone;
   final String birthDate;

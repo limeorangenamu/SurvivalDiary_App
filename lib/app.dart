@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 
 import 'core/router/app_router.dart';
 import 'core/router/app_routes.dart';
@@ -17,6 +19,16 @@ class SurvivalDiaryApp extends StatelessWidget {
       title: '생존일기',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      localizationsDelegates: const [
+        FlutterQuillLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ko'),
+        Locale('en'),
+      ],
       initialRoute: initialRoute,
       onGenerateRoute: AppRouter.onGenerateRoute,
       builder: (context, child) {

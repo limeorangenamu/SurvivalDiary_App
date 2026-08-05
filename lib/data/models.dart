@@ -340,6 +340,13 @@ class CommunityPost {
     required this.likeCount,
     required this.commentCount,
     required this.hasImage,
+    this.imageUrls = const [],
+    this.imageAlignment = 'center',
+    this.isLiked = false,
+    this.isBookmarked = false,
+    this.createdAt,
+    this.isOwner = false,
+    this.contentJson,
   });
 
   final String id;
@@ -353,6 +360,13 @@ class CommunityPost {
   final int likeCount;
   final int commentCount;
   final bool hasImage;
+  final List<String> imageUrls;
+  final String imageAlignment;
+  final bool isLiked;
+  final bool isBookmarked;
+  final DateTime? createdAt;
+  final bool isOwner;
+  final String? contentJson;
 }
 
 class AppNotification {
