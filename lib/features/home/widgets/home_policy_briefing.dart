@@ -169,8 +169,8 @@ class _HomePolicyBriefingState extends State<HomePolicyBriefing> {
     return selected;
   }
 
-  void _openPolicy(PolicySummary policy) {
-    Navigator.pushNamed(
+  Future<void> _openPolicy(PolicySummary policy) async {
+    final action = await Navigator.pushNamed<PolicyDetailAction>(
       context,
       AppRoutes.policyDetail,
       arguments: PolicyDetailArguments(
@@ -181,6 +181,34 @@ class _HomePolicyBriefingState extends State<HomePolicyBriefing> {
         recommendationReasons: policy.recommendationReasons,
       ),
     );
+    if (!mounted || action != PolicyDetailAction.hide) {
+      return;
+    }
+
+    final index = _policies.indexWhere(
+      (item) => item.policyId == policy.policyId,
+    );
+    if (index < 0) {
+      return;
+    }
+    setState(() => _policies.removeAt(index));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('${policy.title} 정책을 홈에서 숨겼어요.'),
+          action: SnackBarAction(
+            label: '실행취소',
+            onPressed: () {
+              if (!mounted ||
+                  _policies.any((item) => item.policyId == policy.policyId)) {
+                return;
+              }
+              setState(() => _policies.insert(index, policy));
+            },
+          ),
+        ),
+      );
   }
 
   @override
