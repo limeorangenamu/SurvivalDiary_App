@@ -10,6 +10,7 @@ import '../../shared/widgets/empty_state_view.dart';
 import '../auth/auth_session.dart';
 import 'data/policy_api_client.dart';
 import 'data/policy_models.dart';
+import 'policy_text_formatter.dart';
 
 typedef PolicyDetailAccessTokenProvider = String? Function();
 typedef PolicyDetailNowProvider = DateTime Function();
@@ -227,7 +228,10 @@ class _PolicyDetailContent extends StatelessWidget {
                 const SizedBox(height: 14),
                 Text(policy.title, style: AppTextStyles.title),
                 const SizedBox(height: 8),
-                Text(policy.description, style: AppTextStyles.bodyMuted),
+                Text(
+                  normalizePolicyText(policy.description),
+                  style: AppTextStyles.bodyMuted,
+                ),
               ],
             ),
           ),
@@ -351,7 +355,10 @@ class _PolicyOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final supportAmount = policy.supportAmount;
     final deadline = _deadlinePresentation(policy.applicationEndDate, now);
-    final periodLabel = _applicationPeriodLabel(policy);
+    final periodLabel = normalizePolicyText(_applicationPeriodLabel(policy));
+    final originalPeriod = policy.applicationPeriodText == null
+        ? null
+        : normalizePolicyText(policy.applicationPeriodText!);
     return AppCard(
       key: const ValueKey('policy-overview-card'),
       child: Column(
@@ -365,25 +372,25 @@ class _PolicyOverviewCard extends StatelessWidget {
                 ? '지원 혜택'
                 : _supportAmountTitle(policy.supportAmountType),
             value: supportAmount == null
-                ? policy.supportText
+                ? normalizePolicyText(policy.supportText)
                 : Formatters.compactAmount(supportAmount),
-            description: supportAmount == null ? null : policy.supportText,
+            description: supportAmount == null
+                ? null
+                : normalizePolicyText(policy.supportText),
           ),
           const Divider(height: 24),
           _OverviewRow(
             icon: Icons.event_available_outlined,
             label: '신청 기간',
             value: periodLabel,
-            description: periodLabel == policy.applicationPeriodText
-                ? null
-                : policy.applicationPeriodText,
+            description: periodLabel == originalPeriod ? null : originalPeriod,
             badge: deadline,
           ),
           const Divider(height: 24),
           _OverviewRow(
             icon: Icons.person_outline_rounded,
             label: '지원 대상',
-            value: policy.target,
+            value: normalizePolicyText(policy.target),
           ),
         ],
       ),
@@ -514,8 +521,10 @@ class _RecommendationNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayReasons =
+    final sourceReasons =
         reasons.isEmpty ? const ['입력한 조건과 관련된 정책으로 함께 살펴볼 수 있어요.'] : reasons;
+    final displayReasons =
+        sourceReasons.expand(policyTextItems).toList(growable: false);
     return AppCard(
       key: _key,
       color: _background,
@@ -535,22 +544,10 @@ class _RecommendationNotice extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           for (final (index, reason) in displayReasons.indexed) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Icon(
-                    status == PolicyRecommendationStatus.checkRequired
-                        ? Icons.info_outline_rounded
-                        : Icons.check_circle_outline_rounded,
-                    color: _color,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Expanded(child: Text(reason, style: AppTextStyles.caption)),
-              ],
+            _PolicyBulletRow(
+              text: reason,
+              color: _color,
+              textStyle: AppTextStyles.caption,
             ),
             if (index != displayReasons.length - 1) const SizedBox(height: 7),
           ],
@@ -571,6 +568,8 @@ class _ApplicationPreparationSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final documentItems =
+        documents.expand(policyTextItems).toList(growable: false);
     return AppCard(
       key: const ValueKey('policy-application-preparation'),
       child: Column(
@@ -586,33 +585,26 @@ class _ApplicationPreparationSection extends StatelessWidget {
           const SizedBox(height: 14),
           const Text('신청 방법', style: AppTextStyles.caption),
           const SizedBox(height: 4),
-          Text(applicationMethod, style: AppTextStyles.bodyMuted),
+          Text(
+            normalizePolicyText(applicationMethod),
+            style: AppTextStyles.bodyMuted,
+          ),
           const Divider(height: 24),
           const Text('제출 서류', style: AppTextStyles.caption),
           const SizedBox(height: 7),
-          if (documents.isEmpty)
+          if (documentItems.isEmpty)
             const Text(
               '필요한 서류는 공식 공고에서 확인해 주세요.',
               style: AppTextStyles.bodyMuted,
             )
           else
-            for (final document in documents) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 2),
-                    child: Icon(
-                      Icons.check_circle_outline_rounded,
-                      size: 18,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(document, style: AppTextStyles.body)),
-                ],
+            for (final (index, document) in documentItems.indexed) ...[
+              _PolicyBulletRow(
+                text: document,
+                color: AppColors.primary,
+                textStyle: AppTextStyles.body,
               ),
-              if (document != documents.last) const SizedBox(height: 7),
+              if (index != documentItems.length - 1) const SizedBox(height: 7),
             ],
         ],
       ),
@@ -671,7 +663,39 @@ class _AgencyRow extends StatelessWidget {
           child: Text(label, style: AppTextStyles.captionTiny),
         ),
         const SizedBox(width: 9),
-        Expanded(child: Text(value, style: AppTextStyles.bodyMuted)),
+        Expanded(
+          child: Text(
+            normalizePolicyText(value),
+            style: AppTextStyles.bodyMuted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PolicyBulletRow extends StatelessWidget {
+  const _PolicyBulletRow({
+    required this.text,
+    required this.color,
+    required this.textStyle,
+  });
+
+  final String text;
+  final Color color;
+  final TextStyle textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 7),
+          child: Icon(Icons.circle, size: 6, color: color),
+        ),
+        const SizedBox(width: 9),
+        Expanded(child: Text(text, style: textStyle)),
       ],
     );
   }

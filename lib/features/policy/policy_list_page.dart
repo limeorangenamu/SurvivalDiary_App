@@ -12,6 +12,7 @@ import '../../shared/widgets/empty_state_view.dart';
 import '../auth/auth_session.dart';
 import 'data/policy_api_client.dart';
 import 'data/policy_models.dart';
+import 'policy_text_formatter.dart';
 
 typedef PolicyAccessTokenProvider = String? Function();
 
@@ -1156,8 +1157,10 @@ String _supportLabel(PolicySummary policy) {
       PolicySupportAmountType.fixed || null => formatted,
     };
   }
-  final support = policy.supportText.trim();
-  return support.isEmpty ? '지원 내용 확인' : support;
+  return compactPolicyText(
+    policy.supportText,
+    fallback: policy.summary,
+  );
 }
 
 String _applicationPeriodLabel(PolicySummary policy) =>
