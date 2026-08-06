@@ -146,6 +146,10 @@ void main() {
     expect(result.nextPage, 4);
     expect(result.items.single.policyId, 'POLICY-1');
     expect(
+      result.items.single.shortSummary,
+      '청년의 월세와 주거비를 월 최대 20만원 지원해요',
+    );
+    expect(
       result.items.single.eligibilityStatus,
       PolicyEligibilityStatus.checkRequired,
     );
@@ -251,6 +255,7 @@ void main() {
 
   test('추천 필드가 없는 구버전 응답은 자격 확인 상태로 호환한다', () async {
     final legacySummary = _summaryJson()
+      ..remove('shortSummary')
       ..remove('recommendationStatus')
       ..remove('recommendationReasons');
     final client = PolicyApiClient(
@@ -274,6 +279,7 @@ void main() {
       result.items.single.recommendationStatus,
       PolicyRecommendationStatus.checkRequired,
     );
+    expect(result.items.single.shortSummary, isNull);
     expect(
       result.items.single.recommendationReasons,
       ['소득 조건을 확인해 주세요.'],
@@ -347,6 +353,7 @@ Map<String, dynamic> _summaryJson() {
     'categoryType': 'HOUSING',
     'title': '청년 주거 지원',
     'summary': '정책 설명',
+    'shortSummary': '청년의 월세와 주거비를 월 최대 20만원 지원해요',
     'supportAmount': 200000,
     'supportAmountType': 'MONTHLY_MAXIMUM',
     'supportText': '월 최대 20만 원, 최대 12개월 지원',

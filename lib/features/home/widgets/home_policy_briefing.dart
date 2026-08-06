@@ -314,7 +314,7 @@ class _HomePolicyCard extends StatelessWidget {
               Text(
                 reason,
                 style: AppTextStyles.caption,
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
@@ -335,7 +335,7 @@ class _HomePolicyCard extends StatelessWidget {
                       color: AppColors.primaryDeep,
                       fontWeight: FontWeight.w700,
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -558,6 +558,10 @@ class _PolicyLoadingCard extends StatelessWidget {
 }
 
 String _supportLabel(PolicySummary policy) {
+  final shortSummary = policy.shortSummary?.trim();
+  if (shortSummary != null && shortSummary.isNotEmpty) {
+    return shortSummary;
+  }
   final amount = policy.supportAmount;
   if (amount != null) {
     final formatted = Formatters.compactAmount(amount);

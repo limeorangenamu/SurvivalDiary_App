@@ -97,6 +97,7 @@ void main() {
     expect(find.textContaining('서울특별시 · 종로구 · 만 27세'), findsOneWidget);
     expect(find.text('청년 일자리 지원'), findsOneWidget);
     expect(find.text('내게 추천'), findsOneWidget);
+    expect(find.text('청년의 취업과 일자리 준비를 지원해요'), findsOneWidget);
   });
 
   testWidgets('최초 설정은 지역 누락을 안내하고 한 단계씩 이동한다', (tester) async {
@@ -563,6 +564,7 @@ http.Response _recommendationResponse() {
         supportAmount: 3000000,
         supportAmountType: 'MAXIMUM',
         supportText: '최대 300만 원을 지원해요.',
+        shortSummary: '청년의 취업과 일자리 준비를 지원해요',
         recommendationStatus: 'RECOMMENDED',
         recommendationReasons: const ['구직 중인 사용자에게 관련된 일자리 정책이에요.'],
       ),
@@ -604,6 +606,7 @@ Map<String, dynamic> _summaryJson({
   String? supportAmountType,
   String supportText = '월 최대 20만 원, 최대 12개월',
   String summary = '청년의 생활비 부담을 줄이는 정책입니다.',
+  String? shortSummary,
   String applicationPeriodText = '2026.08.01~2026.08.31',
   String? applicationPeriodType = 'FIXED',
   String? applicationStartDate = '2026-08-01',
@@ -618,6 +621,7 @@ Map<String, dynamic> _summaryJson({
     'categoryType': categoryType,
     'title': title,
     'summary': summary,
+    if (shortSummary != null) 'shortSummary': shortSummary,
     'supportAmount': supportAmount,
     'supportAmountType': supportAmountType,
     'supportText': supportText,

@@ -769,11 +769,10 @@ class _PolicyHeroCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               _supportLabel(policy),
-              style: AppTextStyles.amount.copyWith(
+              style: AppTextStyles.sectionTitle.copyWith(
                 color: AppColors.primaryDeep,
-                fontSize: 21,
               ),
-              maxLines: 3,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             if (policy.recommendationReasons.isNotEmpty) ...[
@@ -799,7 +798,7 @@ class _PolicyHeroCard extends StatelessWidget {
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.textPrimary,
                         ),
-                        maxLines: 3,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -906,11 +905,11 @@ class _PolicyCompactCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               _supportLabel(policy),
-              style: AppTextStyles.amount.copyWith(
+              style: AppTextStyles.body.copyWith(
                 color: AppColors.primary,
-                fontSize: 17,
+                fontWeight: FontWeight.w700,
               ),
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 9),
@@ -1147,6 +1146,10 @@ extension on _PolicySort {
 }
 
 String _supportLabel(PolicySummary policy) {
+  final shortSummary = policy.shortSummary?.trim();
+  if (shortSummary != null && shortSummary.isNotEmpty) {
+    return shortSummary;
+  }
   final amount = policy.supportAmount;
   if (amount != null) {
     final formatted = Formatters.compactAmount(amount);

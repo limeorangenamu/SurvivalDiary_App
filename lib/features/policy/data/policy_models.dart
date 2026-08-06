@@ -130,6 +130,7 @@ class PolicySummary {
     required this.categoryType,
     required this.title,
     required this.summary,
+    this.shortSummary,
     required this.supportAmount,
     required this.supportAmountType,
     required this.supportText,
@@ -154,6 +155,7 @@ class PolicySummary {
       categoryType: _policyCategory(json['categoryType']),
       title: _requiredString(json, 'title'),
       summary: _requiredString(json, 'summary'),
+      shortSummary: _nullableString(json, 'shortSummary'),
       supportAmount: _nullableInt(json, 'supportAmount'),
       supportAmountType: _supportAmountType(json['supportAmountType']),
       supportText: _requiredString(json, 'supportText'),
@@ -182,6 +184,7 @@ class PolicySummary {
   final PolicyCategory? categoryType;
   final String title;
   final String summary;
+  final String? shortSummary;
   final int? supportAmount;
   final PolicySupportAmountType? supportAmountType;
   final String supportText;
