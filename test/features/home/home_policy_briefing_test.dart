@@ -150,6 +150,7 @@ void main() {
               reason: '현재 거주 지역과 관심 주제를 함께 살펴 우선 확인할 정책으로 골랐어요.',
               category: '주거·자산형성 및 생활 안정',
               supportText: '월세와 생활비 일부를 신청 조건에 따라 최대 12개월 동안 지원합니다.',
+              shortSummary: '청년의 월세와 주거비 부담을 덜어줘요',
               agency: '청년 주거 정책을 담당하는 중앙·지역 협력 운영 기관',
             ),
           ],
@@ -181,6 +182,11 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('자세히'), findsOneWidget);
+    expect(find.text('청년의 월세와 주거비 부담을 덜어줘요'), findsOneWidget);
+    expect(
+      find.text('월세와 생활비 일부를 신청 조건에 따라 최대 12개월 동안 지원합니다.'),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -276,6 +282,7 @@ Map<String, dynamic> _policy({
   String? endDate,
   String category = '주거',
   String supportText = '월 최대 20만원 지원',
+  String? shortSummary,
   String agency = '부산광역시',
 }) =>
     {
@@ -284,6 +291,7 @@ Map<String, dynamic> _policy({
       'categoryType': 'HOUSING',
       'title': title,
       'summary': '청년의 생활비 부담을 줄이는 정책이에요.',
+      if (shortSummary != null) 'shortSummary': shortSummary,
       'supportAmount': null,
       'supportAmountType': null,
       'supportText': supportText,
