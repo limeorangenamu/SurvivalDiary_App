@@ -295,6 +295,69 @@ void main() {
     );
   });
 
+  test('관심 없음 정책을 계정 목록에서 조회하고 저장하고 복구한다', () async {
+    final capturedRequests = <http.Request>[];
+    final client = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        capturedRequests.add(request);
+        if (request.method == 'GET') {
+          return _successResponse({
+            'content': [
+              {
+                'policyId': 'POLICY A/1',
+                'title': '청년 주거 지원',
+                'category': '주거',
+                'shortSummary': '월세를 지원해요',
+                'hiddenAt': '2026-08-06T12:00:00',
+              },
+            ],
+            'page': 0,
+            'size': 100,
+            'totalElements': 1,
+            'totalPages': 1,
+            'hasNext': false,
+          });
+        }
+        if (request.method == 'PUT') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          return _successResponse({
+            'policyId': 'POLICY A/1',
+            ...body,
+            'hiddenAt': '2026-08-06T12:00:00',
+          });
+        }
+        return _successResponse(<String, dynamic>{});
+      }),
+    );
+    final policyJson = _summaryJson()..['policyId'] = 'POLICY A/1';
+    final policy = PolicySummary.fromJson(policyJson);
+
+    final hidden = await client.getHiddenPolicies(
+      accessToken: 'access-token',
+    );
+    final saved = await client.hidePolicy(
+      accessToken: 'access-token',
+      policy: policy,
+    );
+    await client.restoreHiddenPolicy(
+      accessToken: 'access-token',
+      policyId: policy.policyId,
+    );
+
+    expect(hidden.items.single.policyId, 'POLICY A/1');
+    expect(hidden.items.single.hiddenAt, DateTime(2026, 8, 6, 12));
+    expect(saved.title, policy.title);
+    expect(capturedRequests[0].url.queryParameters, {
+      'page': '0',
+      'size': '100',
+    });
+    expect(capturedRequests[1].method, 'PUT');
+    expect(capturedRequests[1].url.pathSegments.last, 'POLICY A/1');
+    expect(capturedRequests[2].method, 'DELETE');
+    expect(capturedRequests[2].url.pathSegments.last, 'POLICY A/1');
+  });
+
   test('인증 실패는 로그인 만료 오류로 구분한다', () async {
     final client = PolicyApiClient(
       baseUrl: 'http://test.example',

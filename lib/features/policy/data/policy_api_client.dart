@@ -165,6 +165,87 @@ class PolicyApiClient {
     }
   }
 
+  Future<HiddenPolicyResult> getHiddenPolicies({
+    required String accessToken,
+    int page = 0,
+    int size = 100,
+  }) async {
+    final response = await _send(
+      () => _client.get(
+        Uri.parse(
+          '$_baseUrl/api/users/me/hidden-policies?page=$page&size=$size',
+        ),
+        headers: _headers(accessToken),
+      ),
+      fallbackMessage: '관심 없음 정책을 불러오지 못했어요.',
+    );
+
+    try {
+      return HiddenPolicyResult.fromJson(_responseData(response));
+    } on FormatException {
+      throw const PolicyApiException(
+        '서버의 관심 없음 정책 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    } on TypeError {
+      throw const PolicyApiException(
+        '서버의 관심 없음 정책 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    }
+  }
+
+  Future<HiddenPolicySummary> hidePolicy({
+    required String accessToken,
+    required PolicySummary policy,
+  }) async {
+    final policyId = Uri.encodeComponent(policy.policyId);
+    final response = await _send(
+      () => _client.put(
+        Uri.parse('$_baseUrl/api/users/me/hidden-policies/$policyId'),
+        headers: _headers(accessToken, hasBody: true),
+        body: jsonEncode({
+          'title': _limitedText(policy.title, 200),
+          'category': _limitedText(policy.category, 100),
+          'shortSummary': _limitedText(
+            policy.shortSummary ?? policy.summary,
+            500,
+          ),
+        }),
+      ),
+      fallbackMessage: '정책을 관심 없음으로 설정하지 못했어요.',
+    );
+
+    try {
+      return HiddenPolicySummary.fromJson(_responseData(response));
+    } on FormatException {
+      throw const PolicyApiException(
+        '서버의 관심 없음 저장 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    } on TypeError {
+      throw const PolicyApiException(
+        '서버의 관심 없음 저장 응답 형식을 확인하지 못했어요.',
+        type: PolicyApiErrorType.invalidResponse,
+      );
+    }
+  }
+
+  Future<void> restoreHiddenPolicy({
+    required String accessToken,
+    required String policyId,
+  }) async {
+    await _send(
+      () => _client.delete(
+        Uri.parse(
+          '$_baseUrl/api/users/me/hidden-policies/${Uri.encodeComponent(policyId)}',
+        ),
+        headers: _headers(accessToken),
+      ),
+      fallbackMessage: '관심 없음 정책을 복구하지 못했어요.',
+    );
+  }
+
   Future<PolicyDetail> getPolicyDetail({
     required String accessToken,
     required String policyId,
@@ -347,6 +428,14 @@ class PolicyApiClient {
         PolicyInterest.assetBuilding => 'ASSET_BUILDING',
         PolicyInterest.transport => 'TRANSPORT',
       };
+
+  String _limitedText(String value, int maxLength) {
+    final normalized = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized.length <= maxLength) {
+      return normalized;
+    }
+    return normalized.substring(0, maxLength);
+  }
 
   String _errorMessage(
     http.Response response, {

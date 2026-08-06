@@ -18,6 +18,7 @@ import '../../features/map/housing_region_page.dart';
 import '../../features/map/place_detail_page.dart';
 import '../../features/policy/policy_detail_page.dart';
 import '../../features/policy/policy_external_link_confirm_page.dart';
+import '../../features/policy/hidden_policies_page.dart';
 import '../../features/policy/policy_list_page.dart';
 import '../../features/policy/data/policy_models.dart';
 import '../../features/profile/profile_edit_page.dart';
@@ -65,6 +66,11 @@ class AppRouter {
       AppRoutes.policyDetail when settings.arguments is PolicyDetailArguments =>
         PolicyDetailPage(
           arguments: settings.arguments! as PolicyDetailArguments,
+        ),
+      AppRoutes.hiddenPolicies => HiddenPoliciesPage(
+          arguments: settings.arguments is HiddenPoliciesArguments
+              ? settings.arguments! as HiddenPoliciesArguments
+              : null,
         ),
       AppRoutes.policyExternalLinkConfirm
           when settings.arguments is PolicyExternalLinkArguments =>
