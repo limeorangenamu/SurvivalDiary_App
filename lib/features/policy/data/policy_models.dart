@@ -4,6 +4,24 @@ enum PolicyEligibilityStatus { matched, checkRequired }
 
 enum PolicyRecommendationStatus { recommended, checkRequired, discover }
 
+enum PolicySupportAmountType { fixed, maximum, monthly, monthlyMaximum }
+
+enum PolicyApplicationPeriodType {
+  fixed,
+  always,
+  closed,
+  untilBudget,
+  unknown,
+}
+
+enum PolicyOfficialLinkType {
+  applicationCandidate,
+  loginRequired,
+  institutionHome,
+  unknown,
+  unavailable,
+}
+
 class PolicyPreference {
   const PolicyPreference({
     required this.saved,
@@ -113,8 +131,11 @@ class PolicySummary {
     required this.title,
     required this.summary,
     required this.supportAmount,
+    required this.supportAmountType,
     required this.supportText,
     required this.applicationPeriodText,
+    required this.applicationPeriodType,
+    required this.applicationStartDate,
     required this.applicationEndDate,
     required this.target,
     required this.agency,
@@ -134,8 +155,13 @@ class PolicySummary {
       title: _requiredString(json, 'title'),
       summary: _requiredString(json, 'summary'),
       supportAmount: _nullableInt(json, 'supportAmount'),
+      supportAmountType: _supportAmountType(json['supportAmountType']),
       supportText: _requiredString(json, 'supportText'),
       applicationPeriodText: _nullableString(json, 'applicationPeriodText'),
+      applicationPeriodType: _applicationPeriodType(
+        json['applicationPeriodType'],
+      ),
+      applicationStartDate: _nullableDate(json, 'applicationStartDate'),
       applicationEndDate: _nullableDate(json, 'applicationEndDate'),
       target: _requiredString(json, 'target'),
       agency: _requiredString(json, 'agency'),
@@ -157,8 +183,11 @@ class PolicySummary {
   final String title;
   final String summary;
   final int? supportAmount;
+  final PolicySupportAmountType? supportAmountType;
   final String supportText;
   final String? applicationPeriodText;
+  final PolicyApplicationPeriodType? applicationPeriodType;
+  final DateTime? applicationStartDate;
   final DateTime? applicationEndDate;
   final String target;
   final String agency;
@@ -176,8 +205,11 @@ class PolicyDetail {
     required this.title,
     required this.description,
     required this.supportAmount,
+    required this.supportAmountType,
     required this.supportText,
     required this.applicationPeriodText,
+    required this.applicationPeriodType,
+    required this.applicationStartDate,
     required this.applicationEndDate,
     required this.target,
     required this.agency,
@@ -185,10 +217,12 @@ class PolicyDetail {
     required this.applicationMethod,
     required this.documents,
     required this.officialUrl,
+    required this.officialLinkType,
     required this.referenceUrls,
   });
 
   factory PolicyDetail.fromJson(Map<String, dynamic> json) {
+    final officialUrl = _nullableString(json, 'officialUrl');
     return PolicyDetail(
       policyId: _requiredString(json, 'policyId'),
       category: _requiredString(json, 'category'),
@@ -196,15 +230,24 @@ class PolicyDetail {
       title: _requiredString(json, 'title'),
       description: _requiredString(json, 'description'),
       supportAmount: _nullableInt(json, 'supportAmount'),
+      supportAmountType: _supportAmountType(json['supportAmountType']),
       supportText: _requiredString(json, 'supportText'),
       applicationPeriodText: _nullableString(json, 'applicationPeriodText'),
+      applicationPeriodType: _applicationPeriodType(
+        json['applicationPeriodType'],
+      ),
+      applicationStartDate: _nullableDate(json, 'applicationStartDate'),
       applicationEndDate: _nullableDate(json, 'applicationEndDate'),
       target: _requiredString(json, 'target'),
       agency: _requiredString(json, 'agency'),
       operatingAgency: _requiredString(json, 'operatingAgency'),
       applicationMethod: _requiredString(json, 'applicationMethod'),
       documents: _stringList(json, 'documents'),
-      officialUrl: _nullableString(json, 'officialUrl'),
+      officialUrl: officialUrl,
+      officialLinkType: _officialLinkType(
+        json['officialLinkType'],
+        hasUrl: officialUrl != null,
+      ),
       referenceUrls: _stringList(json, 'referenceUrls'),
     );
   }
@@ -215,8 +258,11 @@ class PolicyDetail {
   final String title;
   final String description;
   final int? supportAmount;
+  final PolicySupportAmountType? supportAmountType;
   final String supportText;
   final String? applicationPeriodText;
+  final PolicyApplicationPeriodType? applicationPeriodType;
+  final DateTime? applicationStartDate;
   final DateTime? applicationEndDate;
   final String target;
   final String agency;
@@ -224,6 +270,7 @@ class PolicyDetail {
   final String applicationMethod;
   final List<String> documents;
   final String? officialUrl;
+  final PolicyOfficialLinkType officialLinkType;
   final List<String> referenceUrls;
 }
 
@@ -254,11 +301,13 @@ class PolicyExternalLinkArguments {
     required this.title,
     required this.url,
     required this.type,
+    this.officialLinkType = PolicyOfficialLinkType.unknown,
   });
 
   final String title;
   final String url;
   final PolicyExternalLinkType type;
+  final PolicyOfficialLinkType officialLinkType;
 }
 
 String _requiredString(Map<String, dynamic> json, String key) {
@@ -306,6 +355,37 @@ DateTime? _nullableDate(Map<String, dynamic> json, String key) {
   }
   return DateTime(parsed.year, parsed.month, parsed.day);
 }
+
+PolicySupportAmountType? _supportAmountType(Object? value) => switch (value) {
+      'FIXED' => PolicySupportAmountType.fixed,
+      'MAXIMUM' => PolicySupportAmountType.maximum,
+      'MONTHLY' => PolicySupportAmountType.monthly,
+      'MONTHLY_MAXIMUM' => PolicySupportAmountType.monthlyMaximum,
+      _ => null,
+    };
+
+PolicyApplicationPeriodType? _applicationPeriodType(Object? value) =>
+    switch (value) {
+      'FIXED' => PolicyApplicationPeriodType.fixed,
+      'ALWAYS' => PolicyApplicationPeriodType.always,
+      'CLOSED' => PolicyApplicationPeriodType.closed,
+      'UNTIL_BUDGET' => PolicyApplicationPeriodType.untilBudget,
+      'UNKNOWN' => PolicyApplicationPeriodType.unknown,
+      _ => null,
+    };
+
+PolicyOfficialLinkType _officialLinkType(Object? value,
+        {required bool hasUrl}) =>
+    switch (value) {
+      'APPLICATION_CANDIDATE' => PolicyOfficialLinkType.applicationCandidate,
+      'LOGIN_REQUIRED' => PolicyOfficialLinkType.loginRequired,
+      'INSTITUTION_HOME' => PolicyOfficialLinkType.institutionHome,
+      'UNAVAILABLE' => PolicyOfficialLinkType.unavailable,
+      'UNKNOWN' => PolicyOfficialLinkType.unknown,
+      _ => hasUrl
+          ? PolicyOfficialLinkType.unknown
+          : PolicyOfficialLinkType.unavailable,
+    };
 
 List<String> _stringList(Map<String, dynamic> json, String key) {
   final value = json[key];

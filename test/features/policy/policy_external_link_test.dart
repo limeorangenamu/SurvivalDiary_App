@@ -119,6 +119,38 @@ void main() {
     expect(find.textContaining('실제 신청 경로임을 보장하지 않아요.'), findsOneWidget);
   });
 
+  testWidgets('로그인 주소는 이동 전에 로그인이 필요함을 표시한다', (tester) async {
+    final launcher = PolicyExternalLinkLauncher(
+      launch: (url, {required mode}) async => true,
+    );
+    await tester.pumpWidget(
+      _externalLinkApp(
+        launcher: launcher,
+        officialLinkType: PolicyOfficialLinkType.loginRequired,
+      ),
+    );
+
+    expect(find.text('로그인이 필요한 서비스입니다'), findsOneWidget);
+    expect(find.text('로그인 사이트 주소'), findsOneWidget);
+    expect(find.text('로그인 페이지 열기'), findsOneWidget);
+  });
+
+  testWidgets('기관 홈페이지 주소는 정책명 검색 필요를 안내한다', (tester) async {
+    final launcher = PolicyExternalLinkLauncher(
+      launch: (url, {required mode}) async => true,
+    );
+    await tester.pumpWidget(
+      _externalLinkApp(
+        launcher: launcher,
+        officialLinkType: PolicyOfficialLinkType.institutionHome,
+      ),
+    );
+
+    expect(find.text('기관 홈페이지로 이동할까요?'), findsOneWidget);
+    expect(find.textContaining('이동 후 정책명을 검색해 주세요.'), findsOneWidget);
+    expect(find.text('기관 홈페이지 열기'), findsOneWidget);
+  });
+
   testWidgets('브라우저 실행 실패를 사용자에게 안내한다', (tester) async {
     final launcher = PolicyExternalLinkLauncher(
       launch: (url, {required mode}) async => false,
@@ -142,6 +174,7 @@ void main() {
 Widget _externalLinkApp({
   required PolicyExternalLinkLauncher launcher,
   PolicyExternalLinkType type = PolicyExternalLinkType.application,
+  PolicyOfficialLinkType officialLinkType = PolicyOfficialLinkType.unknown,
 }) {
   return MaterialApp(
     theme: AppTheme.light,
@@ -150,6 +183,7 @@ Widget _externalLinkApp({
         title: '청년 주거 지원',
         url: 'https://example.com/policies/1',
         type: type,
+        officialLinkType: officialLinkType,
       ),
       launcher: launcher,
     ),

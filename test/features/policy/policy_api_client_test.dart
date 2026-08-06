@@ -153,6 +153,19 @@ void main() {
       result.items.single.recommendationStatus,
       PolicyRecommendationStatus.checkRequired,
     );
+    expect(result.items.single.supportAmount, 200000);
+    expect(
+      result.items.single.supportAmountType,
+      PolicySupportAmountType.monthlyMaximum,
+    );
+    expect(
+      result.items.single.applicationPeriodType,
+      PolicyApplicationPeriodType.fixed,
+    );
+    expect(
+      result.items.single.applicationStartDate,
+      DateTime(2026, 8, 1),
+    );
   });
 
   test('맞춤 추천은 저장 조건 대신 탐색 조건만 전송한다', () async {
@@ -201,14 +214,18 @@ void main() {
           'title': '정책 제목',
           'description': '정책 설명',
           'supportAmount': null,
+          'supportAmountType': null,
           'supportText': '지원 내용',
           'applicationPeriodText': null,
+          'applicationPeriodType': 'UNKNOWN',
+          'applicationStartDate': null,
           'target': '지원 대상',
           'agency': '주관 기관',
           'operatingAgency': '운영 기관',
           'applicationMethod': '온라인 신청',
           'documents': <String>[],
           'officialUrl': null,
+          'officialLinkType': 'UNAVAILABLE',
           'referenceUrls': <String>[],
         });
       }),
@@ -222,8 +239,14 @@ void main() {
     expect(capturedRequest.url.pathSegments.last, 'POLICY A/1');
     expect(detail.categoryType, isNull);
     expect(detail.supportAmount, isNull);
+    expect(detail.supportAmountType, isNull);
     expect(detail.applicationPeriodText, isNull);
+    expect(
+      detail.applicationPeriodType,
+      PolicyApplicationPeriodType.unknown,
+    );
     expect(detail.officialUrl, isNull);
+    expect(detail.officialLinkType, PolicyOfficialLinkType.unavailable);
   });
 
   test('추천 필드가 없는 구버전 응답은 자격 확인 상태로 호환한다', () async {
@@ -324,9 +347,13 @@ Map<String, dynamic> _summaryJson() {
     'categoryType': 'HOUSING',
     'title': '청년 주거 지원',
     'summary': '정책 설명',
-    'supportAmount': null,
-    'supportText': '지원 내용',
+    'supportAmount': 200000,
+    'supportAmountType': 'MONTHLY_MAXIMUM',
+    'supportText': '월 최대 20만 원, 최대 12개월 지원',
     'applicationPeriodText': '20260801~20260831',
+    'applicationPeriodType': 'FIXED',
+    'applicationStartDate': '2026-08-01',
+    'applicationEndDate': '2026-08-31',
     'target': '만 19~34세',
     'agency': '주관 기관',
     'eligibilityStatus': 'CHECK_REQUIRED',

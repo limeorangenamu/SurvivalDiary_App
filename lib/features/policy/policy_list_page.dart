@@ -251,11 +251,35 @@ class _PolicyListPageState extends State<PolicyListPage> {
             a.applicationEndDate,
             b.applicationEndDate,
           ),
-        _PolicySort.support =>
-          (b.supportAmount ?? -1).compareTo(a.supportAmount ?? -1),
+        _PolicySort.support => _compareSupportAmount(a, b),
       };
     });
     return result;
+  }
+
+  int _compareSupportAmount(PolicySummary a, PolicySummary b) {
+    final cadenceComparison = _supportCadenceRank(
+      a,
+    ).compareTo(_supportCadenceRank(b));
+    if (cadenceComparison != 0) {
+      return cadenceComparison;
+    }
+    return (b.supportAmount ?? -1).compareTo(a.supportAmount ?? -1);
+  }
+
+  int _supportCadenceRank(PolicySummary policy) {
+    if (policy.supportAmount == null) {
+      return 2;
+    }
+    return switch (policy.supportAmountType) {
+      PolicySupportAmountType.monthly ||
+      PolicySupportAmountType.monthlyMaximum =>
+        1,
+      PolicySupportAmountType.fixed ||
+      PolicySupportAmountType.maximum ||
+      null =>
+        0,
+    };
   }
 
   int _recommendationRank(PolicySummary policy) {
@@ -902,8 +926,7 @@ class _PolicyCompactCard extends StatelessWidget {
                   child: _PolicyMetaText(
                     icon: Icons.schedule_rounded,
                     label: _deadlineBadge(policy.applicationEndDate) ??
-                        policy.applicationPeriodText ??
-                        '기간 확인 필요',
+                        _applicationPeriodLabel(policy),
                     alignEnd: true,
                   ),
                 ),
@@ -1125,11 +1148,28 @@ extension on _PolicySort {
 String _supportLabel(PolicySummary policy) {
   final amount = policy.supportAmount;
   if (amount != null) {
-    return Formatters.compactAmount(amount);
+    final formatted = Formatters.compactAmount(amount);
+    return switch (policy.supportAmountType) {
+      PolicySupportAmountType.maximum => '최대 $formatted',
+      PolicySupportAmountType.monthly => '월 $formatted',
+      PolicySupportAmountType.monthlyMaximum => '월 최대 $formatted',
+      PolicySupportAmountType.fixed || null => formatted,
+    };
   }
   final support = policy.supportText.trim();
   return support.isEmpty ? '지원 내용 확인' : support;
 }
+
+String _applicationPeriodLabel(PolicySummary policy) =>
+    switch (policy.applicationPeriodType) {
+      PolicyApplicationPeriodType.always => '상시 신청',
+      PolicyApplicationPeriodType.closed => '접수 마감',
+      PolicyApplicationPeriodType.untilBudget => '예산 소진 시까지',
+      PolicyApplicationPeriodType.fixed ||
+      PolicyApplicationPeriodType.unknown ||
+      null =>
+        policy.applicationPeriodText ?? '기간 확인 필요',
+    };
 
 String? _deadlineBadge(DateTime? deadline) {
   if (deadline == null) {
