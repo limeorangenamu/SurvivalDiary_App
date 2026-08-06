@@ -482,40 +482,61 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
           style: AppTextStyles.bodyMuted,
         ),
         const SizedBox(height: 28),
-        Wrap(
+        LayoutBuilder(
           key: const ValueKey('policy-situation-options'),
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _SituationChip(
-              key: const ValueKey('policy-situation-employed'),
-              icon: Icons.work_outline_rounded,
-              label: '재직 중',
-              selected: _workStatus == PolicyWorkStatus.employed,
-              onSelected: (_) => _toggleEmployed(),
-            ),
-            _SituationChip(
-              key: const ValueKey('policy-situation-job-seeking'),
-              icon: Icons.search_rounded,
-              label: '구직 중',
-              selected: _jobSeeking == true,
-              onSelected: (_) => _toggleJobSeeking(),
-            ),
-            _SituationChip(
-              key: const ValueKey('policy-situation-student'),
-              icon: Icons.school_outlined,
-              label: '학생',
-              selected: _educationStatus == PolicyEducationStatus.student,
-              onSelected: (_) => _toggleStudent(),
-            ),
-            _SituationChip(
-              key: const ValueKey('policy-situation-none'),
-              icon: Icons.remove_circle_outline_rounded,
-              label: '해당 없음',
-              selected: noSelection,
-              onSelected: (_) => _clearSituation(),
-            ),
-          ],
+          builder: (context, constraints) {
+            final itemWidth = (constraints.maxWidth - 10) / 2;
+            return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                SizedBox(
+                  width: itemWidth,
+                  height: 52,
+                  child: _SituationChip(
+                    key: const ValueKey('policy-situation-employed'),
+                    icon: Icons.work_outline_rounded,
+                    label: '재직 중',
+                    selected: _workStatus == PolicyWorkStatus.employed,
+                    onSelected: (_) => _toggleEmployed(),
+                  ),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  height: 52,
+                  child: _SituationChip(
+                    key: const ValueKey('policy-situation-job-seeking'),
+                    icon: Icons.search_rounded,
+                    label: '구직 중',
+                    selected: _jobSeeking == true,
+                    onSelected: (_) => _toggleJobSeeking(),
+                  ),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  height: 52,
+                  child: _SituationChip(
+                    key: const ValueKey('policy-situation-student'),
+                    icon: Icons.school_outlined,
+                    label: '학생',
+                    selected: _educationStatus == PolicyEducationStatus.student,
+                    onSelected: (_) => _toggleStudent(),
+                  ),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  height: 52,
+                  child: _SituationChip(
+                    key: const ValueKey('policy-situation-none'),
+                    icon: Icons.remove_circle_outline_rounded,
+                    label: '해당 없음',
+                    selected: noSelection,
+                    onSelected: (_) => _clearSituation(),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 22),
         const AppCard(
@@ -616,6 +637,9 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
           if (_step > 0) ...[
             Expanded(
               child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                ),
                 onPressed: _isSubmitting ? null : _previousStep,
                 child: const Text('이전'),
               ),
@@ -625,6 +649,9 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
           Expanded(
             flex: 2,
             child: FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
               key: ValueKey(
                 _step == 2 ? 'policy-recommend-button' : 'policy-setup-next',
               ),
@@ -741,6 +768,7 @@ class _SituationChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: onSelected,
+      showCheckmark: false,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
     );
   }

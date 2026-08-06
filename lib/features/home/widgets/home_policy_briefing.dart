@@ -11,6 +11,7 @@ import '../../../shared/widgets/section_header.dart';
 import '../../auth/auth_session.dart';
 import '../../policy/data/policy_api_client.dart';
 import '../../policy/data/policy_models.dart';
+import '../../policy/policy_text_formatter.dart';
 
 typedef HomePolicyAccessTokenProvider = String? Function();
 typedef HomePolicyNowProvider = DateTime Function();
@@ -567,8 +568,10 @@ String _supportLabel(PolicySummary policy) {
       PolicySupportAmountType.fixed || null => formatted,
     };
   }
-  final supportText = policy.supportText.trim();
-  return supportText.isEmpty ? '지원 내용 확인' : supportText;
+  return compactPolicyText(
+    policy.supportText,
+    fallback: policy.summary,
+  );
 }
 
 String? _deadlineLabel(DateTime? endDate, DateTime today) {
