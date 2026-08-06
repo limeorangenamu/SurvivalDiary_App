@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:project_survival_diary/core/router/app_router.dart';
 import 'package:project_survival_diary/core/router/app_routes.dart';
+import 'package:project_survival_diary/core/theme/app_colors.dart';
 import 'package:project_survival_diary/core/theme/app_theme.dart';
 import 'package:project_survival_diary/data/mock_data.dart';
 import 'package:project_survival_diary/data/models.dart';
@@ -194,6 +195,11 @@ void main() {
     expect(requestBodies.last['category'], 'HOUSING');
     expect(requestBodies.last.containsKey('age'), isFalse);
     expect(find.text('청년 월세 지원'), findsOneWidget);
+    final selectedChip = tester.widget<ChoiceChip>(
+      find.byKey(const ValueKey('policy-category-housing')),
+    );
+    expect(selectedChip.selected, isTrue);
+    expect(selectedChip.labelStyle?.color, AppColors.surface);
 
     await tester.enterText(
       find.byKey(const ValueKey('policy-keyword-field')),
