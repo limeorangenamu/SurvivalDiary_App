@@ -139,6 +139,71 @@ class PolicySearchResult {
   final int? nextPage;
 }
 
+class HiddenPolicyResult {
+  const HiddenPolicyResult({
+    required this.items,
+    required this.page,
+    required this.totalElements,
+    required this.hasNext,
+  });
+
+  factory HiddenPolicyResult.fromJson(Map<String, dynamic> json) {
+    final content = json['content'];
+    final page = json['page'];
+    final totalElements = json['totalElements'];
+    final hasNext = json['hasNext'];
+    if (content is! List ||
+        page is! num ||
+        totalElements is! num ||
+        hasNext is! bool) {
+      throw const FormatException();
+    }
+
+    return HiddenPolicyResult(
+      items: content.map((item) {
+        if (item is! Map<String, dynamic>) {
+          throw const FormatException();
+        }
+        return HiddenPolicySummary.fromJson(item);
+      }).toList(),
+      page: page.toInt(),
+      totalElements: totalElements.toInt(),
+      hasNext: hasNext,
+    );
+  }
+
+  final List<HiddenPolicySummary> items;
+  final int page;
+  final int totalElements;
+  final bool hasNext;
+}
+
+class HiddenPolicySummary {
+  const HiddenPolicySummary({
+    required this.policyId,
+    required this.title,
+    required this.category,
+    required this.shortSummary,
+    required this.hiddenAt,
+  });
+
+  factory HiddenPolicySummary.fromJson(Map<String, dynamic> json) {
+    return HiddenPolicySummary(
+      policyId: _requiredString(json, 'policyId'),
+      title: _requiredString(json, 'title'),
+      category: _nullableString(json, 'category'),
+      shortSummary: _nullableString(json, 'shortSummary'),
+      hiddenAt: _requiredDateTime(json, 'hiddenAt'),
+    );
+  }
+
+  final String policyId;
+  final String title;
+  final String? category;
+  final String? shortSummary;
+  final DateTime hiddenAt;
+}
+
 class PolicySummary {
   const PolicySummary({
     required this.policyId,
@@ -376,6 +441,14 @@ DateTime? _nullableDate(Map<String, dynamic> json, String key) {
     throw const FormatException();
   }
   return DateTime(parsed.year, parsed.month, parsed.day);
+}
+
+DateTime _requiredDateTime(Map<String, dynamic> json, String key) {
+  final value = json[key];
+  if (value is! String) {
+    throw const FormatException();
+  }
+  return DateTime.parse(value);
 }
 
 PolicySupportAmountType? _supportAmountType(Object? value) => switch (value) {

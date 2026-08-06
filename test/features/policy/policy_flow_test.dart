@@ -14,6 +14,7 @@ import 'package:project_survival_diary/features/policy/data/policy_api_client.da
 import 'package:project_survival_diary/features/policy/data/policy_models.dart';
 import 'package:project_survival_diary/features/policy/policy_detail_page.dart';
 import 'package:project_survival_diary/features/policy/policy_filter_page.dart';
+import 'package:project_survival_diary/features/policy/hidden_policies_page.dart';
 import 'package:project_survival_diary/features/policy/policy_list_page.dart';
 
 void main() {
@@ -37,6 +38,13 @@ void main() {
               accessTokenProvider: () => 'test-access-token',
               nowProvider: () => DateTime(2026, 8, 5),
             ),
+          );
+        }
+        if (settings.name == AppRoutes.hiddenPolicies &&
+            settings.arguments is HiddenPoliciesArguments) {
+          final arguments = settings.arguments! as HiddenPoliciesArguments;
+          return MaterialPageRoute<dynamic>(
+            builder: (_) => HiddenPoliciesPage(arguments: arguments),
           );
         }
         return AppRouter.onGenerateRoute(settings);
@@ -263,9 +271,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('청년 일자리 지원'), findsNothing);
+    final snackBar = tester.widget<SnackBar>(find.byType(SnackBar));
+    expect(snackBar.duration, const Duration(seconds: 5));
     await tester.tap(find.text('실행취소'));
     await tester.pumpAndSettle();
     expect(find.text('청년 일자리 지원'), findsOneWidget);
+  });
+
+  testWidgets('관심 없음 정책을 숨김 목록에서 확인하고 복구한다', (tester) async {
+    await tester.pumpWidget(
+      policyApp(
+        PolicyListPage(
+          condition: _defaultCondition,
+          apiClient: apiClient,
+          accessTokenProvider: () => 'test-access-token',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final menu = find.byKey(const ValueKey('policy-menu-policy-employment'));
+    await tester.ensureVisible(menu);
+    await tester.tap(menu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('관심 없음'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('policy-hidden-list-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('관심 없음 정책'), findsOneWidget);
+    expect(find.text('청년 일자리 지원'), findsOneWidget);
+    await tester.tap(
+      find.byKey(
+        const ValueKey('restore-hidden-policy-policy-employment'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('관심 없음 정책이 없어요'), findsOneWidget);
   });
 
   testWidgets('추천 카드에서 정책 상세로 이동한다', (tester) async {
@@ -474,6 +518,7 @@ PolicyApiClient _policyApiClient({
   void Function(Map<String, dynamic> body)? onRecommendation,
   bool detailUnavailable = false,
 }) {
+  final hiddenPolicies = <String, Map<String, dynamic>>{};
   return PolicyApiClient(
     baseUrl: 'http://test.example',
     client: MockClient((request) async {
@@ -543,6 +588,36 @@ PolicyApiClient _policyApiClient({
           });
         }
         return _recommendationResponse();
+      }
+
+      if (request.url.path.startsWith('/api/users/me/hidden-policies')) {
+        final policyId = request.url.pathSegments.length > 4
+            ? request.url.pathSegments.last
+            : null;
+        if (request.method == 'GET') {
+          return _successResponse({
+            'content': hiddenPolicies.values.toList(),
+            'page': 0,
+            'size': 100,
+            'totalElements': hiddenPolicies.length,
+            'totalPages': hiddenPolicies.isEmpty ? 0 : 1,
+            'hasNext': false,
+          });
+        }
+        if (request.method == 'PUT' && policyId != null) {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final hiddenPolicy = <String, dynamic>{
+            'policyId': policyId,
+            ...body,
+            'hiddenAt': '2026-08-06T12:00:00',
+          };
+          hiddenPolicies[policyId] = hiddenPolicy;
+          return _successResponse(hiddenPolicy);
+        }
+        if (request.method == 'DELETE' && policyId != null) {
+          hiddenPolicies.remove(policyId);
+          return _successResponse(<String, dynamic>{});
+        }
       }
 
       if (request.method == 'GET' &&

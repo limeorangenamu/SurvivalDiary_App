@@ -16,6 +16,7 @@ class AppRoutes {
   static const profileEdit = '/profile/edit';
   static const policyResults = '/policy-results';
   static const policyDetail = '/policy-detail';
+  static const hiddenPolicies = '/hidden-policies';
   static const policyExternalLinkConfirm = '/policy-external-link-confirm';
   static const placeDetail = '/place-detail';
   static const housingRegion = '/housing-region';
