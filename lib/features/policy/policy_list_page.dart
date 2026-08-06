@@ -386,6 +386,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
             else ...[
               if (recommended.isNotEmpty)
                 _RecommendedSection(
+                  condition: widget.condition,
                   policies: recommended,
                   onHide: _hidePolicy,
                   onTap: _openPolicy,
@@ -627,11 +628,13 @@ class _CategoryChip extends StatelessWidget {
 
 class _RecommendedSection extends StatelessWidget {
   const _RecommendedSection({
+    required this.condition,
     required this.policies,
     required this.onHide,
     required this.onTap,
   });
 
+  final PolicyFilterCondition condition;
   final List<PolicySummary> policies;
   final ValueChanged<PolicySummary> onHide;
   final ValueChanged<PolicySummary> onTap;
@@ -650,6 +653,7 @@ class _RecommendedSection extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _PolicyHeroCard(
+          condition: condition,
           policy: policies.first,
           onHide: () => onHide(policies.first),
           onTap: () => onTap(policies.first),
@@ -712,11 +716,13 @@ class _PolicySection extends StatelessWidget {
 
 class _PolicyHeroCard extends StatelessWidget {
   const _PolicyHeroCard({
+    required this.condition,
     required this.policy,
     required this.onHide,
     required this.onTap,
   });
 
+  final PolicyFilterCondition condition;
   final PolicySummary policy;
   final VoidCallback onHide;
   final VoidCallback onTap;
@@ -748,6 +754,11 @@ class _PolicyHeroCard extends StatelessWidget {
                       const _StatusBadge(
                         status: PolicyRecommendationStatus.recommended,
                       ),
+                      if (policy.eligibilityStatus ==
+                          PolicyEligibilityStatus.checkRequired)
+                        const _StatusBadge(
+                          status: PolicyRecommendationStatus.checkRequired,
+                        ),
                       if (_deadlineBadge(policy.applicationEndDate)
                           case final label?)
                         Text(
@@ -779,6 +790,13 @@ class _PolicyHeroCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            if (policy.matchSignals.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _PolicyMatchSignalChips(
+                condition: condition,
+                signals: policy.matchSignals,
+              ),
+            ],
             if (policy.recommendationReasons.isNotEmpty) ...[
               const SizedBox(height: 12),
               Container(
@@ -844,6 +862,44 @@ class _PolicyHeroCard extends StatelessWidget {
   }
 }
 
+class _PolicyMatchSignalChips extends StatelessWidget {
+  const _PolicyMatchSignalChips({
+    required this.condition,
+    required this.signals,
+  });
+
+  final PolicyFilterCondition condition;
+  final List<PolicyMatchSignal> signals;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final signal in signals.take(3))
+          Container(
+            key: ValueKey('policy-match-signal-${signal.name}'),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(999),
+              border:
+                  Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+            ),
+            child: Text(
+              _matchSignalLabel(signal, condition),
+              style: AppTextStyles.captionTiny.copyWith(
+                color: AppColors.primaryDeep,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _PolicyCompactCard extends StatelessWidget {
   const _PolicyCompactCard({
     required this.policy,
@@ -892,6 +948,15 @@ class _PolicyCompactCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _StatusBadge(status: policy.recommendationStatus),
+                  if (policy.recommendationStatus ==
+                          PolicyRecommendationStatus.recommended &&
+                      policy.eligibilityStatus ==
+                          PolicyEligibilityStatus.checkRequired) ...[
+                    const SizedBox(width: 6),
+                    const _StatusBadge(
+                      status: PolicyRecommendationStatus.checkRequired,
+                    ),
+                  ],
                   if (policy.recommendationReasons.isNotEmpty) ...[
                     const SizedBox(width: 7),
                     Expanded(
@@ -1148,6 +1213,27 @@ extension on _PolicySort {
         _PolicySort.support => '지원 금액순',
       };
 }
+
+String _matchSignalLabel(
+  PolicyMatchSignal signal,
+  PolicyFilterCondition condition,
+) =>
+    switch (signal) {
+      PolicyMatchSignal.age => '만 ${condition.age}세',
+      PolicyMatchSignal.region => '${condition.region} 거주',
+      PolicyMatchSignal.district => '${condition.district ?? '시·군·구'} 거주',
+      PolicyMatchSignal.workStatus => condition.workStatus?.label ?? '근로 상태 일치',
+      PolicyMatchSignal.jobSeeking => '구직 중',
+      PolicyMatchSignal.educationStatus =>
+        condition.educationStatus?.label ?? '교육 상태 일치',
+      PolicyMatchSignal.interestEmployment => '일자리 관심',
+      PolicyMatchSignal.interestHousing => '주거 관심',
+      PolicyMatchSignal.interestEducation => '교육 관심',
+      PolicyMatchSignal.interestWelfareCulture => '복지·문화 관심',
+      PolicyMatchSignal.interestParticipationRights => '참여·권리 관심',
+      PolicyMatchSignal.interestAssetBuilding => '자산형성 관심',
+      PolicyMatchSignal.interestTransport => '교통 관심',
+    };
 
 String _supportLabel(PolicySummary policy) {
   final shortSummary = policy.shortSummary?.trim();

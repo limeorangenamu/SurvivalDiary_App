@@ -157,6 +157,13 @@ void main() {
       result.items.single.recommendationStatus,
       PolicyRecommendationStatus.checkRequired,
     );
+    expect(
+      result.items.single.matchSignals,
+      containsAll([
+        PolicyMatchSignal.district,
+        PolicyMatchSignal.interestHousing,
+      ]),
+    );
     expect(result.items.single.supportAmount, 200000);
     expect(
       result.items.single.supportAmountType,
@@ -256,6 +263,7 @@ void main() {
   test('추천 필드가 없는 구버전 응답은 자격 확인 상태로 호환한다', () async {
     final legacySummary = _summaryJson()
       ..remove('shortSummary')
+      ..remove('matchSignals')
       ..remove('recommendationStatus')
       ..remove('recommendationReasons');
     final client = PolicyApiClient(
@@ -280,6 +288,7 @@ void main() {
       PolicyRecommendationStatus.checkRequired,
     );
     expect(result.items.single.shortSummary, isNull);
+    expect(result.items.single.matchSignals, isEmpty);
     expect(
       result.items.single.recommendationReasons,
       ['소득 조건을 확인해 주세요.'],
@@ -370,6 +379,7 @@ Map<String, dynamic> _summaryJson() {
       '중위소득 조건을 공고문에서 확인해야 합니다.',
       '관심 주제인 주거 분야와 관련된 정책이에요.',
     ],
+    'matchSignals': ['DISTRICT', 'INTEREST_HOUSING'],
   };
 }
 

@@ -99,6 +99,14 @@ void main() {
     expect(find.text('청년 일자리 지원'), findsOneWidget);
     expect(find.text('내게 추천'), findsOneWidget);
     expect(find.text('청년의 취업과 일자리 준비를 지원해요'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('policy-match-signal-jobSeeking')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('policy-match-signal-district')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('최초 설정은 지역 누락을 안내하고 한 단계씩 이동한다', (tester) async {
@@ -572,7 +580,8 @@ http.Response _recommendationResponse() {
         supportText: '최대 300만 원을 지원해요.',
         shortSummary: '청년의 취업과 일자리 준비를 지원해요',
         recommendationStatus: 'RECOMMENDED',
-        recommendationReasons: const ['구직 중인 사용자에게 관련된 일자리 정책이에요.'],
+        recommendationReasons: const ['현재 구직 상황에 직접 관련된 정책이에요.'],
+        matchSignals: const ['JOB_SEEKING', 'DISTRICT', 'INTEREST_EMPLOYMENT'],
       ),
       _housingSummary(),
       _summaryJson(
@@ -620,6 +629,7 @@ Map<String, dynamic> _summaryJson({
   String agency = '청년정책 담당 기관',
   required String recommendationStatus,
   required List<String> recommendationReasons,
+  List<String> matchSignals = const [],
 }) {
   return {
     'policyId': policyId,
@@ -644,6 +654,7 @@ Map<String, dynamic> _summaryJson({
         : <String>[],
     'recommendationStatus': recommendationStatus,
     'recommendationReasons': recommendationReasons,
+    if (matchSignals.isNotEmpty) 'matchSignals': matchSignals,
   };
 }
 
