@@ -559,7 +559,13 @@ class _PolicyLoadingCard extends StatelessWidget {
 String _supportLabel(PolicySummary policy) {
   final amount = policy.supportAmount;
   if (amount != null) {
-    return Formatters.compactAmount(amount);
+    final formatted = Formatters.compactAmount(amount);
+    return switch (policy.supportAmountType) {
+      PolicySupportAmountType.maximum => '최대 $formatted',
+      PolicySupportAmountType.monthly => '월 $formatted',
+      PolicySupportAmountType.monthlyMaximum => '월 최대 $formatted',
+      PolicySupportAmountType.fixed || null => formatted,
+    };
   }
   final supportText = policy.supportText.trim();
   return supportText.isEmpty ? '지원 내용 확인' : supportText;

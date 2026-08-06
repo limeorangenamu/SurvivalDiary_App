@@ -49,8 +49,11 @@ class _PolicyDetailPageState extends State<PolicyDetailPage> {
       title: summary.title,
       description: summary.summary,
       supportAmount: summary.supportAmount,
+      supportAmountType: summary.supportAmountType,
       supportText: summary.supportText,
       applicationPeriodText: summary.applicationPeriodText,
+      applicationPeriodType: summary.applicationPeriodType,
+      applicationStartDate: summary.applicationStartDate,
       applicationEndDate: summary.applicationEndDate,
       target: summary.target,
       agency: summary.agency,
@@ -58,6 +61,7 @@ class _PolicyDetailPageState extends State<PolicyDetailPage> {
       applicationMethod: '상세 조회 후 확인할 수 있어요.',
       documents: const [],
       officialUrl: null,
+      officialLinkType: PolicyOfficialLinkType.unavailable,
       referenceUrls: const [],
     );
   }
@@ -291,10 +295,13 @@ class _PolicyDetailContent extends StatelessWidget {
                               title: policy.title,
                               url: policy.officialUrl!,
                               type: PolicyExternalLinkType.application,
+                              officialLinkType: policy.officialLinkType,
                             ),
                           ),
                   child: Text(
-                    policy.officialUrl == null ? '온라인 신청 경로 없음' : '신청 사이트 확인',
+                    policy.officialUrl == null
+                        ? '온라인 신청 경로 없음'
+                        : _applicationButtonLabel(policy.officialLinkType),
                   ),
                 ),
               ),
@@ -344,6 +351,7 @@ class _PolicyOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final supportAmount = policy.supportAmount;
     final deadline = _deadlinePresentation(policy.applicationEndDate, now);
+    final periodLabel = _applicationPeriodLabel(policy);
     return AppCard(
       key: const ValueKey('policy-overview-card'),
       child: Column(
@@ -353,7 +361,9 @@ class _PolicyOverviewCard extends StatelessWidget {
           const SizedBox(height: 14),
           _OverviewRow(
             icon: Icons.payments_outlined,
-            label: supportAmount == null ? '지원 혜택' : '지원 금액',
+            label: supportAmount == null
+                ? '지원 혜택'
+                : _supportAmountTitle(policy.supportAmountType),
             value: supportAmount == null
                 ? policy.supportText
                 : Formatters.compactAmount(supportAmount),
@@ -363,7 +373,10 @@ class _PolicyOverviewCard extends StatelessWidget {
           _OverviewRow(
             icon: Icons.event_available_outlined,
             label: '신청 기간',
-            value: policy.applicationPeriodText ?? '신청 기간 확인 필요',
+            value: periodLabel,
+            description: periodLabel == policy.applicationPeriodText
+                ? null
+                : policy.applicationPeriodText,
             badge: deadline,
           ),
           const Divider(height: 24),
@@ -707,6 +720,7 @@ class _ReferenceLinksSection extends StatelessWidget {
                       title: policyTitle,
                       url: url,
                       type: PolicyExternalLinkType.reference,
+                      officialLinkType: PolicyOfficialLinkType.unknown,
                     ),
                   ),
                   icon: const Icon(Icons.open_in_new_rounded),
@@ -769,6 +783,32 @@ class _PolicyDetailAppBar extends StatelessWidget
     return AppBar(title: const Text('정책 상세'));
   }
 }
+
+String _supportAmountTitle(PolicySupportAmountType? type) => switch (type) {
+      PolicySupportAmountType.maximum => '최대 지원액',
+      PolicySupportAmountType.monthly => '월 지원액',
+      PolicySupportAmountType.monthlyMaximum => '월 최대 지원액',
+      PolicySupportAmountType.fixed || null => '지원 금액',
+    };
+
+String _applicationPeriodLabel(PolicyDetail policy) =>
+    switch (policy.applicationPeriodType) {
+      PolicyApplicationPeriodType.always => '상시 신청',
+      PolicyApplicationPeriodType.closed => '접수 마감',
+      PolicyApplicationPeriodType.untilBudget => '예산 소진 시까지',
+      PolicyApplicationPeriodType.fixed ||
+      PolicyApplicationPeriodType.unknown ||
+      null =>
+        policy.applicationPeriodText ?? '신청 기간 확인 필요',
+    };
+
+String _applicationButtonLabel(PolicyOfficialLinkType type) => switch (type) {
+      PolicyOfficialLinkType.applicationCandidate => '신청 페이지 확인',
+      PolicyOfficialLinkType.loginRequired => '로그인 후 신청 확인',
+      PolicyOfficialLinkType.institutionHome => '기관 홈페이지 확인',
+      PolicyOfficialLinkType.unknown => '신청 사이트 확인',
+      PolicyOfficialLinkType.unavailable => '온라인 신청 경로 없음',
+    };
 
 _DeadlinePresentation? _deadlinePresentation(
   DateTime? endDate,

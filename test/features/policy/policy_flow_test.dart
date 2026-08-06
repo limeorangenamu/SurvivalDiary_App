@@ -272,9 +272,9 @@ void main() {
     expect(find.text('정책 상세'), findsOneWidget);
     expect(find.text('나에게 맞는 이유'), findsOneWidget);
     expect(find.text('한눈에 보기'), findsOneWidget);
-    expect(find.text('지원 금액'), findsOneWidget);
+    expect(find.text('최대 지원액'), findsOneWidget);
     expect(find.text('D-26'), findsOneWidget);
-    expect(find.text('신청 사이트 확인'), findsOneWidget);
+    expect(find.text('신청 페이지 확인'), findsOneWidget);
     expect(find.text('최대 300만 원을 지원해요.'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();
@@ -360,6 +360,9 @@ void main() {
                 '현재 구직 상태와 관심 주제를 함께 고려했을 때 우선 확인할 가치가 있는 정책이에요.',
               ],
               applicationPeriodText: '기관별 모집 일정이 다르므로 세부 공고에서 신청 기간 확인 필요',
+              applicationPeriodType: 'UNKNOWN',
+              applicationStartDate: null,
+              applicationEndDate: null,
               agency: '청년정책을 담당하는 매우 긴 이름의 중앙·지역 협력 운영 기관',
             ),
             _summaryJson(
@@ -373,6 +376,9 @@ void main() {
                 '신청 전에 거주 기간과 세대 구성 조건을 공식 공고에서 확인해야 해요.',
               ],
               applicationPeriodText: '예산 소진 시까지 기관별 순차 접수',
+              applicationPeriodType: 'UNTIL_BUDGET',
+              applicationStartDate: null,
+              applicationEndDate: null,
               agency: '지역 청년 주거 통합 지원 센터',
             ),
           ],
@@ -555,6 +561,7 @@ http.Response _recommendationResponse() {
         categoryType: 'EMPLOYMENT',
         title: '청년 일자리 지원',
         supportAmount: 3000000,
+        supportAmountType: 'MAXIMUM',
         supportText: '최대 300만 원을 지원해요.',
         recommendationStatus: 'RECOMMENDED',
         recommendationReasons: const ['구직 중인 사용자에게 관련된 일자리 정책이에요.'],
@@ -581,6 +588,8 @@ Map<String, dynamic> _housingSummary() {
   return _summaryJson(
     policyId: 'policy-housing',
     title: '청년 월세 지원',
+    supportAmount: 200000,
+    supportAmountType: 'MONTHLY_MAXIMUM',
     recommendationStatus: 'CHECK_REQUIRED',
     recommendationReasons: const ['소득 조건을 공고문에서 확인해야 합니다.'],
   );
@@ -592,9 +601,13 @@ Map<String, dynamic> _summaryJson({
   String categoryType = 'HOUSING',
   required String title,
   int? supportAmount = 2400000,
+  String? supportAmountType,
   String supportText = '월 최대 20만 원, 최대 12개월',
   String summary = '청년의 생활비 부담을 줄이는 정책입니다.',
   String applicationPeriodText = '2026.08.01~2026.08.31',
+  String? applicationPeriodType = 'FIXED',
+  String? applicationStartDate = '2026-08-01',
+  String? applicationEndDate = '2026-08-31',
   String agency = '청년정책 담당 기관',
   required String recommendationStatus,
   required List<String> recommendationReasons,
@@ -606,8 +619,12 @@ Map<String, dynamic> _summaryJson({
     'title': title,
     'summary': summary,
     'supportAmount': supportAmount,
+    'supportAmountType': supportAmountType,
     'supportText': supportText,
     'applicationPeriodText': applicationPeriodText,
+    'applicationPeriodType': applicationPeriodType,
+    'applicationStartDate': applicationStartDate,
+    'applicationEndDate': applicationEndDate,
     'target': '만 19~34세',
     'agency': agency,
     'eligibilityStatus':
@@ -628,8 +645,11 @@ Map<String, dynamic> _detailJson(String policyId) {
     'title': '청년 일자리 지원',
     'description': '구직 청년의 취업 준비를 지원하는 정책입니다.',
     'supportAmount': 3000000,
+    'supportAmountType': 'MAXIMUM',
     'supportText': '최대 300만 원을 지원해요.',
     'applicationPeriodText': '2026.08.01~2026.08.31',
+    'applicationPeriodType': 'FIXED',
+    'applicationStartDate': '2026-08-01',
     'applicationEndDate': '2026-08-31',
     'target': '만 19~34세 구직 청년',
     'agency': '청년정책 담당 기관',
@@ -637,6 +657,7 @@ Map<String, dynamic> _detailJson(String policyId) {
     'applicationMethod': '공식 사이트에서 온라인 신청',
     'documents': ['신분증'],
     'officialUrl': 'https://example.com/policies/$policyId',
+    'officialLinkType': 'APPLICATION_CANDIDATE',
     'referenceUrls': <String>[],
   };
 }
