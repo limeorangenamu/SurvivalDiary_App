@@ -615,6 +615,10 @@ class _CategoryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChoiceChip(
       label: Text(label),
+      labelStyle: AppTextStyles.caption.copyWith(
+        color: selected ? AppColors.surface : AppColors.textSecondary,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+      ),
       selected: selected,
       onSelected: (_) => onSelected(),
     );
