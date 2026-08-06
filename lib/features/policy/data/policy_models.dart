@@ -4,6 +4,22 @@ enum PolicyEligibilityStatus { matched, checkRequired }
 
 enum PolicyRecommendationStatus { recommended, checkRequired, discover }
 
+enum PolicyMatchSignal {
+  age,
+  region,
+  district,
+  workStatus,
+  jobSeeking,
+  educationStatus,
+  interestEmployment,
+  interestHousing,
+  interestEducation,
+  interestWelfareCulture,
+  interestParticipationRights,
+  interestAssetBuilding,
+  interestTransport,
+}
+
 enum PolicySupportAmountType { fixed, maximum, monthly, monthlyMaximum }
 
 enum PolicyApplicationPeriodType {
@@ -144,6 +160,7 @@ class PolicySummary {
     required this.eligibilityReasons,
     required this.recommendationStatus,
     required this.recommendationReasons,
+    this.matchSignals = const [],
   });
 
   factory PolicySummary.fromJson(Map<String, dynamic> json) {
@@ -176,6 +193,7 @@ class PolicySummary {
       recommendationReasons: json['recommendationReasons'] == null
           ? eligibilityReasons
           : _stringList(json, 'recommendationReasons'),
+      matchSignals: _policyMatchSignals(json['matchSignals']),
     );
   }
 
@@ -198,6 +216,7 @@ class PolicySummary {
   final List<String> eligibilityReasons;
   final PolicyRecommendationStatus recommendationStatus;
   final List<String> recommendationReasons;
+  final List<PolicyMatchSignal> matchSignals;
 }
 
 class PolicyDetail {
@@ -497,4 +516,36 @@ PolicyRecommendationStatus _recommendationStatus(
         PolicyRecommendationStatus.checkRequired,
       null => PolicyRecommendationStatus.discover,
       _ => throw const FormatException(),
+    };
+
+List<PolicyMatchSignal> _policyMatchSignals(Object? value) {
+  if (value == null) {
+    return const [];
+  }
+  if (value is! List || value.any((item) => item is! String)) {
+    throw const FormatException();
+  }
+  return value
+      .map(_policyMatchSignal)
+      .whereType<PolicyMatchSignal>()
+      .toSet()
+      .toList();
+}
+
+PolicyMatchSignal? _policyMatchSignal(Object? value) => switch (value) {
+      'AGE' => PolicyMatchSignal.age,
+      'REGION' => PolicyMatchSignal.region,
+      'DISTRICT' => PolicyMatchSignal.district,
+      'WORK_STATUS' => PolicyMatchSignal.workStatus,
+      'JOB_SEEKING' => PolicyMatchSignal.jobSeeking,
+      'EDUCATION_STATUS' => PolicyMatchSignal.educationStatus,
+      'INTEREST_EMPLOYMENT' => PolicyMatchSignal.interestEmployment,
+      'INTEREST_HOUSING' => PolicyMatchSignal.interestHousing,
+      'INTEREST_EDUCATION' => PolicyMatchSignal.interestEducation,
+      'INTEREST_WELFARE_CULTURE' => PolicyMatchSignal.interestWelfareCulture,
+      'INTEREST_PARTICIPATION_RIGHTS' =>
+        PolicyMatchSignal.interestParticipationRights,
+      'INTEREST_ASSET_BUILDING' => PolicyMatchSignal.interestAssetBuilding,
+      'INTEREST_TRANSPORT' => PolicyMatchSignal.interestTransport,
+      _ => null,
     };
