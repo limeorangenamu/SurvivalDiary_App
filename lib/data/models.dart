@@ -355,6 +355,24 @@ class CommunityPost {
   final String? contentJson;
 }
 
+class CommunityComment {
+  const CommunityComment({
+    required this.id,
+    required this.author,
+    required this.content,
+    required this.timeAgo,
+    required this.createdAt,
+    required this.isOwner,
+  });
+
+  final String id;
+  final String author;
+  final String content;
+  final String timeAgo;
+  final DateTime? createdAt;
+  final bool isOwner;
+}
+
 class AppNotification {
   const AppNotification({
     required this.id,

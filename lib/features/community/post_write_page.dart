@@ -4,18 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill_extensions/flutter_quill_extensions.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/models.dart';
-import '../../shared/widgets/pill_chip.dart';
 import '../auth/auth_session.dart';
 import 'data/community_api_client.dart';
 
 class PostWritePage extends StatefulWidget {
-  const PostWritePage({super.key, this.post});
+  const PostWritePage({super.key, this.post, this.initialCategory});
 
   final CommunityPost? post;
+  final String? initialCategory;
 
   @override
   State<PostWritePage> createState() => _PostWritePageState();
@@ -39,8 +40,8 @@ class _PostWritePageState extends State<PostWritePage> {
   void initState() {
     super.initState();
     final post = widget.post;
+    _category = post?.category ?? widget.initialCategory ?? categories.first;
     if (post == null) return;
-    _category = post.category;
     _titleController.text = post.title;
     _hashtags.addAll(post.hashtags);
     try {
@@ -77,6 +78,14 @@ class _PostWritePageState extends State<PostWritePage> {
     final value =
         (rawValue ?? _hashtagInputController.text).trim().replaceFirst('#', '');
     if (value.isEmpty) {
+      return;
+    }
+    if (value.contains(RegExp(r'\s'))) {
+      setState(() => _hashtagError = '해시태그에는 띄어쓰기를 사용할 수 없어요.');
+      return;
+    }
+    if (value.length > 7) {
+      setState(() => _hashtagError = '해시태그는 7글자 이내로 입력해 주세요.');
       return;
     }
     if (_hashtags.contains(value)) {
@@ -146,6 +155,14 @@ class _PostWritePageState extends State<PostWritePage> {
     );
   }
 
+  InputDecoration _borderlessFormDecoration(String label) {
+    return _formDecoration(label).copyWith(
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final imageButton = QuillToolbarImageButtonOptions(
@@ -159,6 +176,14 @@ class _PostWritePageState extends State<PostWritePage> {
         actions: [
           TextButton(
             onPressed: _submit,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(64, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              textStyle: AppTextStyles.body.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             child: Text(widget.post == null ? '등록' : '수정완료'),
           ),
         ],
@@ -167,29 +192,21 @@ class _PostWritePageState extends State<PostWritePage> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
           InputDecorator(
-            decoration: _formDecoration('카테고리'),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final category in categories)
-                  PillChip(
-                    label: category,
-                    selected: _category == category,
-                    onTap: () => setState(() => _category = category),
-                  ),
-              ],
+            decoration: _borderlessFormDecoration('제목'),
+            child: TextField(
+              controller: _titleController,
+              maxLength: 60,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                counterText: '',
+              ),
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _titleController,
-            maxLength: 60,
-            decoration: _formDecoration('제목').copyWith(counterText: ''),
-          ),
-          const SizedBox(height: 12),
           InputDecorator(
-            decoration: _formDecoration('해시태그'),
+            decoration: _borderlessFormDecoration('해시태그'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -213,8 +230,7 @@ class _PostWritePageState extends State<PostWritePage> {
                       width: 180,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceAlt,
-                        border: Border.all(color: AppColors.border),
+                        color: AppColors.surface,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
@@ -223,6 +239,10 @@ class _PostWritePageState extends State<PostWritePage> {
                             child: TextField(
                               controller: _hashtagInputController,
                               textInputAction: TextInputAction.done,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                                LengthLimitingTextInputFormatter(7),
+                              ],
                               onSubmitted: _addHashtag,
                               onChanged: (_) {
                                 if (_hashtagError != null) {
@@ -242,7 +262,7 @@ class _PostWritePageState extends State<PostWritePage> {
                             onPressed: _addHashtag,
                             style: TextButton.styleFrom(
                               padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
+                                  const EdgeInsets.symmetric(horizontal: 6),
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
@@ -268,7 +288,7 @@ class _PostWritePageState extends State<PostWritePage> {
           const SizedBox(height: 12),
           InputDecorator(
             decoration: _formDecoration('내용').copyWith(
-              contentPadding: EdgeInsets.zero,
+              contentPadding: const EdgeInsets.only(top: 12),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
