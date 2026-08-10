@@ -38,7 +38,11 @@ class _CommunityPageState extends State<CommunityPage>
   }
 
   Future<void> _openWrite() async {
-    final created = await Navigator.pushNamed(context, AppRoutes.postWrite);
+    final created = await Navigator.pushNamed(
+      context,
+      AppRoutes.postWrite,
+      arguments: _categories[_tabController.index],
+    );
     if (created == true && mounted) {
       await _loadPosts();
       if (!mounted) return;
@@ -83,13 +87,6 @@ class _CommunityPageState extends State<CommunityPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('절약 커뮤니티'),
-        actions: [
-          IconButton(
-            tooltip: '글쓰기',
-            onPressed: _openWrite,
-            icon: const Icon(Icons.edit_square),
-          ),
-        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.primary,

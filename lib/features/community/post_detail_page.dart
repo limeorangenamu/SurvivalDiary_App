@@ -23,6 +23,10 @@ class PostDetailPage extends StatefulWidget {
 class _PostDetailPageState extends State<PostDetailPage> {
   late CommunityPost post;
   final _apiClient = CommunityApiClient();
+  final _commentController = TextEditingController();
+  final _comments = <CommunityComment>[];
+  bool _commentsLoaded = false;
+  bool _isCommentSubmitting = false;
 
   Widget _contentView() {
     try {
@@ -63,6 +67,13 @@ class _PostDetailPageState extends State<PostDetailPage> {
     super.initState();
     post = widget.post;
     _loadFreshPost();
+    _loadComments();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFreshPost() async {
@@ -74,6 +85,76 @@ class _PostDetailPageState extends State<PostDetailPage> {
       if (mounted) setState(() => post = fresh);
     } on CommunityApiException {
       // Keep the list snapshot if refreshing the detail fails.
+    }
+  }
+
+  Future<void> _loadComments() async {
+    final token = AuthSession.instance.accessToken;
+    if (token == null) return;
+    try {
+      final comments = await _apiClient.getComments(
+        accessToken: token,
+        postId: post.id,
+      );
+      if (mounted) {
+        setState(() {
+          _comments
+            ..clear()
+            ..addAll(comments);
+          _commentsLoaded = true;
+        });
+      }
+    } on CommunityApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
+  }
+
+  Future<void> _submitComment() async {
+    final content = _commentController.text.trim();
+    if (content.isEmpty || _isCommentSubmitting) return;
+    final token = AuthSession.instance.accessToken;
+    if (token == null) return;
+    setState(() => _isCommentSubmitting = true);
+    try {
+      final comment = await _apiClient.createComment(
+        accessToken: token,
+        postId: post.id,
+        content: content,
+      );
+      if (mounted) {
+        setState(() {
+          _comments.add(comment);
+          _commentsLoaded = true;
+          _commentController.clear();
+          _isCommentSubmitting = false;
+        });
+      }
+    } on CommunityApiException catch (error) {
+      if (mounted) {
+        setState(() => _isCommentSubmitting = false);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
+  }
+
+  Future<void> _deleteComment(CommunityComment comment) async {
+    final token = AuthSession.instance.accessToken;
+    if (token == null) return;
+    try {
+      await _apiClient.deleteComment(
+        accessToken: token,
+        commentId: comment.id,
+      );
+      if (mounted) setState(() => _comments.removeWhere((item) => item.id == comment.id));
+    } on CommunityApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     }
   }
 
@@ -253,7 +334,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                       color: AppColors.textSecondary,
                     ),
                     const SizedBox(width: 5),
-                    Text('${post.commentCount}', style: AppTextStyles.caption),
+                    Text(
+                      '${_commentsLoaded ? _comments.length : post.commentCount}',
+                      style: AppTextStyles.caption,
+                    ),
                     const Spacer(),
                     IconButton(
                       onPressed: () => _toggle(true),
@@ -264,6 +348,69 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   ],
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text('댓글', style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 10),
+          if (_comments.isEmpty && _commentsLoaded)
+            const Text('첫 댓글을 남겨 보세요.', style: AppTextStyles.bodyMuted)
+          else
+            for (final comment in _comments)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: AppCard(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              comment.author,
+                              style: AppTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(comment.content, style: AppTextStyles.body),
+                            const SizedBox(height: 4),
+                            Text(comment.timeAgo, style: AppTextStyles.captionTiny),
+                          ],
+                        ),
+                      ),
+                      if (comment.isOwner)
+                        IconButton(
+                          tooltip: '댓글 삭제',
+                          onPressed: () => _deleteComment(comment),
+                          icon: const Icon(Icons.delete_outline_rounded),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _commentController,
+            maxLength: 1000,
+            minLines: 1,
+            maxLines: 4,
+            textInputAction: TextInputAction.send,
+            onSubmitted: (_) => _submitComment(),
+            decoration: InputDecoration(
+              hintText: '댓글을 입력해 주세요.',
+              counterText: '',
+              suffixIcon: IconButton(
+                onPressed: _isCommentSubmitting ? null : _submitComment,
+                icon: _isCommentSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_rounded),
+              ),
             ),
           ),
         ],

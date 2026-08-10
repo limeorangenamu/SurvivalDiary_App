@@ -95,6 +95,9 @@ class AppRouter {
           post: settings.arguments is CommunityPost
               ? settings.arguments! as CommunityPost
               : null,
+          initialCategory: settings.arguments is String
+              ? settings.arguments! as String
+              : null,
         ),
       _ => const _UnknownRoutePage(),
     };

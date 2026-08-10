@@ -97,6 +97,42 @@ class CommunityApiClient {
           {required String accessToken, required String postId}) async =>
       _toggle(accessToken, postId, 'bookmark');
 
+  Future<List<CommunityComment>> getComments({
+    required String accessToken,
+    required String postId,
+  }) async {
+    final response = await _client.get(
+      Uri.parse('$_baseUrl/api/community/posts/$postId/comments'),
+      headers: _headers(accessToken),
+    );
+    final data = _listData(response);
+    return data.map((item) => _comment(item)).toList();
+  }
+
+  Future<CommunityComment> createComment({
+    required String accessToken,
+    required String postId,
+    required String content,
+  }) async {
+    final response = await _client.post(
+      Uri.parse('$_baseUrl/api/community/posts/$postId/comments'),
+      headers: {..._headers(accessToken), 'Content-Type': 'application/json'},
+      body: jsonEncode({'content': content.trim()}),
+    );
+    return _comment(_data(response));
+  }
+
+  Future<void> deleteComment({
+    required String accessToken,
+    required String commentId,
+  }) async {
+    final response = await _client.delete(
+      Uri.parse('$_baseUrl/api/community/posts/comments/$commentId'),
+      headers: _headers(accessToken),
+    );
+    _data(response);
+  }
+
   Future<CommunityPost> _toggle(String token, String id, String action) async {
     final response = await _client.post(
         Uri.parse('$_baseUrl/api/community/posts/$id/$action'),
@@ -118,6 +154,19 @@ class CommunityApiClient {
           error?['message'] as String? ?? '커뮤니티 요청에 실패했어요.');
     }
     return body['data'] as Map<String, dynamic>;
+  }
+
+  List<dynamic> _listData(http.Response response) {
+    final body =
+        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        body['success'] != true) {
+      final error = body['error'] as Map<String, dynamic>?;
+      throw CommunityApiException(
+          error?['message'] as String? ?? '커뮤니티 요청에 실패했어요.');
+    }
+    return body['data'] as List<dynamic>? ?? const [];
   }
 
   CommunityPost _post(Map<String, dynamic> json) {
@@ -146,6 +195,20 @@ class CommunityApiClient {
       isLiked: json['liked'] as bool? ?? false,
       isBookmarked: json['bookmarked'] as bool? ?? false,
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+      isOwner: json['owner'] as bool? ?? false,
+    );
+  }
+
+  CommunityComment _comment(Map<String, dynamic> json) {
+    final createdAt = DateTime.tryParse(json['createdAt'] as String? ?? '');
+    return CommunityComment(
+      id: '${json['commentId']}',
+      author: (json['nickname'] as String?)?.trim().isNotEmpty == true
+          ? json['nickname'] as String
+          : json['author'] as String? ?? '사용자',
+      content: json['content'] as String? ?? '',
+      timeAgo: _timeAgo(json['createdAt'] as String?),
+      createdAt: createdAt,
       isOwner: json['owner'] as bool? ?? false,
     );
   }
