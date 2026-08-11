@@ -137,34 +137,48 @@ class _PostWritePageState extends State<PostWritePage> {
     }
   }
 
-  InputDecoration _formDecoration(String label) {
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: AppColors.border),
-    );
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: AppColors.surface,
-      contentPadding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      border: border,
-      enabledBorder: border,
-      focusedBorder: border.copyWith(
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+  Widget _formSection({
+    required String label,
+    required Widget child,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
+  }) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
       ),
-    );
-  }
-
-  InputDecoration _borderlessFormDecoration(String label) {
-    return _formDecoration(label).copyWith(
-      border: InputBorder.none,
-      enabledBorder: InputBorder.none,
-      focusedBorder: InputBorder.none,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppTextStyles.sectionTitle),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final editorStyles = DefaultStyles.getInstance(context).merge(
+      const DefaultStyles(
+        paragraph: DefaultTextBlockStyle(
+          AppTextStyles.body,
+          HorizontalSpacing(0, 0),
+          VerticalSpacing(6, 0),
+          VerticalSpacing.zero,
+          null,
+        ),
+        placeHolder: DefaultTextBlockStyle(
+          AppTextStyles.bodyMuted,
+          HorizontalSpacing(0, 0),
+          VerticalSpacing(6, 0),
+          VerticalSpacing.zero,
+          null,
+        ),
+      ),
+    );
     final imageButton = QuillToolbarImageButtonOptions(
       imageButtonConfig: QuillToolbarImageConfig(
         onRequestPickImage: _pickImage,
@@ -191,22 +205,26 @@ class _PostWritePageState extends State<PostWritePage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
         children: [
-          InputDecorator(
-            decoration: _borderlessFormDecoration('제목'),
+          _formSection(
+            label: '제목',
             child: TextField(
               controller: _titleController,
               maxLength: 60,
               decoration: const InputDecoration(
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.zero,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16),
                 counterText: '',
               ),
+              style: AppTextStyles.body,
             ),
           ),
           const SizedBox(height: 12),
-          InputDecorator(
-            decoration: _borderlessFormDecoration('해시태그'),
+          _formSection(
+            label: '해시태그',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -226,18 +244,15 @@ class _PostWritePageState extends State<PostWritePage> {
                           _hashtagError = null;
                         }),
                       ),
-                    Container(
+                    SizedBox(
                       width: 180,
                       height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
                       child: Row(
                         children: [
                           Expanded(
                             child: TextField(
                               controller: _hashtagInputController,
+                              style: AppTextStyles.caption,
                               textInputAction: TextInputAction.done,
                               inputFormatters: [
                                 FilteringTextInputFormatter.deny(RegExp(r'\s')),
@@ -252,9 +267,13 @@ class _PostWritePageState extends State<PostWritePage> {
                               decoration: const InputDecoration(
                                 hintText: '태그 입력',
                                 border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                disabledBorder: InputBorder.none,
                                 isDense: true,
                                 contentPadding:
-                                    EdgeInsets.symmetric(horizontal: 12),
+                                    EdgeInsets.symmetric(horizontal: 16),
+                                hintStyle: AppTextStyles.caption,
                               ),
                             ),
                           ),
@@ -286,12 +305,13 @@ class _PostWritePageState extends State<PostWritePage> {
             ),
           ),
           const SizedBox(height: 12),
-          InputDecorator(
-            decoration: _formDecoration('내용').copyWith(
-              contentPadding: const EdgeInsets.only(top: 12),
-            ),
+          _formSection(
+            label: '내용',
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(16),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -343,6 +363,7 @@ class _PostWritePageState extends State<PostWritePage> {
                       config: QuillEditorConfig(
                         placeholder: '내용을 입력해 주세요.',
                         padding: const EdgeInsets.all(16),
+                        customStyles: editorStyles,
                         embedBuilders: FlutterQuillEmbeds.editorBuilders(
                           imageEmbedConfig: QuillEditorImageEmbedConfig(
                             imageProviderBuilder: (context, imageUrl) {
