@@ -55,7 +55,6 @@ class _ExpenseAddPageState extends State<ExpenseAddPage>
         children: [
           ExpenseStatsView(key: ValueKey(_statsRevision)),
           DetectedExpenseList(
-            limit: 3,
             showHeader: true,
             onExpenseSaved: _refreshStats,
           ),

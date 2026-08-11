@@ -313,13 +313,17 @@ class _StatsContent extends StatelessWidget {
         SectionHeader(
           title: period == _StatsPeriod.daily ? '전날과 비교' : '지난달과 비교',
           subtitle: period == _StatsPeriod.daily
-              ? '회색은 전날, 초록색은 선택한 날이에요.'
-              : '회색은 지난달, 초록색은 선택한 달이에요.',
+              ? '회색은 전날, 초록색은 오늘이에요.'
+              : '회색은 지난달, 초록색은 이번 달이에요.',
         ),
         const SizedBox(height: 10),
         AppCard(
           child: hasComparisonData
-              ? MonthlyCompareChart(items: monthlyCompare)
+              ? MonthlyCompareChart(
+                  items: monthlyCompare,
+                  currentLabel:
+                      period == _StatsPeriod.daily ? '오늘' : '이번 달',
+                )
               : const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
                   child: Center(
