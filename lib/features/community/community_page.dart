@@ -82,77 +82,213 @@ class _CommunityPageState extends State<CommunityPage>
     }
   }
 
+  Future<void> _handlePostReturned(Object? result) async {
+    if (result == true) {
+      await _loadPosts();
+      return;
+    }
+    if (result is! CommunityPost || !mounted) return;
+    final index = _posts.indexWhere((post) => post.id == result.id);
+    if (index == -1) return;
+    setState(() => _posts[index] = result);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('절약 커뮤니티'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primaryDeep,
-          unselectedLabelColor: AppColors.textSecondary,
-          tabs: const [
-            Tab(text: '자유게시판'),
-            Tab(text: '정보 공유'),
-            Tab(text: '절약 인증'),
-            Tab(text: '질문'),
-          ],
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!))
-              : TabBarView(
-                  controller: _tabController,
+      body: Column(
+        children: [
+          Container(
+            color: AppColors.primary,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                child: Column(
                   children: [
-                    for (final category in _categories)
-                      _PostList(
-                        category: category,
-                        posts: _posts
-                            .where((post) => post.category == category)
-                            .toList(),
-                        onReturned: _loadPosts,
+                    Row(
+                      children: [
+                        Text(
+                          '절약 커뮤니티',
+                          style: AppTextStyles.title.copyWith(
+                            color: AppColors.surface,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          key: const ValueKey('community-notification'),
+                          onPressed: () {},
+                          color: AppColors.surface,
+                          icon: const Icon(Icons.notifications_none_rounded),
+                        ),
+                        IconButton(
+                          key: const ValueKey('community-account'),
+                          onPressed: () {},
+                          color: AppColors.surface,
+                          icon: const Icon(Icons.person_outline_rounded),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      height: 50,
+                      margin: const EdgeInsets.only(top: 6, bottom: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(28),
                       ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '절약 정보를 검색해 보세요',
+                              style: AppTextStyles.bodyMuted,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.search_rounded,
+                            color: AppColors.primaryDeep,
+                          ),
+                        ],
+                      ),
+                    ),
+                    TabBar(
+                      controller: _tabController,
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      indicatorColor: AppColors.surface,
+                      indicatorWeight: 3,
+                      labelColor: AppColors.surface,
+                      unselectedLabelColor:
+                          AppColors.surface.withValues(alpha: 0.62),
+                      labelStyle: AppTextStyles.body.copyWith(
+                        color: AppColors.surface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      tabs: const [
+                        Tab(text: '자유게시판'),
+                        Tab(text: '정보 공유'),
+                        Tab(text: '절약 인증'),
+                        Tab(text: '질문'),
+                      ],
+                    ),
                   ],
                 ),
-      floatingActionButton: FloatingActionButton.extended(
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(28),
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(child: Text(_error!))
+                      : TabBarView(
+                          controller: _tabController,
+                          children: [
+                            for (final category in _categories)
+                              _PostList(
+                                category: category,
+                                posts: _posts
+                                    .where(
+                                      (post) => post.category == category,
+                                    )
+                                    .toList(),
+                                onReturned: _handlePostReturned,
+                              ),
+                          ],
+                        ),
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
         key: const ValueKey('post-write-fab'),
         onPressed: _openWrite,
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.surface,
-        icon: const Icon(Icons.edit_rounded),
-        label: const Text('글쓰기'),
+        child: const Icon(Icons.edit_rounded),
       ),
     );
   }
 }
 
 class _PostList extends StatelessWidget {
-  const _PostList(
-      {required this.category, required this.posts, required this.onReturned});
+  const _PostList({
+    required this.category,
+    required this.posts,
+    required this.onReturned,
+  });
 
   final String category;
   final List<CommunityPost> posts;
-  final Future<void> Function() onReturned;
+  final Future<void> Function(Object?) onReturned;
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    return ListView.builder(
       key: PageStorageKey('post-list-$category'),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 90),
-      itemCount: posts.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+      itemCount: posts.length + 1,
       itemBuilder: (context, index) {
-        final post = posts[index];
-        return _PostCard(
-          post: post,
-          onTap: () async {
-            await Navigator.pushNamed(context, AppRoutes.postDetail,
-                arguments: post);
-            await onReturned();
-          },
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '실시간 인기글',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '모두가 주목하는 절약 이야기',
+                        style: AppTextStyles.title.copyWith(fontSize: 20),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '전체 보기',
+                  style: AppTextStyles.bodyMuted,
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textTertiary,
+                ),
+              ],
+            ),
+          );
+        }
+        final postIndex = index - 1;
+        final post = posts[postIndex];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _PostCard(
+            post: post,
+            onTap: () async {
+              final result = await Navigator.pushNamed(
+                context,
+                AppRoutes.postDetail,
+                arguments: post,
+              );
+              await onReturned(result);
+            },
+          ),
         );
       },
     );
@@ -177,6 +313,14 @@ class _PostCardState extends State<_PostCard> {
   void initState() {
     super.initState();
     post = widget.post;
+  }
+
+  @override
+  void didUpdateWidget(covariant _PostCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.post.id != widget.post.id || oldWidget.post != widget.post) {
+      post = widget.post;
+    }
   }
 
   Future<void> _toggle(bool bookmark) async {
