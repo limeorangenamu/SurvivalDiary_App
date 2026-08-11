@@ -2,22 +2,113 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../data/models.dart';
 
 class MonthlyCompareChart extends StatelessWidget {
-  const MonthlyCompareChart({super.key, required this.items});
+  const MonthlyCompareChart({
+    super.key,
+    required this.items,
+    required this.currentLabel,
+  });
 
   final List<MonthlyCompare> items;
+  final String currentLabel;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: '이전 기간과 선택 기간 지출 비교 막대 차트',
-      child: SizedBox(
-        height: 190,
-        width: double.infinity,
-        child: CustomPaint(painter: _MonthlyComparePainter(items)),
+      label: items
+          .map(
+            (item) =>
+                '${item.label}, 이전 ${Formatters.amount(item.previous)}, $currentLabel ${Formatters.amount(item.current)}',
+          )
+          .join(', '),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 190,
+            width: double.infinity,
+            child: CustomPaint(painter: _MonthlyComparePainter(items)),
+          ),
+          const SizedBox(height: 12),
+          for (final item in items) ...[
+            _CompareAmountRow(item: item, currentLabel: currentLabel),
+            if (item != items.last) const SizedBox(height: 8),
+          ],
+        ],
       ),
+    );
+  }
+}
+
+class _CompareAmountRow extends StatelessWidget {
+  const _CompareAmountRow({required this.item, required this.currentLabel});
+
+  final MonthlyCompare item;
+  final String currentLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 34,
+          child: Text(item.label, style: AppTextStyles.captionTiny),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _AmountLabel(
+            label: '이전',
+            amount: item.previous,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _AmountLabel(
+            label: currentLabel,
+            amount: item.current,
+            color: AppColors.primary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AmountLabel extends StatelessWidget {
+  const _AmountLabel({
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
+
+  final String label;
+  final int amount;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '$label ${Formatters.amount(amount)}',
+              style: AppTextStyles.captionTiny.copyWith(color: color),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
