@@ -110,6 +110,7 @@ class PolicyApiClient {
         ),
       ),
       fallbackMessage: '정책 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.',
+      retryTransient: true,
     );
 
     try {
@@ -148,6 +149,7 @@ class PolicyApiClient {
         ),
       ),
       fallbackMessage: '맞춤 정책을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.',
+      retryTransient: true,
     );
 
     try {
@@ -276,35 +278,61 @@ class PolicyApiClient {
   Future<http.Response> _send(
     Future<http.Response> Function() request, {
     required String fallbackMessage,
+    bool retryTransient = false,
   }) async {
-    late final http.Response response;
-    try {
-      response = await request().timeout(const Duration(seconds: 15));
-    } on TimeoutException {
-      throw const PolicyApiException(
-        '서버 응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
-        type: PolicyApiErrorType.network,
-      );
-    } on http.ClientException {
-      throw const PolicyApiException(
-        '서버에 연결하지 못했어요. 네트워크를 확인한 뒤 다시 시도해 주세요.',
-        type: PolicyApiErrorType.network,
-      );
-    }
+    final maxAttempts = retryTransient ? 2 : 1;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final response = await request().timeout(const Duration(seconds: 15));
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return response;
+        }
+        if (attempt < maxAttempts && _isTransientStatus(response.statusCode)) {
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          continue;
+        }
 
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return response;
+        final type = switch (response.statusCode) {
+          401 || 403 => PolicyApiErrorType.unauthorized,
+          404 => PolicyApiErrorType.notFound,
+          _ => PolicyApiErrorType.server,
+        };
+        throw PolicyApiException(
+          _errorMessage(response, type: type, fallbackMessage: fallbackMessage),
+          type: type,
+        );
+      } on TimeoutException {
+        if (attempt < maxAttempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          continue;
+        }
+        throw const PolicyApiException(
+          '서버 응답이 늦어지고 있어요. 잠시 후 다시 시도해 주세요.',
+          type: PolicyApiErrorType.network,
+        );
+      } on http.ClientException {
+        if (attempt < maxAttempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          continue;
+        }
+        throw const PolicyApiException(
+          '서버에 연결하지 못했어요. 네트워크를 확인한 뒤 다시 시도해 주세요.',
+          type: PolicyApiErrorType.network,
+        );
+      }
     }
-
-    final type = switch (response.statusCode) {
-      401 || 403 => PolicyApiErrorType.unauthorized,
-      404 => PolicyApiErrorType.notFound,
-      _ => PolicyApiErrorType.server,
-    };
     throw PolicyApiException(
-      _errorMessage(response, type: type, fallbackMessage: fallbackMessage),
-      type: type,
+      fallbackMessage,
+      type: PolicyApiErrorType.server,
     );
+  }
+
+  bool _isTransientStatus(int statusCode) {
+    return statusCode == 429 ||
+        statusCode == 500 ||
+        statusCode == 502 ||
+        statusCode == 503 ||
+        statusCode == 504;
   }
 
   Map<String, dynamic> _responseData(http.Response response) {
