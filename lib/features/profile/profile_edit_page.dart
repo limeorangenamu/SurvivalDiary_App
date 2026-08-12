@@ -21,10 +21,22 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final _imagePicker = ImagePicker();
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _passwordController;
   DateTime? _birthDate;
   String _gender = '';
   bool _isSaving = false;
   bool _isUpdatingImage = false;
+  final _interests = <String>[];
+  static const _interestOptions = <String>[
+    '생활비 절약',
+    '주거·주택비',
+    '정부 정책',
+    '지원금·복지',
+    '가계부 관리',
+    '식비 관리',
+    '저축·투자',
+    '부수입',
+  ];
 
   @override
   void initState() {
@@ -32,14 +44,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     final user = AuthSession.instance.currentUser!;
     _nameController = TextEditingController(text: user.name);
     _phoneController = TextEditingController(text: user.phone);
+    _passwordController = TextEditingController();
     _birthDate = DateTime.tryParse(user.birthDate);
     _gender = user.gender;
+    _interests.addAll(user.interests);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -198,6 +213,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         gender: _gender,
         region: AuthSession.instance.currentUser?.region ?? '',
         bio: AuthSession.instance.currentUser?.bio ?? '',
+        password: _passwordController.text.trim().isEmpty
+            ? null
+            : _passwordController.text.trim(),
+        interests: _interests,
       );
       AuthSession.instance.updateCurrentUser(user);
       if (!mounted) return;
@@ -211,7 +230,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _dateValue(DateTime? value) {
@@ -288,6 +308,15 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
               ),
               const SizedBox(height: 12),
               TextFormField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: '비밀번호',
+                  hintText: '변경할 때만 입력해 주세요',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 textInputAction: TextInputAction.next,
@@ -324,6 +353,28 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   DropdownMenuItem(value: 'FEMALE', child: Text('여성')),
                 ],
                 onChanged: (value) => setState(() => _gender = value ?? ''),
+              ),
+              const SizedBox(height: 12),
+              InputDecorator(
+                decoration: const InputDecoration(labelText: '관심사'),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final interest in _interestOptions)
+                      FilterChip(
+                        label: Text(interest),
+                        selected: _interests.contains(interest),
+                        onSelected: (selected) => setState(() {
+                          if (selected) {
+                            _interests.add(interest);
+                          } else {
+                            _interests.remove(interest);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 22),
               SizedBox(

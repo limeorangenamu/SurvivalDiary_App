@@ -35,6 +35,10 @@ class _PostWritePageState extends State<PostWritePage> {
   String? _category;
   String? _error;
   String? _hashtagError;
+  bool _commentsDisabled = false;
+  bool _commentsHidden = false;
+
+  bool get _isQna => (widget.post?.category ?? widget.initialCategory) == '질문';
 
   @override
   void initState() {
@@ -43,7 +47,11 @@ class _PostWritePageState extends State<PostWritePage> {
     _category = post?.category ?? widget.initialCategory ?? categories.first;
     if (post == null) return;
     _titleController.text = post.title;
-    _hashtags.addAll(post.hashtags);
+    if (!_isQna) {
+      _hashtags.addAll(post.hashtags);
+    }
+    _commentsDisabled = post.commentsDisabled;
+    _commentsHidden = post.commentsHidden;
     try {
       _editorController.document =
           Document.fromJson(jsonDecode(post.contentJson ?? post.body));
@@ -119,7 +127,9 @@ class _PostWritePageState extends State<PostWritePage> {
       category: _category!,
       title: _titleController.text.trim(),
       content: jsonEncode(_editorController.document.toDelta().toJson()),
-      hashtags: _hashtags,
+      hashtags: _isQna ? const [] : _hashtags,
+      commentsDisabled: _commentsDisabled,
+      commentsHidden: _commentsHidden,
     );
     try {
       if (widget.post == null) {
@@ -222,88 +232,117 @@ class _PostWritePageState extends State<PostWritePage> {
               style: AppTextStyles.body,
             ),
           ),
-          const SizedBox(height: 12),
-          _formSection(
-            label: '해시태그',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    for (final hashtag in _hashtags)
-                      InputChip(
-                        label: Text('#$hashtag'),
-                        backgroundColor: AppColors.surfaceAlt,
-                        side: const BorderSide(color: AppColors.border),
-                        shape: const StadiumBorder(),
-                        onDeleted: () => setState(() {
-                          _hashtags.remove(hashtag);
-                          _hashtagError = null;
-                        }),
-                      ),
-                    SizedBox(
-                      width: 180,
-                      height: 32,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _hashtagInputController,
-                              style: AppTextStyles.caption,
-                              textInputAction: TextInputAction.done,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.deny(RegExp(r'\s')),
-                                LengthLimitingTextInputFormatter(7),
-                              ],
-                              onSubmitted: _addHashtag,
-                              onChanged: (_) {
-                                if (_hashtagError != null) {
-                                  setState(() => _hashtagError = null);
-                                }
-                              },
-                              decoration: const InputDecoration(
-                                hintText: '태그 입력',
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                                isDense: true,
-                                contentPadding:
-                                    EdgeInsets.symmetric(horizontal: 16),
-                                hintStyle: AppTextStyles.caption,
+          if (!_isQna) ...[
+            const SizedBox(height: 12),
+            _formSection(
+              label: '해시태그',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      for (final hashtag in _hashtags)
+                        InputChip(
+                          label: Text('#$hashtag'),
+                          backgroundColor: AppColors.surfaceAlt,
+                          side: const BorderSide(color: AppColors.border),
+                          shape: const StadiumBorder(),
+                          onDeleted: () => setState(() {
+                            _hashtags.remove(hashtag);
+                            _hashtagError = null;
+                          }),
+                        ),
+                      SizedBox(
+                        width: 180,
+                        height: 32,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _hashtagInputController,
+                                style: AppTextStyles.caption,
+                                textInputAction: TextInputAction.done,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.deny(
+                                      RegExp(r'\s')),
+                                  LengthLimitingTextInputFormatter(7),
+                                ],
+                                onSubmitted: _addHashtag,
+                                onChanged: (_) {
+                                  if (_hashtagError != null) {
+                                    setState(() => _hashtagError = null);
+                                  }
+                                },
+                                decoration: const InputDecoration(
+                                  hintText: '태그 입력',
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding:
+                                      EdgeInsets.symmetric(horizontal: 16),
+                                  hintStyle: AppTextStyles.caption,
+                                ),
                               ),
                             ),
-                          ),
-                          TextButton(
-                            onPressed: _addHashtag,
-                            style: TextButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 6),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            TextButton(
+                              onPressed: _addHashtag,
+                              style: TextButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 6),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text('추가'),
                             ),
-                            child: const Text('추가'),
-                          ),
-                        ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_hashtagError != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _hashtagError!,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.danger,
                       ),
                     ),
                   ],
-                ),
-                if (_hashtagError != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    _hashtagError!,
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.danger,
-                    ),
+                ],
+              ),
+            ),
+          ],
+          if (AuthSession.instance.currentUser?.isAdmin == true) ...[
+            const SizedBox(height: 12),
+            _formSection(
+              label: '댓글 관리',
+              child: Column(
+                children: [
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('댓글 정지'),
+                    subtitle: const Text('새 댓글을 등록할 수 없게 합니다.'),
+                    value: _commentsDisabled,
+                    onChanged: (value) =>
+                        setState(() => _commentsDisabled = value),
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('댓글 숨김'),
+                    subtitle: const Text('기존 댓글도 상세 화면에서 숨깁니다.'),
+                    value: _commentsHidden,
+                    onChanged: (value) =>
+                        setState(() => _commentsHidden = value),
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 12),
           _formSection(
             label: '내용',

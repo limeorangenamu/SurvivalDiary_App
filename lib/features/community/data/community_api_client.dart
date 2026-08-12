@@ -15,13 +15,17 @@ class CreateCommunityPostRequest {
       required this.content,
       this.hashtags = const [],
       this.imageUrls = const [],
-      this.imageAlignment = 'center'});
+      this.imageAlignment = 'center',
+      this.commentsDisabled = false,
+      this.commentsHidden = false});
   final String category;
   final String title;
   final String content;
   final List<String> hashtags;
   final List<String> imageUrls;
   final String imageAlignment;
+  final bool commentsDisabled;
+  final bool commentsHidden;
 
   Map<String, dynamic> toJson() => {
         'category': category,
@@ -30,6 +34,8 @@ class CreateCommunityPostRequest {
         'hashtags': hashtags,
         'imageUrls': imageUrls,
         'imageAlignment': imageAlignment,
+        'commentsDisabled': commentsDisabled,
+        'commentsHidden': commentsHidden,
       };
 }
 
@@ -196,6 +202,9 @@ class CommunityApiClient {
       isBookmarked: json['bookmarked'] as bool? ?? false,
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
       isOwner: json['owner'] as bool? ?? false,
+      authorRole: json['authorRole'] as String? ?? 'USER',
+      commentsDisabled: json['commentsDisabled'] as bool? ?? false,
+      commentsHidden: json['commentsHidden'] as bool? ?? false,
     );
   }
 

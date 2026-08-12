@@ -16,22 +16,26 @@ import 'widgets/trend_line_chart.dart';
 enum _StatsPeriod { monthly, daily }
 
 class ExpenseStatsPage extends StatelessWidget {
-  const ExpenseStatsPage({super.key});
+  const ExpenseStatsPage({super.key, this.initialDaily = false});
+
+  final bool initialDaily;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('지출 통계')),
-      body: const SafeArea(
+      body: SafeArea(
         top: false,
-        child: ExpenseStatsView(),
+        child: ExpenseStatsView(initialDaily: initialDaily),
       ),
     );
   }
 }
 
 class ExpenseStatsView extends StatefulWidget {
-  const ExpenseStatsView({super.key});
+  const ExpenseStatsView({super.key, this.initialDaily = false});
+
+  final bool initialDaily;
 
   @override
   State<ExpenseStatsView> createState() => _ExpenseStatsViewState();
@@ -41,7 +45,7 @@ class _ExpenseStatsViewState extends State<ExpenseStatsView> {
   final _expenseApiClient = ExpenseApiClient();
   late Future<void> _expensesFuture;
   List<Expense> _expenses = [];
-  _StatsPeriod _period = _StatsPeriod.monthly;
+  late _StatsPeriod _period;
   DateTime _visibleDate = DateTime(
     DateTime.now().year,
     DateTime.now().month,
@@ -51,7 +55,17 @@ class _ExpenseStatsViewState extends State<ExpenseStatsView> {
   @override
   void initState() {
     super.initState();
+    _period = widget.initialDaily ? _StatsPeriod.daily : _StatsPeriod.monthly;
     _expensesFuture = _loadExpenses();
+  }
+
+  @override
+  void didUpdateWidget(covariant ExpenseStatsView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialDaily != widget.initialDaily) {
+      _changePeriod(
+          widget.initialDaily ? _StatsPeriod.daily : _StatsPeriod.monthly);
+    }
   }
 
   Future<void> _loadExpenses() async {
@@ -79,9 +93,7 @@ class _ExpenseStatsViewState extends State<ExpenseStatsView> {
     );
     if (mounted) {
       setState(() {
-        _expenses = _expenses
-            .where((item) => item.id != expense.id)
-            .toList();
+        _expenses = _expenses.where((item) => item.id != expense.id).toList();
       });
     }
   }
@@ -94,8 +106,8 @@ class _ExpenseStatsViewState extends State<ExpenseStatsView> {
     setState(() {
       _period = period;
       if (period == _StatsPeriod.daily) {
-        final isCurrentMonth = _visibleDate.year == now.year &&
-            _visibleDate.month == now.month;
+        final isCurrentMonth =
+            _visibleDate.year == now.year && _visibleDate.month == now.month;
         _visibleDate = isCurrentMonth
             ? DateTime(now.year, now.month, now.day)
             : DateTime(_visibleDate.year, _visibleDate.month + 1, 0);
@@ -321,8 +333,7 @@ class _StatsContent extends StatelessWidget {
           child: hasComparisonData
               ? MonthlyCompareChart(
                   items: monthlyCompare,
-                  currentLabel:
-                      period == _StatsPeriod.daily ? '오늘' : '이번 달',
+                  currentLabel: period == _StatsPeriod.daily ? '오늘' : '이번 달',
                 )
               : const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
@@ -350,8 +361,7 @@ class _StatsContent extends StatelessWidget {
         expenseDate.month != visibleDate.month) {
       return false;
     }
-    return period == _StatsPeriod.monthly ||
-        expenseDate.day == visibleDate.day;
+    return period == _StatsPeriod.monthly || expenseDate.day == visibleDate.day;
   }
 
   static String _periodLabel(DateTime date, _StatsPeriod period) {
@@ -436,8 +446,7 @@ class _StatsContent extends StatelessWidget {
     _StatsPeriod period,
   ) {
     final previousLabel = period == _StatsPeriod.daily ? '어제' : '지난달';
-    final equalComparison =
-        period == _StatsPeriod.daily ? '어제와' : '지난달과';
+    final equalComparison = period == _StatsPeriod.daily ? '어제와' : '지난달과';
     if (current == previous) {
       return (
         text: '$equalComparison 같은 금액을 사용했어요.',

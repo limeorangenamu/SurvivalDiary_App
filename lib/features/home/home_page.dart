@@ -12,6 +12,7 @@ import '../auth/auth_session.dart';
 import '../diary/notification_detection/notification_expense_repository.dart';
 import 'data/home_api_client.dart';
 import 'widgets/home_policy_briefing.dart';
+import 'home_widget_editor_page.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/pig_mascot.dart';
 import '../../shared/widgets/section_header.dart';
@@ -25,10 +26,12 @@ class HomePage extends StatefulWidget {
     super.key,
     this.refreshVersion = 0,
     this.onOpenPolicies,
+    this.onOpenDiaryStats,
   });
 
   final int refreshVersion;
   final VoidCallback? onOpenPolicies;
+  final ValueChanged<bool>? onOpenDiaryStats;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -47,6 +50,8 @@ class _HomePageState extends State<HomePage>
   late final AnimationController _newsDragController;
   double _newsViewportWidth = 0;
   int _policyRefreshVersion = 0;
+  List<String> _widgetOrder = [...defaultHomeWidgetOrder];
+  List<String> _hiddenWidgets = [];
 
   @override
   void initState() {
@@ -187,10 +192,9 @@ class _HomePageState extends State<HomePage>
     final isDraggingPastLast =
         nextOffset < 0 && _newsPageIndex == pageCount - 1;
 
-    _newsDragController.value =
-        isDraggingPastFirst || isDraggingPastLast
-            ? _newsDragController.value + (delta * 0.28)
-            : nextOffset;
+    _newsDragController.value = isDraggingPastFirst || isDraggingPastLast
+        ? _newsDragController.value + (delta * 0.28)
+        : nextOffset;
   }
 
   void _finishNewsDrag(DragEndDetails details, int pageCount) {
@@ -204,9 +208,8 @@ class _HomePageState extends State<HomePage>
       return;
     }
 
-    final direction = hasEnoughVelocity
-        ? (velocity < 0 ? 1 : -1)
-        : (dragOffset < 0 ? 1 : -1);
+    final direction =
+        hasEnoughVelocity ? (velocity < 0 ? 1 : -1) : (dragOffset < 0 ? 1 : -1);
     final nextPage = _newsPageIndex + direction;
     if (nextPage < 0 || nextPage >= pageCount) {
       unawaited(_resetNewsDrag());
@@ -266,6 +269,21 @@ class _HomePageState extends State<HomePage>
     await _refreshHome();
   }
 
+  Future<void> _openWidgetEditor() async {
+    final result = await Navigator.pushNamed(
+      context,
+      AppRoutes.homeWidgetEditor,
+      arguments: HomeWidgetEditorArguments(
+          order: _widgetOrder, hidden: _hiddenWidgets),
+    );
+    if (result is HomeWidgetEditorArguments && mounted) {
+      setState(() {
+        _widgetOrder = result.order;
+        _hiddenWidgets = result.hidden;
+      });
+    }
+  }
+
   Future<void> _openExpenseStats() async {
     await Navigator.pushNamed(context, AppRoutes.expenseStats);
     if (!mounted) return;
@@ -281,6 +299,56 @@ class _HomePageState extends State<HomePage>
   void _openPolicies() {
     widget.onOpenPolicies?.call();
   }
+
+  Widget _summaryTile(String id, BudgetSummary budget) => switch (id) {
+        'today_spent' => _SummaryTile(
+            icon: Icons.payments_outlined,
+            label: '오늘 지출',
+            value: Formatters.amount(budget.spentToday),
+            color: AppColors.categoryFood,
+            onTap: () => Navigator.pushNamed(context, AppRoutes.dailySummary,
+                arguments: 'today')),
+        'daily_usage' => _SummaryTile(
+            icon: Icons.donut_small_rounded,
+            label: '일일 예산 사용률',
+            value: '${budget.dailyUsagePercent}%',
+            color: AppColors.primary,
+            onTap: () => widget.onOpenDiaryStats?.call(true)),
+        'top_category' => _SummaryTile(
+            icon: budget.monthlyTopCategory?.icon ?? Icons.category_outlined,
+            label: '카테고리 1위',
+            value: budget.monthlyTopCategory?.label ?? '아직 없음',
+            color: budget.monthlyTopCategory?.color ?? AppColors.textTertiary,
+            onTap: () => Navigator.pushNamed(context, AppRoutes.dailySummary,
+                arguments: 'monthly-category')),
+        'daily_remaining' => _SummaryTile(
+            icon: Icons.account_balance_wallet_outlined,
+            label: '일일 잔여 예산',
+            value: Formatters.amount(budget.remainingToday),
+            color: AppColors.info,
+            onTap: () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.budgetSetting,
+                  arguments: 'daily',
+                )),
+        'monthly_usage' => _SummaryTile(
+            icon: Icons.calendar_month_outlined,
+            label: '월간 예산 사용률',
+            value: '${budget.monthlyUsagePercent}%',
+            color: AppColors.primary,
+            onTap: () => widget.onOpenDiaryStats?.call(false)),
+        'monthly_remaining' => _SummaryTile(
+            icon: Icons.wallet_outlined,
+            label: '월간 잔여 예산',
+            value: Formatters.amount(budget.remainingMonth),
+            color: AppColors.info,
+            onTap: () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.budgetSetting,
+                  arguments: 'monthly',
+                )),
+        _ => const SizedBox.shrink(),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -389,50 +457,99 @@ class _HomePageState extends State<HomePage>
                         Navigator.pushNamed(context, AppRoutes.dailySummary),
                   ),
                   const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SummaryTile(
-                          icon: Icons.payments_outlined,
-                          label: '오늘 지출',
-                          value: Formatters.amount(budget.spentToday),
-                          color: AppColors.categoryFood,
+                  if (_widgetOrder.isEmpty)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SummaryTile(
+                            icon: Icons.payments_outlined,
+                            label: '오늘 지출',
+                            value: Formatters.amount(budget.spentToday),
+                            color: AppColors.categoryFood,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _SummaryTile(
-                          icon: Icons.donut_small_rounded,
-                          label: '예산 사용률',
-                          value: '${budget.dailyUsagePercent}%',
-                          color: AppColors.primary,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _SummaryTile(
+                            icon: Icons.donut_small_rounded,
+                            label: '예산 사용률',
+                            value: '${budget.dailyUsagePercent}%',
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SummaryTile(
-                          icon: budget.topCategory?.icon ??
-                              Icons.category_outlined,
-                          label: '카테고리 1위',
-                          value: budget.topCategory?.label ?? '아직 없음',
-                          color: budget.topCategory?.color ??
-                              AppColors.textTertiary,
+                  if (_widgetOrder.isEmpty)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SummaryTile(
+                            icon: budget.topCategory?.icon ??
+                                Icons.category_outlined,
+                            label: '카테고리 1위',
+                            value: budget.topCategory?.label ?? '아직 없음',
+                            color: budget.topCategory?.color ??
+                                AppColors.textTertiary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _SummaryTile(
-                          icon: Icons.account_balance_wallet_outlined,
-                          label: '잔여 예산',
-                          value: Formatters.amount(budget.remainingToday),
-                          color: AppColors.info,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _SummaryTile(
+                            icon: Icons.account_balance_wallet_outlined,
+                            label: '잔여 예산',
+                            value: Formatters.amount(budget.remainingToday),
+                            color: AppColors.info,
+                          ),
                         ),
+                      ],
+                    ),
+                  const SizedBox(height: 10),
+                  if (_widgetOrder.isEmpty)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SummaryTile(
+                            icon: Icons.calendar_month_outlined,
+                            label: '월간 예산 사용률',
+                            value: '${budget.monthlyUsagePercent}%',
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _SummaryTile(
+                            icon: Icons.wallet_outlined,
+                            label: '월간 잔여 예산',
+                            value: Formatters.amount(budget.remainingMonth),
+                            color: AppColors.info,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (_widgetOrder.isNotEmpty) ...[
+                    LayoutBuilder(
+                      builder: (context, constraints) => Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          for (final id in _widgetOrder)
+                            if (!_hiddenWidgets.contains(id))
+                              SizedBox(
+                                width: (constraints.maxWidth - 10) / 2,
+                                child: _summaryTile(id, budget),
+                              ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: _openWidgetEditor,
+                      icon: const Icon(Icons.settings_outlined),
+                      label: const Text('화면 편집'),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   HomePolicyBriefing(
@@ -528,7 +645,8 @@ class _HomePageState extends State<HomePage>
                               animation: _newsDragController,
                               builder: (context, _) {
                                 final dragOffset = _newsDragController.value;
-                                final neighborDirection = dragOffset < 0 ? 1 : -1;
+                                final neighborDirection =
+                                    dragOffset < 0 ? 1 : -1;
                                 final neighborIndex =
                                     _newsPageIndex + neighborDirection;
                                 final hasNeighbor = neighborIndex >= 0 &&
@@ -918,7 +1036,7 @@ class _BudgetHeroCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                '주간 예산',
+                '월간 잔여율',
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.primarySoft,
                 ),
@@ -929,8 +1047,7 @@ class _BudgetHeroCard extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerRight,
                   child: Text(
-                    '${Formatters.amount(budget.weeklySpent)} / '
-                    '${Formatters.amount(budget.weeklyBudget)}',
+                    '${budget.monthlyRemainingPercent}%',
                     style: AppTextStyles.caption.copyWith(
                       color: AppColors.surface,
                     ),
@@ -944,7 +1061,7 @@ class _BudgetHeroCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
               minHeight: 7,
-              value: budget.weeklyProgress,
+              value: budget.monthlyRemainingProgress,
               color: AppColors.surface,
               backgroundColor: AppColors.surface.withValues(alpha: 0.22),
             ),
@@ -991,16 +1108,19 @@ class _SummaryTile extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      onTap: onTap,
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

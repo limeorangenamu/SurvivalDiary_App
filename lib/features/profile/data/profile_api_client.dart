@@ -42,6 +42,8 @@ class ProfileApiClient {
     required String gender,
     required String region,
     required String bio,
+    String? password,
+    List<String> interests = const [],
   }) async {
     final response = await _send(
       'PATCH',
@@ -54,6 +56,8 @@ class ProfileApiClient {
         'gender': gender.isEmpty ? null : gender,
         'region': region,
         'bio': bio,
+        if (password != null && password.isNotEmpty) 'password': password,
+        'signupInterests': interests,
       },
     );
     return CurrentUser.fromJson(_responseData(response));
@@ -122,9 +126,8 @@ class ProfileApiClient {
       if (body != null) {
         request.body = jsonEncode(body);
       }
-      final streamed = await _client
-          .send(request)
-          .timeout(const Duration(seconds: 10));
+      final streamed =
+          await _client.send(request).timeout(const Duration(seconds: 10));
       final response = await http.Response.fromStream(streamed);
       _ensureSuccess(response);
       return response;

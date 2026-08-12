@@ -40,7 +40,10 @@ class BudgetSummary {
     required this.dDay,
     required this.weeklyBudget,
     required this.weeklySpent,
+    this.monthlyBudget = 0,
+    this.monthlySpent = 0,
     required this.topCategory,
+    this.monthlyTopCategory,
   });
 
   final String userName;
@@ -51,7 +54,10 @@ class BudgetSummary {
   final int dDay;
   final int weeklyBudget;
   final int weeklySpent;
+  final int monthlyBudget;
+  final int monthlySpent;
   final ExpenseCategory? topCategory;
+  final ExpenseCategory? monthlyTopCategory;
 
   factory BudgetSummary.empty({String userName = ''}) => BudgetSummary(
         userName: userName,
@@ -62,16 +68,34 @@ class BudgetSummary {
         dDay: 0,
         weeklyBudget: 0,
         weeklySpent: 0,
+        monthlyBudget: 0,
+        monthlySpent: 0,
         topCategory: null,
+        monthlyTopCategory: null,
       );
 
   double get dailyProgress =>
       dailyLimit == 0 ? 0 : (spentToday / dailyLimit).clamp(0, 1);
   double get weeklyProgress =>
       weeklyBudget == 0 ? 0 : (weeklySpent / weeklyBudget).clamp(0, 1);
+  double get monthlyProgress =>
+      monthlyBudget == 0 ? 0 : (monthlySpent / monthlyBudget).clamp(0, 1);
+  double get monthlyRemainingProgress => monthlyBudget == 0
+      ? 0
+      : ((monthlyBudget - monthlySpent) / monthlyBudget).clamp(0, 1);
   int get dailyUsagePercent => dailyLimit == 0
       ? 0
       : ((spentToday / dailyLimit) * 100).round().clamp(0, 999).toInt();
+  int get monthlyUsagePercent => monthlyBudget == 0
+      ? 0
+      : ((monthlySpent / monthlyBudget) * 100).round().clamp(0, 999).toInt();
+  int get monthlyRemainingPercent => monthlyBudget == 0
+      ? 0
+      : (((monthlyBudget - monthlySpent) / monthlyBudget) * 100)
+          .round()
+          .clamp(0, 100)
+          .toInt();
+  int get remainingMonth => (monthlyBudget - monthlySpent).clamp(0, 1 << 31);
   bool get isNearLimit => dailyProgress >= 0.6 && dailyProgress < 1;
   bool get isOverLimit => dailyLimit > 0 && spentToday >= dailyLimit;
 }
@@ -363,6 +387,9 @@ class CommunityPost {
     this.createdAt,
     this.isOwner = false,
     this.contentJson,
+    this.authorRole = 'USER',
+    this.commentsDisabled = false,
+    this.commentsHidden = false,
   });
 
   final String id;
@@ -383,6 +410,41 @@ class CommunityPost {
   final DateTime? createdAt;
   final bool isOwner;
   final String? contentJson;
+  final String authorRole;
+  final bool commentsDisabled;
+  final bool commentsHidden;
+  bool get isAdminAuthor => authorRole == 'ADMIN';
+
+  CommunityPost copyWith({
+    int? likeCount,
+    int? commentCount,
+    bool? isLiked,
+    bool? isBookmarked,
+  }) {
+    return CommunityPost(
+      id: id,
+      author: author,
+      authorEmoji: authorEmoji,
+      timeAgo: timeAgo,
+      category: category,
+      title: title,
+      body: body,
+      hashtags: hashtags,
+      likeCount: likeCount ?? this.likeCount,
+      commentCount: commentCount ?? this.commentCount,
+      hasImage: hasImage,
+      imageUrls: imageUrls,
+      imageAlignment: imageAlignment,
+      isLiked: isLiked ?? this.isLiked,
+      isBookmarked: isBookmarked ?? this.isBookmarked,
+      createdAt: createdAt,
+      isOwner: isOwner,
+      contentJson: contentJson,
+      authorRole: authorRole,
+      commentsDisabled: commentsDisabled,
+      commentsHidden: commentsHidden,
+    );
+  }
 }
 
 class CommunityComment {

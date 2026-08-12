@@ -6,7 +6,9 @@ import 'notification_detection/detected_expense_list.dart';
 import 'widgets/expense_form.dart';
 
 class ExpenseAddPage extends StatefulWidget {
-  const ExpenseAddPage({super.key});
+  const ExpenseAddPage({super.key, this.initialDaily = false});
+
+  final bool initialDaily;
 
   @override
   State<ExpenseAddPage> createState() => _ExpenseAddPageState();
@@ -53,7 +55,10 @@ class _ExpenseAddPageState extends State<ExpenseAddPage>
       body: TabBarView(
         controller: _tabController,
         children: [
-          ExpenseStatsView(key: ValueKey(_statsRevision)),
+          ExpenseStatsView(
+            key: ValueKey('$_statsRevision-${widget.initialDaily}'),
+            initialDaily: widget.initialDaily,
+          ),
           DetectedExpenseList(
             showHeader: true,
             onExpenseSaved: _refreshStats,

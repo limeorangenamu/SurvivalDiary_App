@@ -123,33 +123,44 @@ class _CommunityPageState extends State<CommunityPage>
                         ),
                         IconButton(
                           key: const ValueKey('community-account'),
-                          onPressed: () {},
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.profile,
+                          ),
                           color: AppColors.surface,
                           icon: const Icon(Icons.person_outline_rounded),
                         ),
                       ],
                     ),
-                    Container(
-                      height: 50,
-                      margin: const EdgeInsets.only(top: 6, bottom: 14),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(28),
+                    GestureDetector(
+                      key: const ValueKey('community-search-entry'),
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.communitySearch,
+                        arguments: _posts,
                       ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '절약 정보를 검색해 보세요',
-                              style: AppTextStyles.bodyMuted,
+                      child: Container(
+                        height: 50,
+                        margin: const EdgeInsets.only(top: 6, bottom: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '절약 정보를 검색해 보세요',
+                                style: AppTextStyles.bodyMuted,
+                              ),
                             ),
-                          ),
-                          const Icon(
-                            Icons.search_rounded,
-                            color: AppColors.primaryDeep,
-                          ),
-                        ],
+                            const Icon(
+                              Icons.search_rounded,
+                              color: AppColors.primaryDeep,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     TabBar(
@@ -231,6 +242,22 @@ class _PostList extends StatelessWidget {
   final List<CommunityPost> posts;
   final Future<void> Function(Object?) onReturned;
 
+  String get _sectionEyebrow => switch (category) {
+        '자유게시판' => '오늘의 자유 이야기',
+        '정보 공유' => '알아두면 유용한 절약 정보',
+        '절약 인증' => '함께 이어가는 절약 습관',
+        '질문' => '궁금한 절약 이야기',
+        _ => '커뮤니티 이야기',
+      };
+
+  String get _sectionTitle => switch (category) {
+        '자유게시판' => '일상 속 절약 경험을 나눠보세요',
+        '정보 공유' => '생활에 도움 되는 정보를 확인해보세요',
+        '절약 인증' => '작은 실천과 성취를 함께 공유해요',
+        '질문' => '알뜰한 생활에 대해 자유롭게 물어보세요',
+        _ => '함께 나누는 절약 이야기',
+      };
+
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
@@ -248,7 +275,7 @@ class _PostList extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '실시간 인기글',
+                        _sectionEyebrow,
                         style: AppTextStyles.body.copyWith(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w700,
@@ -256,19 +283,11 @@ class _PostList extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '모두가 주목하는 절약 이야기',
+                        _sectionTitle,
                         style: AppTextStyles.title.copyWith(fontSize: 20),
                       ),
                     ],
                   ),
-                ),
-                Text(
-                  '전체 보기',
-                  style: AppTextStyles.bodyMuted,
-                ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: AppColors.textTertiary,
                 ),
               ],
             ),
@@ -280,6 +299,7 @@ class _PostList extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: _PostCard(
             post: post,
+            onReturned: onReturned,
             onTap: () async {
               final result = await Navigator.pushNamed(
                 context,
@@ -296,10 +316,15 @@ class _PostList extends StatelessWidget {
 }
 
 class _PostCard extends StatefulWidget {
-  const _PostCard({required this.post, required this.onTap});
+  const _PostCard({
+    required this.post,
+    required this.onTap,
+    required this.onReturned,
+  });
 
   final CommunityPost post;
   final VoidCallback onTap;
+  final Future<void> Function(Object?) onReturned;
 
   @override
   State<_PostCard> createState() => _PostCardState();
@@ -331,6 +356,47 @@ class _PostCardState extends State<_PostCard> {
           ? await _apiClient.toggleBookmark(accessToken: token, postId: post.id)
           : await _apiClient.toggleLike(accessToken: token, postId: post.id);
       if (mounted) setState(() => post = updated);
+    } on CommunityApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
+  }
+
+  Future<void> _openEdit() async {
+    final result = await Navigator.pushNamed(
+      context,
+      AppRoutes.postWrite,
+      arguments: post,
+    );
+    await widget.onReturned(result);
+  }
+
+  Future<void> _deletePost() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('게시글 삭제'),
+        content: const Text('게시글을 삭제할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final token = AuthSession.instance.accessToken;
+    if (token == null) return;
+    try {
+      await _apiClient.delete(accessToken: token, postId: post.id);
+      await widget.onReturned(true);
     } on CommunityApiException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -374,10 +440,31 @@ class _PostCardState extends State<_PostCard> {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.more_horiz_rounded,
-                color: AppColors.textTertiary,
-              ),
+              if (post.isOwner)
+                PopupMenuButton<String>(
+                  key: ValueKey('post-menu-${post.id}'),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _openEdit();
+                    } else if (value == 'delete') {
+                      _deletePost();
+                    }
+                  },
+                  icon: const Icon(
+                    Icons.more_horiz_rounded,
+                    color: AppColors.textTertiary,
+                  ),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text('수정'),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('삭제'),
+                    ),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 14),
@@ -430,21 +517,25 @@ class _PostCardState extends State<_PostCard> {
           const SizedBox(height: 12),
           Row(
             children: [
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => _toggle(false),
-                icon: Icon(
-                  post.isLiked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  size: 18,
-                  color:
-                      post.isLiked ? AppColors.danger : AppColors.textSecondary,
+              if (post.category != '질문')
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => _toggle(false),
+                  icon: Icon(
+                    post.isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    size: 18,
+                    color: post.isLiked
+                        ? AppColors.danger
+                        : AppColors.textSecondary,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Text('${post.likeCount}', style: AppTextStyles.caption),
+              if (post.category != '질문') ...[
+                const SizedBox(width: 4),
+                Text('${post.likeCount}', style: AppTextStyles.caption),
+              ],
               const SizedBox(width: 16),
               const Icon(
                 Icons.chat_bubble_outline_rounded,
@@ -454,14 +545,15 @@ class _PostCardState extends State<_PostCard> {
               const SizedBox(width: 4),
               Text('${post.commentCount}', style: AppTextStyles.caption),
               const Spacer(),
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => _toggle(true),
-                icon: Icon(post.isBookmarked
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded),
-              ),
+              if (post.category != '질문')
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  onPressed: () => _toggle(true),
+                  icon: Icon(post.isBookmarked
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded),
+                ),
             ],
           ),
         ],
