@@ -449,7 +449,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
             else if (_keyword.isNotEmpty)
               _PolicySection(
                 key: const ValueKey('policy-search-results'),
-                title: '“$_keyword” 검색 결과 ${_policies.length}개',
+                title: '“$_keyword” 검색 결과',
                 sort: _sort,
                 onSortChanged: (value) => setState(() => _sort = value),
                 policies: _sorted(_policies),
@@ -704,6 +704,7 @@ class _RecommendedSection extends StatelessWidget {
       children: [
         _PolicySectionHeading(
           title: '내게 잘 맞는 정책',
+          count: policies.length,
           sort: sort,
           onSortChanged: onSortChanged,
         ),
@@ -751,6 +752,7 @@ class _PolicySection extends StatelessWidget {
       children: [
         _PolicySectionHeading(
           title: title,
+          count: policies.length,
           sort: sort,
           onSortChanged: onSortChanged,
         ),
@@ -767,11 +769,13 @@ class _PolicySection extends StatelessWidget {
 class _PolicySectionHeading extends StatelessWidget {
   const _PolicySectionHeading({
     required this.title,
+    required this.count,
     this.sort,
     this.onSortChanged,
   });
 
   final String title;
+  final int count;
   final _PolicySort? sort;
   final ValueChanged<_PolicySort>? onSortChanged;
 
@@ -784,8 +788,19 @@ class _PolicySectionHeading extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: Text(
-                title,
+              child: Text.rich(
+                TextSpan(
+                  text: title,
+                  children: [
+                    TextSpan(
+                      text: ' $count개',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.primaryDeep,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
                 style: AppTextStyles.sectionTitle,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
