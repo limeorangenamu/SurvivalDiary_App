@@ -63,7 +63,10 @@ class HomeApiClient {
         dDay: 0,
         weeklyBudget: _int(data['weeklyBudget']),
         weeklySpent: _int(data['weeklySpent']),
+        monthlyBudget: _int(data['monthlyBudget']),
+        monthlySpent: _int(data['monthlySpent']),
         topCategory: _category(data['topCategoryId']),
+        monthlyTopCategory: _category(data['monthlyTopCategoryId']),
       );
     } on FormatException {
       throw const HomeApiException('메인 데이터 응답 형식을 확인할 수 없어요.');
@@ -123,7 +126,8 @@ class HomeApiClient {
 
   int _int(Object? value) => (value as num?)?.toInt() ?? 0;
 
-  ExpenseCategory? _category(Object? value) => switch ((value as num?)?.toInt()) {
+  ExpenseCategory? _category(Object? value) =>
+      switch ((value as num?)?.toInt()) {
         1 => ExpenseCategory.food,
         2 => ExpenseCategory.cafe,
         3 => ExpenseCategory.transport,

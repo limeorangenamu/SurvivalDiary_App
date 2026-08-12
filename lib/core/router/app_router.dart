@@ -8,11 +8,13 @@ import '../../features/auth/signup_success_page.dart';
 import '../../features/auth/account_page.dart';
 import '../../features/community/post_detail_page.dart';
 import '../../features/community/post_write_page.dart';
+import '../../features/community/community_search_page.dart';
 import '../../features/diary/budget_setting_page.dart';
 import '../../features/diary/detected_expense_page.dart';
 import '../../features/diary/expense_stats_page.dart';
 import '../../features/home/daily_summary_page.dart';
 import '../../features/home/notification_page.dart';
+import '../../features/home/home_widget_editor_page.dart';
 import '../../features/map/housing_deal_page.dart';
 import '../../features/map/housing_region_page.dart';
 import '../../features/map/place_detail_page.dart';
@@ -23,6 +25,7 @@ import '../../features/policy/policy_list_page.dart';
 import '../../features/policy/data/policy_models.dart';
 import '../../features/profile/profile_edit_page.dart';
 import '../../features/profile/profile_page.dart';
+import '../../features/profile/profile_collection_page.dart';
 import '../../features/root/root_shell.dart';
 import '../../features/auth/auth_session.dart';
 import '../services/housing_rent_api_service.dart';
@@ -54,12 +57,33 @@ class AppRouter {
       AppRoutes.signupSuccess => const SignupSuccessPage(),
       AppRoutes.account => const AccountPage(),
       AppRoutes.notification => const NotificationPage(),
-      AppRoutes.dailySummary => const DailySummaryPage(),
-      AppRoutes.budgetSetting => const BudgetSettingPage(),
-      AppRoutes.expenseStats => const ExpenseStatsPage(),
+      AppRoutes.dailySummary => DailySummaryPage(
+          mode: settings.arguments == 'monthly-category'
+              ? SummaryMode.monthlyCategory
+              : SummaryMode.today,
+        ),
+      AppRoutes.budgetSetting => BudgetSettingPage(
+          initialMonthly: settings.arguments == 'monthly',
+        ),
+      AppRoutes.homeWidgetEditor => HomeWidgetEditorPage(
+          initialOrder: settings.arguments is HomeWidgetEditorArguments
+              ? (settings.arguments! as HomeWidgetEditorArguments).order
+              : defaultHomeWidgetOrder,
+          initialHidden: settings.arguments is HomeWidgetEditorArguments
+              ? (settings.arguments! as HomeWidgetEditorArguments).hidden
+              : const [],
+        ),
+      AppRoutes.expenseStats => ExpenseStatsPage(
+          initialDaily: settings.arguments == 'daily',
+        ),
       AppRoutes.detectedExpenses => const DetectedExpensePage(),
       AppRoutes.profile => const ProfilePage(),
       AppRoutes.profileEdit => const ProfileEditPage(),
+      AppRoutes.profileCollection => ProfileCollectionPage(
+          type: settings.arguments is String
+              ? settings.arguments! as String
+              : 'bookmark',
+        ),
       AppRoutes.policyResults
           when settings.arguments is PolicyFilterCondition =>
         PolicyListPage(condition: settings.arguments! as PolicyFilterCondition),
@@ -91,6 +115,11 @@ class AppRouter {
         ),
       AppRoutes.postDetail when settings.arguments is CommunityPost =>
         PostDetailPage(post: settings.arguments! as CommunityPost),
+      AppRoutes.communitySearch => CommunitySearchPage(
+          posts: settings.arguments is List<CommunityPost>
+              ? settings.arguments! as List<CommunityPost>
+              : const [],
+        ),
       AppRoutes.postWrite => PostWritePage(
           post: settings.arguments is CommunityPost
               ? settings.arguments! as CommunityPost

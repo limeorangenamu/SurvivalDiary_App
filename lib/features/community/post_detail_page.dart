@@ -128,6 +128,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
         setState(() {
           _comments.add(comment);
           _commentsLoaded = true;
+          post = post.copyWith(commentCount: post.commentCount + 1);
           _commentController.clear();
           _isCommentSubmitting = false;
         });
@@ -149,7 +150,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
         accessToken: token,
         commentId: comment.id,
       );
-      if (mounted) setState(() => _comments.removeWhere((item) => item.id == comment.id));
+      if (mounted) {
+        setState(() {
+          _comments.removeWhere((item) => item.id == comment.id);
+          post = post.copyWith(
+            commentCount: post.commentCount > 0 ? post.commentCount - 1 : 0,
+          );
+        });
+      }
     } on CommunityApiException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -214,206 +222,232 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('게시글'),
-        actions: [
-          if (post.isOwner) ...[
-            IconButton(onPressed: _edit, icon: const Icon(Icons.edit_outlined)),
-            IconButton(
-                onPressed: _delete, icon: const Icon(Icons.delete_outline)),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) Navigator.pop(context, post);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('게시글'),
+          actions: [
+            if (post.isOwner) ...[
+              IconButton(
+                  onPressed: _edit, icon: const Icon(Icons.edit_outlined)),
+              IconButton(
+                  onPressed: _delete, icon: const Icon(Icons.delete_outline)),
+            ],
           ],
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-        children: [
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppColors.surfaceAlt,
-                      child: Text(
-                        post.authorEmoji,
-                        style: AppTextStyles.sectionTitle,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.author,
-                            style: AppTextStyles.body.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            '${post.category} · ${post.timeAgo}',
-                            style: AppTextStyles.captionTiny,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Text(post.title, style: AppTextStyles.title),
-                const SizedBox(height: 12),
-                _contentView(),
-                if (post.imageUrls.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  Container(
-                    height: 220,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceAlt,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Align(
-                      alignment: switch (post.imageAlignment) {
-                        'left' => Alignment.centerLeft,
-                        'right' => Alignment.centerRight,
-                        _ => Alignment.center,
-                      },
-                      child: SizedBox(
-                        width: 280,
-                        height: 220,
-                        child: Image.network(
-                          post.imageUrls.first,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.broken_image_outlined,
-                            size: 54,
-                            color: AppColors.textTertiary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    for (final tag in post.hashtags)
-                      Text(
-                        '#$tag',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.primaryDeep,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                const Divider(),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => _toggle(false),
-                      icon: Icon(
-                          post.isLiked
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: post.isLiked
-                              ? AppColors.danger
-                              : AppColors.textSecondary),
-                    ),
-                    const SizedBox(width: 5),
-                    Text('${post.likeCount}', style: AppTextStyles.caption),
-                    const SizedBox(width: 20),
-                    const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '${_commentsLoaded ? _comments.length : post.commentCount}',
-                      style: AppTextStyles.caption,
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => _toggle(true),
-                      icon: Icon(post.isBookmarked
-                          ? Icons.bookmark_rounded
-                          : Icons.bookmark_border_rounded),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text('댓글', style: AppTextStyles.sectionTitle),
-          const SizedBox(height: 10),
-          if (_comments.isEmpty && _commentsLoaded)
-            const Text('첫 댓글을 남겨 보세요.', style: AppTextStyles.bodyMuted)
-          else
-            for (final comment in _comments)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: AppCard(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+          children: [
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
+                      CircleAvatar(
+                        backgroundColor: AppColors.surfaceAlt,
+                        child: Text(
+                          post.authorEmoji,
+                          style: AppTextStyles.sectionTitle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              comment.author,
+                              post.author,
                               style: AppTextStyles.body.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(comment.content, style: AppTextStyles.body),
-                            const SizedBox(height: 4),
-                            Text(comment.timeAgo, style: AppTextStyles.captionTiny),
+                            Text(
+                              '${post.category} · ${post.timeAgo}',
+                              style: AppTextStyles.captionTiny,
+                            ),
                           ],
                         ),
                       ),
-                      if (comment.isOwner)
-                        IconButton(
-                          tooltip: '댓글 삭제',
-                          onPressed: () => _deleteComment(comment),
-                          icon: const Icon(Icons.delete_outline_rounded),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(post.title, style: AppTextStyles.title),
+                  const SizedBox(height: 12),
+                  _contentView(),
+                  if (post.imageUrls.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    Container(
+                      height: 220,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceAlt,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Align(
+                        alignment: switch (post.imageAlignment) {
+                          'left' => Alignment.centerLeft,
+                          'right' => Alignment.centerRight,
+                          _ => Alignment.center,
+                        },
+                        child: SizedBox(
+                          width: 280,
+                          height: 220,
+                          child: Image.network(
+                            post.imageUrls.first,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.broken_image_outlined,
+                              size: 54,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      for (final tag in post.hashtags)
+                        Text(
+                          '#$tag',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primaryDeep,
+                          ),
                         ),
                     ],
                   ),
-                ),
-              ),
-          const SizedBox(height: 4),
-          TextField(
-            controller: _commentController,
-            maxLength: 1000,
-            minLines: 1,
-            maxLines: 4,
-            textInputAction: TextInputAction.send,
-            onSubmitted: (_) => _submitComment(),
-            decoration: InputDecoration(
-              hintText: '댓글을 입력해 주세요.',
-              counterText: '',
-              suffixIcon: IconButton(
-                onPressed: _isCommentSubmitting ? null : _submitComment,
-                icon: _isCommentSubmitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send_rounded),
+                  const SizedBox(height: 18),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      if (post.category != '질문')
+                        IconButton(
+                          onPressed: () => _toggle(false),
+                          icon: Icon(
+                              post.isLiked
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              color: post.isLiked
+                                  ? AppColors.danger
+                                  : AppColors.textSecondary),
+                        ),
+                      if (post.category != '질문') ...[
+                        const SizedBox(width: 5),
+                        Text('${post.likeCount}', style: AppTextStyles.caption),
+                      ],
+                      const SizedBox(width: 20),
+                      const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${_commentsLoaded ? _comments.length : post.commentCount}',
+                        style: AppTextStyles.caption,
+                      ),
+                      const Spacer(),
+                      if (post.category != '질문')
+                        IconButton(
+                          onPressed: () => _toggle(true),
+                          icon: Icon(post.isBookmarked
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            const Text('댓글', style: AppTextStyles.sectionTitle),
+            const SizedBox(height: 10),
+            if (post.commentsHidden)
+              const Text(
+                '댓글이 허용되지 않은 게시물입니다.',
+                style: AppTextStyles.bodyMuted,
+              )
+            else if (_comments.isEmpty && _commentsLoaded)
+              const Text('첫 댓글을 남겨 보세요.', style: AppTextStyles.bodyMuted)
+            else
+              for (final comment in _comments)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: AppCard(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                comment.author,
+                                style: AppTextStyles.body.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(comment.content, style: AppTextStyles.body),
+                              const SizedBox(height: 4),
+                              Text(comment.timeAgo,
+                                  style: AppTextStyles.captionTiny),
+                            ],
+                          ),
+                        ),
+                        if (comment.isOwner)
+                          IconButton(
+                            tooltip: '댓글 삭제',
+                            onPressed: () => _deleteComment(comment),
+                            icon: const Icon(Icons.delete_outline_rounded),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+            if (!post.commentsHidden && !post.commentsDisabled) ...[
+              const SizedBox(height: 4),
+              TextField(
+                controller: _commentController,
+                maxLength: 1000,
+                minLines: 1,
+                maxLines: 4,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _submitComment(),
+                decoration: InputDecoration(
+                  hintText: '댓글을 입력해 주세요.',
+                  counterText: '',
+                  suffixIcon: IconButton(
+                    onPressed: _isCommentSubmitting ? null : _submitComment,
+                    icon: _isCommentSubmitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send_rounded),
+                  ),
+                ),
+              ),
+            ] else if (post.commentsDisabled && !post.commentsHidden)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  '댓글 등록이 중지된 게시물입니다.',
+                  style: AppTextStyles.bodyMuted,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

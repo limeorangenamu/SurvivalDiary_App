@@ -10,10 +10,12 @@ class AppRoutes {
   static const notification = '/notification';
   static const dailySummary = '/daily-summary';
   static const budgetSetting = '/budget-setting';
+  static const homeWidgetEditor = '/home-widget-editor';
   static const expenseStats = '/expense-stats';
   static const detectedExpenses = '/detected-expenses';
   static const profile = '/profile';
   static const profileEdit = '/profile/edit';
+  static const profileCollection = '/profile/collection';
   static const policyResults = '/policy-results';
   static const policyDetail = '/policy-detail';
   static const hiddenPolicies = '/hidden-policies';
@@ -23,4 +25,5 @@ class AppRoutes {
   static const housingDeal = '/housing-deal';
   static const postDetail = '/post-detail';
   static const postWrite = '/post-write';
+  static const communitySearch = '/community-search';
 }

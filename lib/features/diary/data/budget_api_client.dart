@@ -25,6 +25,7 @@ class BudgetApiClient {
   Future<int> getToday({required String accessToken}) async {
     final response = await _request(
       method: 'GET',
+      period: 'today',
       accessToken: accessToken,
     );
     return _amount(response);
@@ -36,6 +37,24 @@ class BudgetApiClient {
   }) async {
     final response = await _request(
       method: 'PUT',
+      period: 'today',
+      accessToken: accessToken,
+      amount: amount,
+    );
+    return _amount(response);
+  }
+
+  Future<int> getMonth({required String accessToken}) async {
+    final response = await _request(
+        method: 'GET', period: 'month', accessToken: accessToken);
+    return _amount(response);
+  }
+
+  Future<int> saveMonth(
+      {required String accessToken, required int amount}) async {
+    final response = await _request(
+      method: 'PUT',
+      period: 'month',
       accessToken: accessToken,
       amount: amount,
     );
@@ -44,10 +63,11 @@ class BudgetApiClient {
 
   Future<http.Response> _request({
     required String method,
+    required String period,
     required String accessToken,
     int? amount,
   }) async {
-    final uri = Uri.parse('$_baseUrl/api/budgets/today');
+    final uri = Uri.parse('$_baseUrl/api/budgets/$period');
     try {
       final response = switch (method) {
         'GET' => await _client

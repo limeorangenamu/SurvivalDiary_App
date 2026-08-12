@@ -41,6 +41,7 @@ class CurrentUser {
     required this.region,
     required this.bio,
     required this.createdAt,
+    this.role = 'USER',
   });
 
   factory CurrentUser.fromJson(Map<String, dynamic> json) {
@@ -60,6 +61,7 @@ class CurrentUser {
       region: json['region'] as String? ?? '',
       bio: json['bio'] as String? ?? '',
       createdAt: json['createdAt'] as String? ?? '',
+      role: json['role'] as String? ?? 'USER',
     );
   }
 
@@ -77,6 +79,8 @@ class CurrentUser {
   final String region;
   final String bio;
   final String createdAt;
+  final String role;
+  bool get isAdmin => role == 'ADMIN';
 }
 
 class AuthApiException implements Exception {

@@ -113,27 +113,29 @@ class _ProfilePageState extends State<ProfilePage> {
                 imageUrl: user.profileImageUrl,
                 isRefreshing: _isRefreshing,
               ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: const Text(
+                      '절약하는 김씨님,\n오늘도 알뜰한 하루 보내세요!',
+                      style: AppTextStyles.sectionTitle,
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('profile-edit-button'),
+                    onPressed: _openEditProfile,
+                    icon: const Icon(Icons.edit_outlined, size: 17),
+                    label: const Text('정보수정'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 24),
-              const SectionHeader(title: '계정 관리'),
-              const SizedBox(height: 10),
-              AppCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    _MenuTile(
-                      icon: Icons.manage_accounts_outlined,
-                      title: '회원 정보 수정',
-                      subtitle: '이름, 연락처, 프로필 사진을 관리해요',
-                      onTap: _openEditProfile,
-                    ),
-                    const Divider(height: 1),
-                    _MenuTile(
-                      icon: Icons.logout_rounded,
-                      title: '로그아웃',
-                      foregroundColor: AppColors.danger,
-                      onTap: _logout,
-                    ),
-                  ],
+              _ProfileCollectionTabs(
+                onTap: (type) => Navigator.pushNamed(
+                  context,
+                  AppRoutes.profileCollection,
+                  arguments: type,
                 ),
               ),
               const SizedBox(height: 24),
@@ -161,6 +163,29 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               ),
+              const SizedBox(height: 24),
+              const SectionHeader(title: '계정 관리'),
+              const SizedBox(height: 10),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    _MenuTile(
+                      icon: Icons.manage_accounts_outlined,
+                      title: '회원 정보 수정',
+                      subtitle: '회원가입 정보를 관리해요',
+                      onTap: _openEditProfile,
+                    ),
+                    const Divider(height: 1),
+                    _MenuTile(
+                      icon: Icons.logout_rounded,
+                      title: '로그아웃',
+                      foregroundColor: AppColors.danger,
+                      onTap: _logout,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -172,6 +197,77 @@ class _ProfilePageState extends State<ProfilePage> {
     final date = DateTime.tryParse(value);
     return date == null ? '확인 불가' : '${date.year}.${date.month}.${date.day}';
   }
+}
+
+class _ProfileCollectionTabs extends StatelessWidget {
+  const _ProfileCollectionTabs({required this.onTap});
+
+  final ValueChanged<String> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          _ProfileTab(
+            icon: Icons.bookmark_border_rounded,
+            label: '북마크',
+            onTap: () => onTap('bookmark'),
+          ),
+          const _TabDivider(),
+          _ProfileTab(
+            icon: Icons.chat_bubble_outline_rounded,
+            label: '댓글',
+            onTap: () => onTap('comment'),
+          ),
+          const _TabDivider(),
+          _ProfileTab(
+            icon: Icons.question_answer_outlined,
+            label: 'Q&A',
+            onTap: () => onTap('qna'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileTab extends StatelessWidget {
+  const _ProfileTab(
+      {required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              children: [
+                Icon(icon, color: AppColors.textPrimary),
+                const SizedBox(height: 4),
+                Text(label, style: AppTextStyles.body),
+              ],
+            ),
+          ),
+        ),
+      );
+}
+
+class _TabDivider extends StatelessWidget {
+  const _TabDivider();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 1,
+        height: 34,
+        color: AppColors.border,
+      );
 }
 
 class _ProfileHeader extends StatelessWidget {

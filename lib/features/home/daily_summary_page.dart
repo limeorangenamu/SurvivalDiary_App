@@ -11,224 +11,276 @@ import '../auth/auth_session.dart';
 import '../diary/data/expense_api_client.dart';
 import 'data/home_api_client.dart';
 
+enum SummaryMode { today, monthlyCategory }
+
 class DailySummaryPage extends StatefulWidget {
-  const DailySummaryPage({super.key});
+  const DailySummaryPage({super.key, this.mode = SummaryMode.today});
+  final SummaryMode mode;
 
   @override
   State<DailySummaryPage> createState() => _DailySummaryPageState();
 }
 
 class _DailySummaryPageState extends State<DailySummaryPage> {
-  final _homeApiClient = HomeApiClient();
-  final _expenseApiClient = ExpenseApiClient();
-
-  late Future<void> _loadFuture;
+  final _home = HomeApiClient();
+  final _expensesApi = ExpenseApiClient();
+  late Future<void> _future;
   BudgetSummary? _budget;
-  List<Expense> _todayExpenses = [];
+  List<Expense> _expenses = [];
 
   @override
   void initState() {
     super.initState();
-    _loadFuture = _load();
+    _future = _load();
   }
 
   Future<void> _load() async {
     final token = AuthSession.instance.accessToken;
-    if (token == null) {
-      throw const HomeApiException('오늘의 요약을 확인하려면 로그인이 필요해요.');
-    }
-
-    final results = await Future.wait<Object>([
-      _homeApiClient.getSummary(accessToken: token),
-      _expenseApiClient.getExpenses(accessToken: token),
+    if (token == null) throw const HomeApiException('로그인이 필요해요.');
+    final result = await Future.wait<Object>([
+      _home.getSummary(accessToken: token),
+      _expensesApi.getExpenses(accessToken: token),
     ]);
-    final now = DateTime.now();
-    _budget = results[0] as BudgetSummary;
-    _todayExpenses = (results[1] as List<Expense>)
-        .where((expense) => _isSameDay(expense.date.toLocal(), now))
-        .toList()
+    _budget = result[0] as BudgetSummary;
+    _expenses = (result[1] as List<Expense>).toList()
       ..sort((a, b) => b.date.compareTo(a.date));
   }
 
   Future<void> _refresh() async {
-    setState(() => _loadFuture = _load());
-    await _loadFuture;
+    setState(() => _future = _load());
+    await _future;
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('오늘의 요약')),
-      body: FutureBuilder<void>(
-        future: _loadFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError || _budget == null) {
-            return EmptyStateView(
-              icon: Icons.receipt_long_rounded,
-              title: '오늘의 요약을 불러오지 못했어요',
-              description: snapshot.error.toString(),
-              actionLabel: '다시 불러오기',
-              onAction: _refresh,
-            );
-          }
-          return _SummaryContent(
-            budget: _budget!,
-            expenses: _todayExpenses,
-            onRefresh: _refresh,
-          );
-        },
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+            title: Text(
+                widget.mode == SummaryMode.today ? '오늘의 요약' : '월간 카테고리 지출')),
+        body: FutureBuilder<void>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting)
+              return const Center(child: CircularProgressIndicator());
+            if (snapshot.hasError || _budget == null) {
+              return EmptyStateView(
+                  icon: Icons.receipt_long_rounded,
+                  title: '요약을 불러오지 못했어요',
+                  description: snapshot.error.toString(),
+                  actionLabel: '다시 불러오기',
+                  onAction: _refresh);
+            }
+            return _SummaryBody(
+                mode: widget.mode,
+                budget: _budget!,
+                expenses: _expenses,
+                onRefresh: _refresh);
+          },
+        ),
+      );
 }
 
-class _SummaryContent extends StatelessWidget {
-  const _SummaryContent({
-    required this.budget,
-    required this.expenses,
-    required this.onRefresh,
-  });
-
+class _SummaryBody extends StatelessWidget {
+  const _SummaryBody(
+      {required this.mode,
+      required this.budget,
+      required this.expenses,
+      required this.onRefresh});
+  final SummaryMode mode;
   final BudgetSummary budget;
   final List<Expense> expenses;
   final Future<void> Function() onRefresh;
 
-  int get _score {
-    if (budget.dailyLimit <= 0) return 0;
-    return ((budget.remainingToday / budget.dailyLimit) * 100)
+  bool get monthly => mode == SummaryMode.monthlyCategory;
+  List<Expense> get todayExpenses {
+    final now = DateTime.now();
+    return expenses.where((e) {
+      final d = e.date.toLocal();
+      return d.year == now.year && d.month == now.month && d.day == now.day;
+    }).toList();
+  }
+
+  List<Expense> get monthExpenses {
+    final now = DateTime.now();
+    return expenses.where((e) {
+      final d = e.date.toLocal();
+      return d.year == now.year && d.month == now.month;
+    }).toList();
+  }
+
+  int get dailyScore => _score(budget.spentToday, budget.dailyLimit);
+  int get monthlyScore => _score(budget.monthlySpent, budget.monthlyBudget);
+  int _score(int spent, int limit) {
+    if (limit <= 0) return 0;
+    final usage = spent / limit;
+    return (usage <= 1 ? 50 + (1 - usage) * 50 : 50 - (usage - 1) * 50)
         .round()
         .clamp(0, 100)
         .toInt();
   }
 
-  String get _scoreDescription {
-    if (budget.dailyLimit <= 0) {
-      return '예산을 설정하면 오늘의 점수를 확인할 수 있어요';
+  List<_Rank> get ranks {
+    final grouped = <ExpenseCategory, _Rank>{};
+    for (final e in monthExpenses) {
+      final old = grouped[e.category];
+      grouped[e.category] = _Rank(
+          e.category, (old?.amount ?? 0) + e.amount, (old?.count ?? 0) + 1);
     }
-    if (budget.spentToday > budget.dailyLimit) {
-      return '계획보다 ${Formatters.amount(budget.spentToday - budget.dailyLimit)} 더 사용했어요';
-    }
-    return '오늘 예산이 ${Formatters.amount(budget.remainingToday)} 남았어요';
+    final list = grouped.values.toList()
+      ..sort((a, b) => b.amount.compareTo(a.amount));
+    return list;
   }
 
   @override
   Widget build(BuildContext context) {
+    final visible = monthly ? monthExpenses : todayExpenses;
+    final total = visible.fold(0, (sum, e) => sum + e.amount);
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
+          _ScoreCard(
+              score: monthly ? monthlyScore : dailyScore,
+              title: monthly ? '월간 생존 점수' : '오늘의 생존 점수'),
+          const SizedBox(height: 18),
           AppCard(
-            color: AppColors.primarySoft,
-            borderColor: AppColors.primarySoft,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('오늘의 생존 점수', style: AppTextStyles.bodyMuted),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '$_score점',
-                      style: AppTextStyles.display.copyWith(
-                        color: AppColors.primaryDeep,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 5),
-                        child: Text(
-                          _scoreDescription,
-                          style: AppTextStyles.caption,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+              child: Row(children: [
+            Expanded(
+                child: Text(monthly ? '월간 잔여 예산' : '오늘 남은 예산',
+                    style: AppTextStyles.bodyMuted)),
+            Text(
+                Formatters.amount(monthly
+                    ? (budget.monthlyBudget - budget.monthlySpent)
+                        .clamp(0, 1 << 31)
+                    : budget.remainingToday),
+                style: AppTextStyles.amount
+                    .copyWith(color: AppColors.primaryDeep)),
+          ])),
+          if (monthly) ...[
+            const SizedBox(height: 22),
+            const SectionHeader(title: '월간 카테고리 지출 순위'),
+            const SizedBox(height: 10),
+            _RankCard(title: '지출 금액 기준 순위', ranks: ranks, byCount: false),
+            const SizedBox(height: 10),
+            _RankCard(title: '지출 횟수 기준 순위', ranks: ranks, byCount: true),
+          ],
           const SizedBox(height: 22),
-          const SectionHeader(title: '오늘 지출 내역'),
-          const SizedBox(height: 10),
-          if (expenses.isEmpty)
-            const AppCard(
-              child: Text(
-                '오늘 등록된 지출이 없어요.',
-                style: AppTextStyles.bodyMuted,
-                textAlign: TextAlign.center,
-              ),
-            )
-          else
-            for (final expense in expenses)
+          if (monthly)
+            AppCard(
+                child: Row(children: [
+              const Expanded(
+                  child: Text('월간 총 지출 금액', style: AppTextStyles.bodyMuted)),
+              Text(Formatters.amount(total),
+                  style: AppTextStyles.amount
+                      .copyWith(color: AppColors.primaryDeep))
+            ]))
+          else ...[
+            const SectionHeader(title: '오늘의 지출 내역'),
+            const SizedBox(height: 10),
+            if (visible.isEmpty)
+              const AppCard(
+                  child: Text('지출 내역이 없어요',
+                      style: AppTextStyles.bodyMuted,
+                      textAlign: TextAlign.center)),
+            for (final expense in visible)
               Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _ExpenseRow(expense: expense),
-              ),
-          const SizedBox(height: 12),
-          AppCard(
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text('오늘 남은 예산', style: AppTextStyles.bodyMuted),
-                ),
-                Text(
-                  Formatters.amount(budget.remainingToday),
-                  style: AppTextStyles.amount.copyWith(
-                    color: AppColors.primaryDeep,
-                  ),
-                ),
-              ],
-            ),
-          ),
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _ExpenseRow(expense: expense)),
+            const SizedBox(height: 8),
+            AppCard(
+                child: Row(children: [
+              const Expanded(
+                  child: Text('오늘 총 지출', style: AppTextStyles.bodyMuted)),
+              Text(Formatters.amount(total),
+                  style: AppTextStyles.amount
+                      .copyWith(color: AppColors.primaryDeep))
+            ])),
+          ],
         ],
       ),
     );
+  }
+}
+
+class _ScoreCard extends StatelessWidget {
+  const _ScoreCard({required this.score, required this.title});
+  final int score;
+  final String title;
+  @override
+  Widget build(BuildContext context) => AppCard(
+      color: AppColors.primarySoft,
+      borderColor: AppColors.primarySoft,
+      child: Row(children: [
+        Expanded(child: Text(title, style: AppTextStyles.bodyMuted)),
+        Text('$score점',
+            style: AppTextStyles.display.copyWith(color: AppColors.primaryDeep))
+      ]));
+}
+
+class _Rank {
+  const _Rank(this.category, this.amount, this.count);
+  final ExpenseCategory category;
+  final int amount;
+  final int count;
+}
+
+class _RankCard extends StatelessWidget {
+  const _RankCard(
+      {required this.title, required this.ranks, required this.byCount});
+  final String title;
+  final List<_Rank> ranks;
+  final bool byCount;
+  @override
+  Widget build(BuildContext context) {
+    final ordered = [...ranks]..sort((a, b) =>
+        byCount ? b.count.compareTo(a.count) : b.amount.compareTo(a.amount));
+    return AppCard(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(title, style: AppTextStyles.bodyMuted),
+      const SizedBox(height: 8),
+      if (ordered.isEmpty)
+        const Text('이번 달 지출 내역이 없어요', style: AppTextStyles.bodyMuted),
+      for (var i = 0; i < ordered.length; i++)
+        Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(children: [
+              Text('${i + 1}', style: AppTextStyles.sectionTitle),
+              const SizedBox(width: 12),
+              Icon(ordered[i].category.icon, color: ordered[i].category.color),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: Text(ordered[i].category.label,
+                      style: AppTextStyles.body)),
+              Text(
+                  byCount
+                      ? '${ordered[i].count}회'
+                      : Formatters.amount(ordered[i].amount),
+                  style:
+                      AppTextStyles.body.copyWith(fontWeight: FontWeight.w700))
+            ]))
+    ]));
   }
 }
 
 class _ExpenseRow extends StatelessWidget {
   const _ExpenseRow({required this.expense});
-
   final Expense expense;
-
   @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: expense.category.color.withValues(alpha: 0.13),
+  Widget build(BuildContext context) => AppCard(
+          child: Row(children: [
+        CircleAvatar(
+            backgroundColor: expense.category.color.withValues(alpha: .13),
             foregroundColor: expense.category.color,
-            child: Icon(expense.category.icon, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(expense.title, style: AppTextStyles.body),
-                Text(expense.category.label, style: AppTextStyles.captionTiny),
-              ],
-            ),
-          ),
-          Text(
-            '-${Formatters.amount(expense.amount)}',
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-    );
-  }
+            child: Icon(expense.category.icon, size: 20)),
+        const SizedBox(width: 12),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(expense.title, style: AppTextStyles.body),
+          Text(expense.category.label, style: AppTextStyles.captionTiny)
+        ])),
+        Text('-${Formatters.amount(expense.amount)}',
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700))
+      ]));
 }
-
-bool _isSameDay(DateTime left, DateTime right) =>
-    left.year == right.year &&
-    left.month == right.month &&
-    left.day == right.day;

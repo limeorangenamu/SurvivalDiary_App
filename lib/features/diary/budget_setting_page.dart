@@ -12,7 +12,9 @@ import '../auth/auth_session.dart';
 import 'data/budget_api_client.dart';
 
 class BudgetSettingPage extends StatefulWidget {
-  const BudgetSettingPage({super.key});
+  const BudgetSettingPage({super.key, this.initialMonthly = false});
+
+  final bool initialMonthly;
 
   @override
   State<BudgetSettingPage> createState() => _BudgetSettingPageState();
@@ -25,14 +27,17 @@ class _BudgetSettingPageState extends State<BudgetSettingPage> {
   final _apiClient = BudgetApiClient();
   final _controller = TextEditingController(text: '35000');
   int _selected = 35000;
+  int _currentAmount = 0;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isMonthly = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_loadTodayBudget());
+    _isMonthly = widget.initialMonthly;
+    unawaited(_loadBudget());
   }
 
   @override
@@ -41,7 +46,7 @@ class _BudgetSettingPageState extends State<BudgetSettingPage> {
     super.dispose();
   }
 
-  Future<void> _loadTodayBudget() async {
+  Future<void> _loadBudget() async {
     final token = AuthSession.instance.accessToken;
     if (token == null) {
       setState(() {
@@ -52,13 +57,14 @@ class _BudgetSettingPageState extends State<BudgetSettingPage> {
     }
 
     try {
-      final amount = await _apiClient.getToday(accessToken: token);
+      final amount = _isMonthly
+          ? await _apiClient.getMonth(accessToken: token)
+          : await _apiClient.getToday(accessToken: token);
       if (!mounted) return;
       setState(() {
-        if (amount > 0) {
-          _controller.text = amount.toString();
-          _selected = presets.contains(amount) ? amount : -1;
-        }
+        _currentAmount = amount;
+        _controller.text = amount > 0 ? amount.toString() : '';
+        _selected = amount > 0 && presets.contains(amount) ? amount : -1;
         _isLoading = false;
         _errorMessage = null;
       });
@@ -76,12 +82,26 @@ class _BudgetSettingPageState extends State<BudgetSettingPage> {
       _isLoading = true;
       _errorMessage = null;
     });
-    await _loadTodayBudget();
+    await _loadBudget();
+  }
+
+  void _changePeriod(bool monthly) {
+    if (_isMonthly == monthly) return;
+    setState(() {
+      _isMonthly = monthly;
+      _currentAmount = 0;
+      _controller.clear();
+      _selected = -1;
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    unawaited(_loadBudget());
   }
 
   void _selectPreset(int amount) {
     setState(() {
       _selected = amount;
+      _currentAmount = amount;
       _controller.text = amount.toString();
     });
   }
@@ -112,10 +132,9 @@ class _BudgetSettingPageState extends State<BudgetSettingPage> {
 
     setState(() => _isSaving = true);
     try {
-      final savedAmount = await _apiClient.saveToday(
-        accessToken: token,
-        amount: value,
-      );
+      final savedAmount = _isMonthly
+          ? await _apiClient.saveMonth(accessToken: token, amount: value)
+          : await _apiClient.saveToday(accessToken: token, amount: value);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${Formatters.amount(savedAmount)}으로 설정했어요.')),
@@ -151,10 +170,20 @@ class _BudgetSettingPageState extends State<BudgetSettingPage> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Column(
           children: [
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('일일 예산')),
+                ButtonSegment(value: true, label: Text('월간 예산')),
+              ],
+              selected: {_isMonthly},
+              onSelectionChanged: (selection) =>
+                  _changePeriod(selection.single),
+            ),
+            const SizedBox(height: 16),
             Expanded(
               child: ListView(
                 children: [
-                  const AppCard(
+                  AppCard(
                     color: AppColors.primarySoft,
                     borderColor: AppColors.primarySoft,
                     child: Row(
@@ -166,24 +195,38 @@ class _BudgetSettingPageState extends State<BudgetSettingPage> {
                         SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            '하루에 안심하고 쓸 수 있는 금액을 정해 보세요.',
+                            _isMonthly
+                                ? '한 달 동안 안심하고 쓸 수 있는 금액을 정해 보세요.'
+                                : '하루에 안심하고 쓸 수 있는 금액을 정해 보세요.',
                             style: AppTextStyles.body,
                           ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Text(
+                      Formatters.amount(_currentAmount),
+                      style: AppTextStyles.amount.copyWith(fontSize: 34),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   const SizedBox(height: 20),
                   const Text('직접 입력', style: AppTextStyles.sectionTitle),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _controller,
+                    textAlign: TextAlign.right,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(10),
                     ],
-                    onChanged: (_) => setState(() => _selected = -1),
+                    onChanged: (value) => setState(() {
+                      _selected = -1;
+                      _currentAmount = int.tryParse(value) ?? 0;
+                    }),
                     decoration: const InputDecoration(
                       hintText: '금액을 입력하세요',
                       suffixText: '원',
