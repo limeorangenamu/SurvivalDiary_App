@@ -46,7 +46,8 @@ class PolicyPreference {
     required this.districtCode,
     required this.workStatus,
     required this.jobSeeking,
-    required this.educationStatus,
+    required this.educationLevel,
+    required this.enrollmentStatus,
     required this.interests,
   });
 
@@ -66,8 +67,10 @@ class PolicyPreference {
       json['workStatus'],
       legacyEmploymentStatus: json['employmentStatus'],
     );
-    final educationStatus = _policyEducationStatus(
-      json['educationStatus'],
+    final educationLevel = _policyEducationLevel(json['educationLevel']);
+    final enrollmentStatus = _policyEnrollmentStatus(
+      json['enrollmentStatus'],
+      legacyEducationStatus: json['educationStatus'],
       legacyEmploymentStatus: json['employmentStatus'],
     );
     final interests = _policyInterests(
@@ -85,7 +88,8 @@ class PolicyPreference {
         json['jobSeeking'],
         legacyEmploymentStatus: json['employmentStatus'],
       ),
-      educationStatus: educationStatus,
+      educationLevel: educationLevel,
+      enrollmentStatus: enrollmentStatus,
       interests: interests,
     );
   }
@@ -96,7 +100,8 @@ class PolicyPreference {
   final String? districtCode;
   final PolicyWorkStatus? workStatus;
   final bool? jobSeeking;
-  final PolicyEducationStatus? educationStatus;
+  final PolicyEducationLevel? educationLevel;
+  final PolicyEnrollmentStatus? enrollmentStatus;
   final Set<PolicyInterest> interests;
 }
 
@@ -518,16 +523,34 @@ PolicyWorkStatus? _policyWorkStatus(
       _ => throw const FormatException(),
     };
 
-PolicyEducationStatus? _policyEducationStatus(
+PolicyEducationLevel? _policyEducationLevel(Object? value) => switch (value) {
+      'MIDDLE_SCHOOL_OR_LESS' => PolicyEducationLevel.middleSchoolOrLess,
+      'HIGH_SCHOOL' => PolicyEducationLevel.highSchool,
+      'COLLEGE_2_3_YEAR' => PolicyEducationLevel.collegeTwoThreeYear,
+      'UNIVERSITY_4_YEAR' => PolicyEducationLevel.universityFourYear,
+      'GRADUATE_SCHOOL' => PolicyEducationLevel.graduateSchool,
+      'OTHER' => PolicyEducationLevel.other,
+      null => null,
+      _ => throw const FormatException(),
+    };
+
+PolicyEnrollmentStatus? _policyEnrollmentStatus(
   Object? value, {
+  required Object? legacyEducationStatus,
   required Object? legacyEmploymentStatus,
 }) =>
-    switch (value ?? (legacyEmploymentStatus == 'STUDENT' ? 'STUDENT' : null)) {
-      'STUDENT' => PolicyEducationStatus.student,
-      'ON_LEAVE' => PolicyEducationStatus.onLeave,
-      'GRADUATED' => PolicyEducationStatus.graduated,
-      'NOT_STUDENT' => PolicyEducationStatus.notStudent,
-      'OTHER' => PolicyEducationStatus.other,
+    switch (value ??
+        legacyEducationStatus ??
+        (legacyEmploymentStatus == 'STUDENT' ? 'STUDENT' : null)) {
+      'ENROLLED' || 'STUDENT' => PolicyEnrollmentStatus.enrolled,
+      'ON_LEAVE' => PolicyEnrollmentStatus.onLeave,
+      'EXPECTED_GRADUATION' => PolicyEnrollmentStatus.expectedGraduation,
+      'GRADUATED' => PolicyEnrollmentStatus.graduated,
+      'DROPPED_OUT' => PolicyEnrollmentStatus.droppedOut,
+      'NOT_APPLICABLE' ||
+      'NOT_STUDENT' ||
+      'OTHER' =>
+        PolicyEnrollmentStatus.notApplicable,
       null => null,
       _ => throw const FormatException(),
     };

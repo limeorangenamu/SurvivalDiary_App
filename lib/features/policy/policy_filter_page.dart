@@ -37,7 +37,8 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
   PolicyDistrictOption? _district;
   PolicyWorkStatus? _workStatus;
   bool? _jobSeeking;
-  PolicyEducationStatus? _educationStatus;
+  PolicyEducationLevel? _educationLevel;
+  PolicyEnrollmentStatus? _enrollmentStatus;
   Set<PolicyInterest> _savedInterests = const {};
   PolicyFilterCondition? _activeCondition;
   int? _profileAge;
@@ -137,7 +138,10 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
       district: district?.name,
       workStatus: preference.workStatus,
       jobSeeking: preference.jobSeeking,
-      educationStatus: preference.educationStatus,
+      educationLevel: preference.educationLevel,
+      enrollmentStatus: preference.educationLevel == null
+          ? null
+          : preference.enrollmentStatus,
       interests: preference.interests,
     );
   }
@@ -152,7 +156,8 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
         .firstOrNull;
     _workStatus = condition.workStatus;
     _jobSeeking = condition.jobSeeking;
-    _educationStatus = condition.educationStatus;
+    _educationLevel = condition.educationLevel;
+    _enrollmentStatus = condition.enrollmentStatus;
     _savedInterests = condition.interests;
   }
 
@@ -216,6 +221,60 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
     }
   }
 
+  Future<void> _pickEducationLevel() async {
+    final options = [
+      const _NullableOption<PolicyEducationLevel>(
+        value: null,
+        label: '선택하지 않음',
+      ),
+      for (final level in PolicyEducationLevel.values)
+        _NullableOption(value: level, label: level.label),
+    ];
+    final value = await _pick<_NullableOption<PolicyEducationLevel>>(
+      title: '교육 단계를 선택해 주세요',
+      options: options,
+      labelBuilder: (option) => option.label,
+      selected: options.firstWhere(
+        (option) => option.value == _educationLevel,
+        orElse: () => options.first,
+      ),
+    );
+    if (value != null && mounted) {
+      setState(() {
+        if (_educationLevel != value.value) {
+          _enrollmentStatus = null;
+        }
+        _educationLevel = value.value;
+      });
+    }
+  }
+
+  Future<void> _pickEnrollmentStatus() async {
+    if (_educationLevel == null) {
+      return;
+    }
+    final options = [
+      const _NullableOption<PolicyEnrollmentStatus>(
+        value: null,
+        label: '선택하지 않음',
+      ),
+      for (final status in PolicyEnrollmentStatus.values)
+        _NullableOption(value: status, label: status.label),
+    ];
+    final value = await _pick<_NullableOption<PolicyEnrollmentStatus>>(
+      title: '현재 학적 상태를 선택해 주세요',
+      options: options,
+      labelBuilder: (option) => option.label,
+      selected: options.firstWhere(
+        (option) => option.value == _enrollmentStatus,
+        orElse: () => options.first,
+      ),
+    );
+    if (value != null && mounted) {
+      setState(() => _enrollmentStatus = value.value);
+    }
+  }
+
   bool _validateFirstStep() {
     final age = int.tryParse(_ageController.text);
     final ageValid = _ageFormKey.currentState?.validate() ??
@@ -261,19 +320,12 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
     });
   }
 
-  void _toggleStudent() {
-    setState(() {
-      _educationStatus = _educationStatus == PolicyEducationStatus.student
-          ? null
-          : PolicyEducationStatus.student;
-    });
-  }
-
   void _clearSituation() {
     setState(() {
       _workStatus = null;
       _jobSeeking = null;
-      _educationStatus = null;
+      _educationLevel = null;
+      _enrollmentStatus = null;
     });
   }
 
@@ -285,7 +337,8 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
         district: _district?.name,
         workStatus: _workStatus,
         jobSeeking: _jobSeeking,
-        educationStatus: _educationStatus,
+        educationLevel: _educationLevel,
+        enrollmentStatus: _enrollmentStatus,
         interests: _savedInterests,
       );
 
@@ -468,8 +521,10 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
   }
 
   Widget _buildSituationStep() {
-    final noSelection =
-        _workStatus == null && _jobSeeking == null && _educationStatus == null;
+    final noSelection = _workStatus == null &&
+        _jobSeeking == null &&
+        _educationLevel == null &&
+        _enrollmentStatus == null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -513,18 +568,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
                   ),
                 ),
                 SizedBox(
-                  width: itemWidth,
-                  height: 52,
-                  child: _SituationChip(
-                    key: const ValueKey('policy-situation-student'),
-                    icon: Icons.school_outlined,
-                    label: '학생',
-                    selected: _educationStatus == PolicyEducationStatus.student,
-                    onSelected: (_) => _toggleStudent(),
-                  ),
-                ),
-                SizedBox(
-                  width: itemWidth,
+                  width: constraints.maxWidth,
                   height: 52,
                   child: _SituationChip(
                     key: const ValueKey('policy-situation-none'),
@@ -539,6 +583,28 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
           },
         ),
         const SizedBox(height: 22),
+        _SetupField(
+          key: const ValueKey('policy-education-level-field'),
+          label: '교육 단계',
+          value: _educationLevel?.label,
+          hint: '예: 4년제 대학',
+          onTap: _pickEducationLevel,
+        ),
+        const SizedBox(height: 14),
+        _SetupField(
+          key: const ValueKey('policy-enrollment-status-field'),
+          label: '현재 학적 상태',
+          value: _enrollmentStatus?.label,
+          hint: _educationLevel == null ? '교육 단계를 먼저 선택해 주세요.' : '예: 재학 중',
+          enabled: _educationLevel != null,
+          onTap: _pickEnrollmentStatus,
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          '2·3년제와 4년제는 온통청년에서 같은 대학 학력 범위로 조회돼요.',
+          style: AppTextStyles.captionTiny,
+        ),
+        const SizedBox(height: 22),
         const AppCard(
           color: AppColors.primarySoft,
           borderColor: AppColors.primarySoft,
@@ -551,7 +617,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '이 정보는 정책을 제외하는 데 쓰지 않고, 나와 관련된 정책을 먼저 보여주는 데 사용해요.',
+                  '교육 조건이 명확히 다른 정책은 제외하고, 애매한 조건은 확인이 필요한 정책으로 보여드려요.',
                   style: AppTextStyles.caption,
                 ),
               ),
@@ -569,7 +635,8 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
       _district?.name ?? '전체 지역',
       if (_workStatus != null) _workStatus!.label,
       if (_jobSeeking == true) '구직 중',
-      if (_educationStatus != null) _educationStatus!.label,
+      if (_educationLevel != null) _educationLevel!.label,
+      if (_enrollmentStatus != null) _enrollmentStatus!.label,
     ].where((label) => label.isNotEmpty).toList();
 
     return Column(

@@ -162,15 +162,43 @@ extension PolicyWorkStatusExtension on PolicyWorkStatus {
       };
 }
 
-enum PolicyEducationStatus { student, onLeave, graduated, notStudent, other }
+enum PolicyEducationLevel {
+  middleSchoolOrLess,
+  highSchool,
+  collegeTwoThreeYear,
+  universityFourYear,
+  graduateSchool,
+  other,
+}
 
-extension PolicyEducationStatusExtension on PolicyEducationStatus {
+extension PolicyEducationLevelExtension on PolicyEducationLevel {
   String get label => switch (this) {
-        PolicyEducationStatus.student => '재학 중',
-        PolicyEducationStatus.onLeave => '휴학 중',
-        PolicyEducationStatus.graduated => '졸업',
-        PolicyEducationStatus.notStudent => '학생이 아님',
-        PolicyEducationStatus.other => '기타',
+        PolicyEducationLevel.middleSchoolOrLess => '중학교 졸업 이하',
+        PolicyEducationLevel.highSchool => '고등학교',
+        PolicyEducationLevel.collegeTwoThreeYear => '2·3년제 대학',
+        PolicyEducationLevel.universityFourYear => '4년제 대학',
+        PolicyEducationLevel.graduateSchool => '대학원 이상',
+        PolicyEducationLevel.other => '기타 교육 과정',
+      };
+}
+
+enum PolicyEnrollmentStatus {
+  enrolled,
+  onLeave,
+  expectedGraduation,
+  graduated,
+  droppedOut,
+  notApplicable,
+}
+
+extension PolicyEnrollmentStatusExtension on PolicyEnrollmentStatus {
+  String get label => switch (this) {
+        PolicyEnrollmentStatus.enrolled => '재학 중',
+        PolicyEnrollmentStatus.onLeave => '휴학 중',
+        PolicyEnrollmentStatus.expectedGraduation => '졸업 예정',
+        PolicyEnrollmentStatus.graduated => '졸업',
+        PolicyEnrollmentStatus.droppedOut => '중퇴',
+        PolicyEnrollmentStatus.notApplicable => '해당 없음',
       };
 }
 
@@ -223,7 +251,8 @@ class PolicyFilterCondition {
     this.district,
     this.workStatus,
     this.jobSeeking,
-    this.educationStatus,
+    this.educationLevel,
+    this.enrollmentStatus,
     this.interests = const {},
     this.category,
   });
@@ -235,7 +264,8 @@ class PolicyFilterCondition {
   final String? district;
   final PolicyWorkStatus? workStatus;
   final bool? jobSeeking;
-  final PolicyEducationStatus? educationStatus;
+  final PolicyEducationLevel? educationLevel;
+  final PolicyEnrollmentStatus? enrollmentStatus;
   final Set<PolicyInterest> interests;
   final PolicyCategory? category;
 }
