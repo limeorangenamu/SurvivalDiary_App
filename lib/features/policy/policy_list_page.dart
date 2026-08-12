@@ -576,7 +576,8 @@ class _BriefingHeader extends StatelessWidget {
       if (condition.jobSeeking == true) '구직 중',
       if (condition.workStatus != null && condition.jobSeeking != true)
         condition.workStatus!.label,
-      if (condition.educationStatus != null) condition.educationStatus!.label,
+      if (condition.educationLevel != null) condition.educationLevel!.label,
+      if (condition.enrollmentStatus != null) condition.enrollmentStatus!.label,
     ].join(' · ');
 
     return Column(
@@ -1385,8 +1386,7 @@ String _matchSignalLabel(
       PolicyMatchSignal.district => '${condition.district ?? '시·군·구'} 거주',
       PolicyMatchSignal.workStatus => condition.workStatus?.label ?? '근로 상태 일치',
       PolicyMatchSignal.jobSeeking => '구직 중',
-      PolicyMatchSignal.educationStatus =>
-        condition.educationStatus?.label ?? '교육 상태 일치',
+      PolicyMatchSignal.educationStatus => _educationSignalLabel(condition),
       PolicyMatchSignal.interestEmployment => '일자리 관심',
       PolicyMatchSignal.interestHousing => '주거 관심',
       PolicyMatchSignal.interestEducation => '교육 관심',
@@ -1395,6 +1395,14 @@ String _matchSignalLabel(
       PolicyMatchSignal.interestAssetBuilding => '자산형성 관심',
       PolicyMatchSignal.interestTransport => '교통 관심',
     };
+
+String _educationSignalLabel(PolicyFilterCondition condition) {
+  final label = [
+    condition.educationLevel?.label,
+    condition.enrollmentStatus?.label,
+  ].whereType<String>().join(' · ');
+  return label.isEmpty ? '교육 조건 일치' : label;
+}
 
 String _supportLabel(PolicySummary policy) {
   final shortSummary = policy.shortSummary?.trim();

@@ -343,8 +343,10 @@ class PolicyApiClient {
       if (condition.workStatus != null)
         'workStatus': _workStatusCode(condition.workStatus!),
       if (condition.jobSeeking != null) 'jobSeeking': condition.jobSeeking,
-      if (condition.educationStatus != null)
-        'educationStatus': _educationStatusCode(condition.educationStatus!),
+      if (condition.educationLevel != null)
+        'educationLevel': _educationLevelCode(condition.educationLevel!),
+      if (condition.enrollmentStatus != null)
+        'enrollmentStatus': _enrollmentStatusCode(condition.enrollmentStatus!),
       'interests': condition.interests.map(_interestCode).toList(),
       if (resolvedCategory != null)
         'category': switch (resolvedCategory) {
@@ -393,8 +395,10 @@ class PolicyApiClient {
       if (condition.workStatus != null)
         'workStatus': _workStatusCode(condition.workStatus!),
       if (condition.jobSeeking != null) 'jobSeeking': condition.jobSeeking,
-      if (condition.educationStatus != null)
-        'educationStatus': _educationStatusCode(condition.educationStatus!),
+      if (condition.educationLevel != null)
+        'educationLevel': _educationLevelCode(condition.educationLevel!),
+      if (condition.enrollmentStatus != null)
+        'enrollmentStatus': _enrollmentStatusCode(condition.enrollmentStatus!),
       'interests': condition.interests.map(_interestCode).toList(),
     };
   }
@@ -411,12 +415,23 @@ class PolicyApiClient {
         PolicyWorkStatus.other => 'OTHER',
       };
 
-  String _educationStatusCode(PolicyEducationStatus status) => switch (status) {
-        PolicyEducationStatus.student => 'STUDENT',
-        PolicyEducationStatus.onLeave => 'ON_LEAVE',
-        PolicyEducationStatus.graduated => 'GRADUATED',
-        PolicyEducationStatus.notStudent => 'NOT_STUDENT',
-        PolicyEducationStatus.other => 'OTHER',
+  String _educationLevelCode(PolicyEducationLevel level) => switch (level) {
+        PolicyEducationLevel.middleSchoolOrLess => 'MIDDLE_SCHOOL_OR_LESS',
+        PolicyEducationLevel.highSchool => 'HIGH_SCHOOL',
+        PolicyEducationLevel.collegeTwoThreeYear => 'COLLEGE_2_3_YEAR',
+        PolicyEducationLevel.universityFourYear => 'UNIVERSITY_4_YEAR',
+        PolicyEducationLevel.graduateSchool => 'GRADUATE_SCHOOL',
+        PolicyEducationLevel.other => 'OTHER',
+      };
+
+  String _enrollmentStatusCode(PolicyEnrollmentStatus status) =>
+      switch (status) {
+        PolicyEnrollmentStatus.enrolled => 'ENROLLED',
+        PolicyEnrollmentStatus.onLeave => 'ON_LEAVE',
+        PolicyEnrollmentStatus.expectedGraduation => 'EXPECTED_GRADUATION',
+        PolicyEnrollmentStatus.graduated => 'GRADUATED',
+        PolicyEnrollmentStatus.droppedOut => 'DROPPED_OUT',
+        PolicyEnrollmentStatus.notApplicable => 'NOT_APPLICABLE',
       };
 
   String _interestCode(PolicyInterest interest) => switch (interest) {

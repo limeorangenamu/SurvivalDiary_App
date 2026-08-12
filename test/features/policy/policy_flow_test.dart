@@ -159,11 +159,25 @@ void main() {
       find.byKey(const ValueKey('policy-situation-job-seeking')),
     );
     await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('policy-education-level-field')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('4년제 대학').last);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('policy-enrollment-status-field')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('재학 중').last);
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('policy-setup-next')));
     await tester.pumpAndSettle();
 
     expect(find.text('추천 준비가 끝났어요'), findsOneWidget);
     expect(find.text('구직 중'), findsOneWidget);
+    expect(find.text('4년제 대학'), findsOneWidget);
+    expect(find.text('재학 중'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('policy-recommend-button')));
     await tester.pumpAndSettle();
 
@@ -173,6 +187,8 @@ void main() {
       'districtCode': '11110',
       'workStatus': 'UNEMPLOYED',
       'jobSeeking': true,
+      'educationLevel': 'UNIVERSITY_4_YEAR',
+      'enrollmentStatus': 'ENROLLED',
       'interests': <dynamic>[],
     });
     expect(capturedBodies.last, {'page': 1, 'size': 20});
@@ -553,7 +569,9 @@ PolicyApiClient _policyApiClient({
           'category': null,
           'workStatus': body['workStatus'],
           'jobSeeking': body['jobSeeking'],
-          'educationStatus': body['educationStatus'],
+          'educationStatus': null,
+          'educationLevel': body['educationLevel'],
+          'enrollmentStatus': body['enrollmentStatus'],
           'interests': body['interests'],
         });
       }
@@ -770,6 +788,8 @@ Map<String, dynamic> _savedPreferenceJson() {
     'workStatus': 'UNEMPLOYED',
     'jobSeeking': true,
     'educationStatus': null,
+    'educationLevel': 'UNIVERSITY_4_YEAR',
+    'enrollmentStatus': 'GRADUATED',
     'interests': const [],
   };
 }
