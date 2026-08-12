@@ -10,10 +10,14 @@ class HousingDealMapCard extends StatelessWidget {
   const HousingDealMapCard({
     super.key,
     required this.deal,
+    required this.isFavorite,
+    required this.onFavoritePressed,
     required this.onTap,
   });
 
   final HousingRentDeal deal;
+  final bool isFavorite;
+  final VoidCallback onFavoritePressed;
   final VoidCallback onTap;
 
   @override
@@ -47,9 +51,19 @@ class HousingDealMapCard extends StatelessWidget {
                       style: AppTextStyles.captionTiny,
                     ),
                   ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.textTertiary,
+                  IconButton(
+                    key: const ValueKey('housing-deal-favorite-button'),
+                    tooltip: isFavorite ? '찜 해제' : '찜하기',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onFavoritePressed,
+                    icon: Icon(
+                      isFavorite
+                          ? Icons.favorite_rounded
+                          : Icons.favorite_border_rounded,
+                      color: isFavorite
+                          ? AppColors.danger
+                          : AppColors.textTertiary,
+                    ),
                   ),
                 ],
               ),
