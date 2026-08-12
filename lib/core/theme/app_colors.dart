@@ -24,6 +24,15 @@ class AppColors {
   static const warningSoft = Color(0xFFFFF6E5);
   static const info = Color(0xFF3E9AE0);
 
+  static const newsPrimary = Color(0xFF0B836B);
+  static const newsPrimarySoft = Color(0xFFDCF6EF);
+  static const newsInfo = Color(0xFF3D8BFD);
+  static const newsInfoSoft = Color(0xFFEDF5FF);
+  static const newsSaving = Color(0xFF9C650A);
+  static const newsSavingSoft = Color(0xFFFFF7E8);
+  static const newsPurple = Color(0xFF8367E8);
+  static const newsPurpleSoft = Color(0xFFF1EFFF);
+
   static const categoryFood = Color(0xFFFF6B6B);
   static const categoryCafe = Color(0xFFEE6C9C);
   static const categoryTransport = Color(0xFF3FA9D8);
