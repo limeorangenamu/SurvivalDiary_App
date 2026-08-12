@@ -8,6 +8,7 @@ import '../../core/services/good_price_api_service.dart';
 import '../../core/services/housing_rent_api_service.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/public_facility_api_service.dart';
+import '../../core/services/public_parking_api_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
@@ -27,6 +28,7 @@ import 'housing_lawd_code.dart';
 import 'place_detail_page.dart';
 import 'widgets/map_canvas.dart';
 import 'widgets/public_facility_detail_sheet.dart';
+import 'widgets/public_parking_detail_sheet.dart';
 
 class SavingMapPage extends StatefulWidget {
   const SavingMapPage({super.key});
@@ -40,6 +42,8 @@ class _SavingMapPageState extends State<SavingMapPage> {
   final GoodPriceApiService _goodPriceApiService = GoodPriceApiService();
   final PublicFacilityApiService _publicFacilityApiService =
       PublicFacilityApiService();
+  final PublicParkingApiService _publicParkingApiService =
+      PublicParkingApiService();
   final HousingRentApiService _housingRentApiService = HousingRentApiService();
   final LocationService _locationService = LocationService();
 
@@ -48,17 +52,22 @@ class _SavingMapPageState extends State<SavingMapPage> {
   SavingPlace? _selectedPlace;
   GoodPriceStore? _selectedGoodPriceStore;
   PublicFacility? _selectedPublicFacility;
+  PublicParkingLot? _selectedParkingLot;
   HousingRentDeal? _selectedHousingDeal;
   String? _selectedGoodPriceCategoryKey;
   final Map<String, GoodPriceStore> _favoriteGoodPriceStores = {};
   NaverMapController? _mapController;
   List<GoodPriceStore> _goodPriceStores = const [];
   List<PublicFacility> _publicFacilities = const [];
+  List<PublicParkingLot> _parkingLots = const [];
   bool _isLoadingStores = false;
   bool _isLoadingPublicFacilities = false;
+  bool _isLoadingParkingLots = false;
   String? _storeError;
   String? _publicFacilityError;
+  String? _parkingError;
   bool _publicFacilityFreeOnly = false;
+  bool _parkingFreeOnly = false;
   List<HousingRentDeal> _housingDeals = const [];
   bool _isLoadingHousingDeals = false;
   String? _housingDealError;
@@ -67,6 +76,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
   String? _district;
   int _storeRequestId = 0;
   int _publicFacilityRequestId = 0;
+  int _parkingRequestId = 0;
   double? _currentLatitude;
   double? _currentLongitude;
   bool _isLocating = false;
@@ -76,6 +86,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
   bool _isInitialLocationPending = true;
   DirectionsRoute? _directionsRoute;
   String? _directionsDestinationName;
+  DirectionsMode _directionsMode = DirectionsMode.walking;
   bool _isLoadingDirections = false;
   int _directionsRequestId = 0;
 
@@ -155,6 +166,58 @@ class _SavingMapPageState extends State<SavingMapPage> {
       setState(() {
         _publicFacilityError = error.message;
         _isLoadingPublicFacilities = false;
+      });
+    }
+  }
+
+  Future<void> _loadParkingLots() async {
+    final bounds = _viewportBounds;
+    final latitude = _currentLatitude;
+    final longitude = _currentLongitude;
+    if (bounds == null || latitude == null || longitude == null) {
+      return;
+    }
+    final accessToken = AuthSession.instance.accessToken;
+    if (accessToken == null) {
+      setState(() {
+        _parkingError = '로그인 후 공영주차장을 확인할 수 있어요.';
+        _isLoadingParkingLots = false;
+      });
+      return;
+    }
+
+    final requestId = ++_parkingRequestId;
+    setState(() {
+      _isLoadingParkingLots = true;
+      _parkingError = null;
+    });
+
+    try {
+      final page = await _publicParkingApiService.fetchParkingLots(
+        accessToken: accessToken,
+        southWestLat: bounds.southWest.latitude,
+        southWestLng: bounds.southWest.longitude,
+        northEastLat: bounds.northEast.latitude,
+        northEastLng: bounds.northEast.longitude,
+        latitude: latitude,
+        longitude: longitude,
+        freeOnly: _parkingFreeOnly,
+        sort: _sortIndex == 1 ? 'fee' : 'distance',
+      );
+      if (!mounted || requestId != _parkingRequestId) {
+        return;
+      }
+      setState(() {
+        _parkingLots = page.content;
+        _isLoadingParkingLots = false;
+      });
+    } on PublicParkingApiException catch (error) {
+      if (!mounted || requestId != _parkingRequestId) {
+        return;
+      }
+      setState(() {
+        _parkingError = error.message;
+        _isLoadingParkingLots = false;
       });
     }
   }
@@ -321,6 +384,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
         _viewportBounds = viewport.bounds;
         _selectedGoodPriceStore = null;
         _selectedPublicFacility = null;
+        _selectedParkingLot = null;
         _selectedHousingDeal = null;
         _isLocating = true;
         _locationError = null;
@@ -331,6 +395,13 @@ class _SavingMapPageState extends State<SavingMapPage> {
         setState(() => _isLocating = false);
       }
       await _loadPublicFacilities();
+      return;
+    }
+    if (_filter == '공영주차장') {
+      if (mounted) {
+        setState(() => _isLocating = false);
+      }
+      await _loadParkingLots();
       return;
     }
     final isGoodPrice = _filter == '착한가격업소';
@@ -441,7 +512,10 @@ class _SavingMapPageState extends State<SavingMapPage> {
   }
 
   List<SavingPlace> get _visiblePlaces {
-    if (_filter == '주거지' || _filter == '착한가격업소' || _filter == '공공시설') {
+    if (_filter == '주거지' ||
+        _filter == '착한가격업소' ||
+        _filter == '공공시설' ||
+        _filter == '공영주차장') {
       return [];
     }
     final result = _filter == '전체'
@@ -449,7 +523,8 @@ class _SavingMapPageState extends State<SavingMapPage> {
             .where(
               (place) =>
                   place.type != PlaceType.goodPrice &&
-                  place.type != PlaceType.publicFacility,
+                  place.type != PlaceType.publicFacility &&
+                  place.type != PlaceType.publicParking,
             )
             .toList()
         : MockData.places
@@ -470,6 +545,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
       _selectedPlace = null;
       _selectedGoodPriceStore = null;
       _selectedPublicFacility = null;
+      _selectedParkingLot = null;
       _selectedHousingDeal = null;
       _directionsRoute = null;
       _directionsDestinationName = null;
@@ -485,6 +561,9 @@ class _SavingMapPageState extends State<SavingMapPage> {
       unawaited(_refreshCurrentViewport());
     }
     if (value == '공공시설' && _publicFacilities.isEmpty) {
+      unawaited(_refreshCurrentViewport());
+    }
+    if (value == '공영주차장' && _parkingLots.isEmpty) {
       unawaited(_refreshCurrentViewport());
     }
   }
@@ -510,6 +589,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
     setState(() {
       _selectedGoodPriceStore = store;
       _selectedPublicFacility = null;
+      _selectedParkingLot = null;
       _selectedHousingDeal = null;
       _directionsRoute = null;
       _directionsDestinationName = null;
@@ -522,6 +602,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
     setState(() {
       _selectedPublicFacility = facility;
       _selectedGoodPriceStore = null;
+      _selectedParkingLot = null;
       _selectedHousingDeal = null;
       _directionsRoute = null;
       _directionsDestinationName = null;
@@ -567,11 +648,50 @@ class _SavingMapPageState extends State<SavingMapPage> {
     );
   }
 
+  void _selectParkingLot(PublicParkingLot parkingLot) {
+    setState(() {
+      _selectedParkingLot = parkingLot;
+      _selectedGoodPriceStore = null;
+      _selectedPublicFacility = null;
+      _selectedHousingDeal = null;
+      _directionsRoute = null;
+      _directionsDestinationName = null;
+      _isLoadingDirections = false;
+      _directionsRequestId++;
+    });
+  }
+
+  void _showParkingDetail() {
+    final parkingLot = _selectedParkingLot;
+    if (parkingLot == null) {
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.72,
+        minChildSize: 0.5,
+        maxChildSize: 0.92,
+        builder: (_, scrollController) => PublicParkingDetailSheet(
+          parkingLot: parkingLot,
+          scrollController: scrollController,
+          onDirectionsPressed: () {
+            Navigator.of(sheetContext).pop();
+            unawaited(_openParkingDirections(parkingLot));
+          },
+        ),
+      ),
+    );
+  }
+
   void _selectHousingDeal(HousingRentDeal deal) {
     setState(() {
       _selectedHousingDeal = deal;
       _selectedGoodPriceStore = null;
       _selectedPublicFacility = null;
+      _selectedParkingLot = null;
     });
   }
 
@@ -608,6 +728,24 @@ class _SavingMapPageState extends State<SavingMapPage> {
     await _openPublicFacilityDirections(facility);
   }
 
+  Future<void> _openSelectedParkingDirections() async {
+    final parkingLot = _selectedParkingLot;
+    if (parkingLot == null) {
+      return;
+    }
+    await _openParkingDirections(parkingLot);
+  }
+
+  Future<void> _openParkingDirections(PublicParkingLot parkingLot) {
+    return _openDirections(
+      destinationName: parkingLot.name,
+      goalLatitude: parkingLot.latitude,
+      goalLongitude: parkingLot.longitude,
+      missingLocationMessage: '이 주차장은 위치 정보가 없어 길찾기를 시작할 수 없어요.',
+      mode: DirectionsMode.driving,
+    );
+  }
+
   Future<void> _openPublicFacilityDirections(PublicFacility facility) {
     return _openDirections(
       destinationName: facility.name,
@@ -622,6 +760,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
     required double? goalLatitude,
     required double? goalLongitude,
     required String missingLocationMessage,
+    DirectionsMode mode = DirectionsMode.walking,
   }) async {
     if (goalLatitude == null || goalLongitude == null) {
       _showDirectionsError(missingLocationMessage);
@@ -629,7 +768,8 @@ class _SavingMapPageState extends State<SavingMapPage> {
     }
     final accessToken = AuthSession.instance.accessToken;
     if (accessToken == null) {
-      _showDirectionsError('로그인 후 도보 경로를 확인할 수 있어요.');
+      final routeType = mode == DirectionsMode.driving ? '자동차' : '도보';
+      _showDirectionsError('로그인 후 $routeType 경로를 확인할 수 있어요.');
       return;
     }
 
@@ -638,6 +778,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
       _isLoadingDirections = true;
       _directionsRoute = null;
       _directionsDestinationName = destinationName;
+      _directionsMode = mode;
     });
 
     try {
@@ -654,6 +795,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
         startLongitude: position.longitude,
         goalLatitude: goalLatitude,
         goalLongitude: goalLongitude,
+        mode: mode,
       );
       if (!mounted || requestId != _directionsRequestId) {
         return;
@@ -663,6 +805,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
         _isLoadingDirections = false;
         _selectedGoodPriceStore = null;
         _selectedPublicFacility = null;
+        _selectedParkingLot = null;
         _selectedHousingDeal = null;
       });
     } on DirectionsApiException catch (error) {
@@ -685,6 +828,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
       _directionsRequestId++;
       _directionsRoute = null;
       _directionsDestinationName = null;
+      _directionsMode = DirectionsMode.walking;
       _isLoadingDirections = false;
     });
   }
@@ -720,6 +864,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
     final places = _visiblePlaces;
     final isGoodPrice = _filter == '착한가격업소';
     final isPublicFacility = _filter == '공공시설';
+    final isPublicParking = _filter == '공영주차장';
     final isHousing = _filter == '주거지';
     final visibleGoodPriceStores = _visibleGoodPriceStores;
     final visibleHousingDeals = _visibleHousingDeals;
@@ -754,6 +899,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
               places: places,
               goodPriceStores: mapGoodPriceStores,
               publicFacilities: isPublicFacility ? _publicFacilities : const [],
+              parkingLots: isPublicParking ? _parkingLots : const [],
               housingDeals: isHousing ? visibleHousingDeals : const [],
               directionsRoute: _directionsRoute,
               onPlaceTap: (place) {
@@ -761,6 +907,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
               },
               onGoodPriceStoreTap: _selectGoodPriceStore,
               onPublicFacilityTap: _selectPublicFacility,
+              onParkingLotTap: _selectParkingLot,
               onHousingDealTap: _selectHousingDeal,
               onMapReady: (controller) {
                 _mapController = controller;
@@ -774,6 +921,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
               },
               selectedGoodPriceStore: _selectedGoodPriceStore,
               selectedPublicFacility: _selectedPublicFacility,
+              selectedParkingLot: _selectedParkingLot,
               selectedHousingDeal: _selectedHousingDeal,
               isSelectedStoreFavorite: _selectedGoodPriceStore != null &&
                   _favoriteGoodPriceStores.containsKey(
@@ -788,6 +936,10 @@ class _SavingMapPageState extends State<SavingMapPage> {
                 unawaited(_openSelectedPublicFacilityDirections());
               },
               onPublicFacilityCardTap: _showPublicFacilityDetail,
+              onParkingDirectionsPressed: () {
+                unawaited(_openSelectedParkingDirections());
+              },
+              onParkingCardTap: _showParkingDetail,
               onGoodPriceStoreDismissed: () {
                 if (_selectedGoodPriceStore != null) {
                   setState(() => _selectedGoodPriceStore = null);
@@ -796,6 +948,11 @@ class _SavingMapPageState extends State<SavingMapPage> {
               onPublicFacilityDismissed: () {
                 if (_selectedPublicFacility != null) {
                   setState(() => _selectedPublicFacility = null);
+                }
+              },
+              onParkingDismissed: () {
+                if (_selectedParkingLot != null) {
+                  setState(() => _selectedParkingLot = null);
                 }
               },
               onHousingDealCardTap: _showHousingDealDetail,
@@ -842,6 +999,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
               child: _DirectionsSummaryCard(
                 destinationName: _directionsDestinationName ?? '목적지',
                 route: _directionsRoute,
+                mode: _directionsMode,
                 isLoading: _isLoadingDirections,
                 onClose: _clearDirections,
               ),
@@ -896,6 +1054,29 @@ class _SavingMapPageState extends State<SavingMapPage> {
                 onFacilitySelected: _selectPublicFacility,
               ),
             )
+          else if (isPublicParking)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              height: 210,
+              child: _PublicParkingPanel(
+                parkingLots: _parkingLots,
+                isLoading: _isLoadingParkingLots,
+                error: _parkingError,
+                freeOnly: _parkingFreeOnly,
+                onRetry: _loadParkingLots,
+                onFreeOnlyChanged: (value) {
+                  setState(() {
+                    _parkingFreeOnly = value;
+                    _selectedParkingLot = null;
+                    _parkingLots = const [];
+                  });
+                  unawaited(_loadParkingLots());
+                },
+                onParkingSelected: _selectParkingLot,
+              ),
+            )
           else if (_filter == '주거지')
             Positioned(
               left: 16,
@@ -925,6 +1106,183 @@ class _SavingMapPageState extends State<SavingMapPage> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _PublicParkingPanel extends StatelessWidget {
+  const _PublicParkingPanel({
+    required this.parkingLots,
+    required this.isLoading,
+    required this.error,
+    required this.freeOnly,
+    required this.onRetry,
+    required this.onFreeOnlyChanged,
+    required this.onParkingSelected,
+  });
+
+  final List<PublicParkingLot> parkingLots;
+  final bool isLoading;
+  final String? error;
+  final bool freeOnly;
+  final VoidCallback onRetry;
+  final ValueChanged<bool> onFreeOnlyChanged;
+  final ValueChanged<PublicParkingLot> onParkingSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '현재 화면의 공영주차장',
+                  style: AppTextStyles.sectionTitle,
+                ),
+              ),
+              Text('${parkingLots.length}곳', style: AppTextStyles.caption),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: Text(
+                  '무료',
+                  style: freeOnly
+                      ? AppTextStyles.caption.copyWith(
+                          color: AppColors.surface,
+                        )
+                      : null,
+                ),
+                selected: freeOnly,
+                onSelected: onFreeOnlyChanged,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            '주차장을 누르면 요금과 운영시간을 확인할 수 있어요.',
+            style: AppTextStyles.captionTiny,
+          ),
+          const SizedBox(height: 10),
+          Expanded(child: _buildContent()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (isLoading && parkingLots.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 8),
+            Text(
+              '공영주차장 데이터를 준비하고 있어요.',
+              style: AppTextStyles.bodyMuted,
+            ),
+          ],
+        ),
+      );
+    }
+    if (error != null && parkingLots.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              error!,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodyMuted,
+            ),
+            TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          ],
+        ),
+      );
+    }
+    if (parkingLots.isEmpty) {
+      return const Center(
+        child: Text(
+          '현재 지도 화면에 확인된 공영주차장이 없어요.',
+          style: AppTextStyles.bodyMuted,
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: parkingLots.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            final parkingLot = parkingLots[index];
+            return Semantics(
+              button: true,
+              label: '${parkingLot.name}, ${parkingLot.feeLabel}',
+              child: InkWell(
+                onTap: () => onParkingSelected(parkingLot),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 190,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.warningSoft.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '공영 · ${parkingLot.parkingType}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.captionTiny.copyWith(
+                          color: AppColors.pinParking,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        parkingLot.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${parkingLot.distanceLabel} · ${parkingLot.feeLabel}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption.copyWith(
+                          color: parkingLot.free
+                              ? AppColors.primaryDeep
+                              : AppColors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+        if (isLoading)
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
+      ],
     );
   }
 }
@@ -1097,12 +1455,14 @@ class _DirectionsSummaryCard extends StatelessWidget {
   const _DirectionsSummaryCard({
     required this.destinationName,
     required this.route,
+    required this.mode,
     required this.isLoading,
     required this.onClose,
   });
 
   final String destinationName;
   final DirectionsRoute? route;
+  final DirectionsMode mode;
   final bool isLoading;
   final VoidCallback onClose;
 
@@ -1116,6 +1476,7 @@ class _DirectionsSummaryCard extends StatelessWidget {
   }
 
   Widget _buildLoading() {
+    final routeType = mode == DirectionsMode.driving ? '자동차' : '도보';
     return Row(
       children: [
         const SizedBox(
@@ -1126,7 +1487,7 @@ class _DirectionsSummaryCard extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            '$destinationName 도보 경로를 찾고 있어요.',
+            '$destinationName $routeType 경로를 찾고 있어요.',
             style: AppTextStyles.body,
           ),
         ),
@@ -1140,6 +1501,8 @@ class _DirectionsSummaryCard extends StatelessWidget {
   }
 
   Widget _buildRoute(DirectionsRoute route) {
+    final isDriving = mode == DirectionsMode.driving;
+    final routeType = isDriving ? '자동차' : '도보';
     final durationMinutes = (route.durationMillis / 60000).ceil();
     final distance = route.distanceMeters >= 1000
         ? '${(route.distanceMeters / 1000).toStringAsFixed(1)}km'
@@ -1149,11 +1512,16 @@ class _DirectionsSummaryCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(Icons.directions_walk_rounded, color: AppColors.primary),
+            Icon(
+              isDriving
+                  ? Icons.directions_car_rounded
+                  : Icons.directions_walk_rounded,
+              color: AppColors.primary,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '$destinationName 도보 추천 경로',
+                '$destinationName $routeType 추천 경로',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.sectionTitle,

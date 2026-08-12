@@ -8,13 +8,16 @@ import '../../../core/services/directions_api_service.dart';
 import '../../../core/services/good_price_api_service.dart';
 import '../../../core/services/public_facility_api_service.dart';
 import '../../../core/services/housing_rent_api_service.dart';
+import '../../../core/services/public_parking_api_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models.dart';
 import '../good_price_store_marker_style.dart';
 import '../housing_deal_marker_style.dart';
+import '../public_parking_marker_style.dart';
 import '../public_facility_marker_style.dart';
 import 'good_price_store_map_card.dart';
 import 'housing_deal_map_card.dart';
+import 'public_parking_map_card.dart';
 import 'public_facility_map_card.dart';
 
 class MapViewport {
@@ -30,16 +33,19 @@ class SavingMapCanvas extends StatefulWidget {
     required this.places,
     required this.goodPriceStores,
     required this.publicFacilities,
+    required this.parkingLots,
     required this.housingDeals,
     required this.directionsRoute,
     required this.onPlaceTap,
     required this.onGoodPriceStoreTap,
     required this.onPublicFacilityTap,
+    required this.onParkingLotTap,
     required this.onHousingDealTap,
     required this.onMapReady,
     required this.onViewportChanged,
     required this.selectedGoodPriceStore,
     required this.selectedPublicFacility,
+    required this.selectedParkingLot,
     required this.selectedHousingDeal,
     required this.isSelectedStoreFavorite,
     required this.onFavoritePressed,
@@ -47,8 +53,11 @@ class SavingMapCanvas extends StatefulWidget {
     required this.onGoodPriceStoreCardTap,
     required this.onPublicFacilityDirectionsPressed,
     required this.onPublicFacilityCardTap,
+    required this.onParkingDirectionsPressed,
+    required this.onParkingCardTap,
     required this.onGoodPriceStoreDismissed,
     required this.onPublicFacilityDismissed,
+    required this.onParkingDismissed,
     required this.onHousingDealCardTap,
     required this.onHousingDealDismissed,
   });
@@ -56,16 +65,19 @@ class SavingMapCanvas extends StatefulWidget {
   final List<SavingPlace> places;
   final List<GoodPriceStore> goodPriceStores;
   final List<PublicFacility> publicFacilities;
+  final List<PublicParkingLot> parkingLots;
   final List<HousingRentDeal> housingDeals;
   final DirectionsRoute? directionsRoute;
   final ValueChanged<SavingPlace> onPlaceTap;
   final ValueChanged<GoodPriceStore> onGoodPriceStoreTap;
   final ValueChanged<PublicFacility> onPublicFacilityTap;
+  final ValueChanged<PublicParkingLot> onParkingLotTap;
   final ValueChanged<HousingRentDeal> onHousingDealTap;
   final ValueChanged<NaverMapController> onMapReady;
   final ValueChanged<MapViewport> onViewportChanged;
   final GoodPriceStore? selectedGoodPriceStore;
   final PublicFacility? selectedPublicFacility;
+  final PublicParkingLot? selectedParkingLot;
   final HousingRentDeal? selectedHousingDeal;
   final bool isSelectedStoreFavorite;
   final VoidCallback onFavoritePressed;
@@ -73,8 +85,11 @@ class SavingMapCanvas extends StatefulWidget {
   final VoidCallback onGoodPriceStoreCardTap;
   final VoidCallback onPublicFacilityDirectionsPressed;
   final VoidCallback onPublicFacilityCardTap;
+  final VoidCallback onParkingDirectionsPressed;
+  final VoidCallback onParkingCardTap;
   final VoidCallback onGoodPriceStoreDismissed;
   final VoidCallback onPublicFacilityDismissed;
+  final VoidCallback onParkingDismissed;
   final VoidCallback onHousingDealCardTap;
   final VoidCallback onHousingDealDismissed;
 
@@ -87,9 +102,11 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
   final Map<String, Future<NOverlayImage>> _goodPriceMarkerIcons = {};
   final Map<String, Future<NOverlayImage>> _publicFacilityMarkerIcons = {};
   final Map<String, Future<NOverlayImage>> _housingMarkerIcons = {};
+  Future<NOverlayImage>? _parkingMarkerIcon;
   int _markerSyncId = 0;
   NPoint? _selectedStoreScreenPoint;
   NPoint? _selectedFacilityScreenPoint;
+  NPoint? _selectedParkingScreenPoint;
   NPoint? _selectedHousingScreenPoint;
 
   @override
@@ -98,6 +115,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
     if (oldWidget.places != widget.places ||
         oldWidget.goodPriceStores != widget.goodPriceStores ||
         oldWidget.publicFacilities != widget.publicFacilities ||
+        oldWidget.parkingLots != widget.parkingLots ||
         oldWidget.housingDeals != widget.housingDeals) {
       unawaited(_syncMarkers());
     }
@@ -118,6 +136,13 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
         _selectedFacilityScreenPoint = null;
       } else {
         unawaited(_updateSelectedFacilityScreenPoint());
+      }
+    }
+    if (oldWidget.selectedParkingLot?.id != widget.selectedParkingLot?.id) {
+      if (widget.selectedParkingLot == null) {
+        _selectedParkingScreenPoint = null;
+      } else {
+        unawaited(_updateSelectedParkingScreenPoint());
       }
     }
     if (oldWidget.selectedHousingDeal?.id != widget.selectedHousingDeal?.id) {
@@ -167,6 +192,9 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
         if (widget.selectedPublicFacility != null &&
             _selectedFacilityScreenPoint != null)
           Positioned.fill(child: _buildSelectedFacilityOverlay()),
+        if (widget.selectedParkingLot != null &&
+            _selectedParkingScreenPoint != null)
+          Positioned.fill(child: _buildSelectedParkingOverlay()),
         if (widget.selectedHousingDeal != null &&
             _selectedHousingScreenPoint != null)
           Positioned.fill(child: _buildSelectedHousingOverlay()),
@@ -206,6 +234,59 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
                   facility: facility,
                   onDirectionsPressed: widget.onPublicFacilityDirectionsPressed,
                   onTap: widget.onPublicFacilityCardTap,
+                ),
+              ),
+              Positioned(
+                left: left + pointerLeft,
+                top: top + cardHeight - 6,
+                child: Transform.rotate(
+                  angle: 0.785398,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    color: AppColors.surface,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSelectedParkingOverlay() {
+    final parkingLot = widget.selectedParkingLot!;
+    final point = _selectedParkingScreenPoint!;
+    const cardWidth = 270.0;
+    const cardHeight = 158.0;
+    return IgnorePointer(
+      ignoring: false,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxLeft = (constraints.maxWidth - cardWidth - 8)
+              .clamp(8.0, double.infinity);
+          final left = (point.x - cardWidth / 2).clamp(8.0, maxLeft);
+          final top = (point.y - cardHeight - 62).clamp(
+            8.0,
+            (constraints.maxHeight - cardHeight - 8)
+                .clamp(8.0, double.infinity),
+          );
+          final pointerLeft = (point.x - left - 7).clamp(
+            14.0,
+            cardWidth - 28,
+          );
+          return Stack(
+            children: [
+              Positioned(
+                left: left,
+                top: top,
+                width: cardWidth,
+                height: cardHeight,
+                child: PublicParkingMapCard(
+                  parkingLot: parkingLot,
+                  onDirectionsPressed: widget.onParkingDirectionsPressed,
+                  onTap: widget.onParkingCardTap,
                 ),
               ),
               Positioned(
@@ -361,6 +442,23 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
     setState(() => _selectedFacilityScreenPoint = point);
   }
 
+  Future<void> _updateSelectedParkingScreenPoint() async {
+    final controller = _controller;
+    final parkingLot = widget.selectedParkingLot;
+    if (controller == null || parkingLot == null || !parkingLot.hasCoordinates) {
+      return;
+    }
+    final point = await controller.latLngToScreenLocation(
+      NLatLng(parkingLot.latitude!, parkingLot.longitude!),
+    );
+    if (!mounted ||
+        controller != _controller ||
+        parkingLot.id != widget.selectedParkingLot?.id) {
+      return;
+    }
+    setState(() => _selectedParkingScreenPoint = point);
+  }
+
   Future<void> _updateSelectedHousingScreenPoint() async {
     final controller = _controller;
     final deal = widget.selectedHousingDeal;
@@ -384,6 +482,9 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
     }
     if (widget.selectedPublicFacility != null) {
       widget.onPublicFacilityDismissed();
+    }
+    if (widget.selectedParkingLot != null) {
+      widget.onParkingDismissed();
     }
     if (widget.selectedHousingDeal != null) {
       widget.onHousingDealDismissed();
@@ -458,6 +559,25 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
       );
       marker.setOnTapListener((_) {
         widget.onPublicFacilityTap(facility);
+      });
+      markers.add(marker);
+    }
+    for (final parkingLot in widget.parkingLots.where(
+      (parkingLot) => parkingLot.hasCoordinates,
+    )) {
+      final icon = await _getParkingMarkerIcon();
+      if (!mounted || syncId != _markerSyncId || controller != _controller) {
+        return;
+      }
+      final marker = NMarker(
+        id: 'public-parking-${parkingLot.id}',
+        position: NLatLng(parkingLot.latitude!, parkingLot.longitude!),
+        icon: icon,
+        size: const Size(44, 52),
+        caption: NOverlayCaption(text: parkingLot.name),
+      );
+      marker.setOnTapListener((_) {
+        widget.onParkingLotTap(parkingLot);
       });
       markers.add(marker);
     }
@@ -561,5 +681,13 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
         context: context,
       );
     });
+  }
+
+  Future<NOverlayImage> _getParkingMarkerIcon() {
+    return _parkingMarkerIcon ??= NOverlayImage.fromWidget(
+      widget: const PublicParkingMarkerIcon(),
+      size: const Size(44, 52),
+      context: context,
+    );
   }
 }

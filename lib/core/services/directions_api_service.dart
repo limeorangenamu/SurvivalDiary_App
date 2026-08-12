@@ -5,6 +5,15 @@ import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 
+enum DirectionsMode {
+  walking('WALKING'),
+  driving('DRIVING');
+
+  const DirectionsMode(this.apiValue);
+
+  final String apiValue;
+}
+
 class DirectionsCoordinate {
   const DirectionsCoordinate({
     required this.latitude,
@@ -88,6 +97,7 @@ class DirectionsApiService {
     required double startLongitude,
     required double goalLatitude,
     required double goalLongitude,
+    DirectionsMode mode = DirectionsMode.walking,
   }) async {
     final uri = Uri.parse('$_baseUrl/api/map/directions').replace(
       queryParameters: {
@@ -95,6 +105,7 @@ class DirectionsApiService {
         'startLongitude': startLongitude.toString(),
         'goalLatitude': goalLatitude.toString(),
         'goalLongitude': goalLongitude.toString(),
+        'mode': mode.apiValue,
       },
     );
 
