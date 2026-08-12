@@ -421,8 +421,6 @@ class _PolicyListPageState extends State<PolicyListPage> {
           children: [
             _BriefingHeader(
               condition: widget.condition,
-              recommendedCount: recommended.length,
-              loading: _loading,
               searchController: _searchController,
               keyword: _keyword,
               category: _category,
@@ -451,8 +449,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
             else if (_keyword.isNotEmpty)
               _PolicySection(
                 key: const ValueKey('policy-search-results'),
-                title: '“$_keyword” 검색 결과',
-                subtitle: '${_policies.length}개의 정책을 찾았어요.',
+                title: '“$_keyword” 검색 결과 ${_policies.length}개',
                 sort: _sort,
                 onSortChanged: (value) => setState(() => _sort = value),
                 policies: _sorted(_policies),
@@ -479,8 +476,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
               if (checkRequired.isNotEmpty)
                 _PolicySection(
                   key: const ValueKey('policy-check-section'),
-                  title: '조건을 확인해 볼 정책',
-                  subtitle: '관련성은 있지만 신청 전에 확인할 내용이 있어요.',
+                  title: '확인할 정책',
                   sort: recommended.isEmpty ? _sort : null,
                   onSortChanged: recommended.isEmpty
                       ? (value) => setState(() => _sort = value)
@@ -499,8 +495,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
               if (discover.isNotEmpty)
                 _PolicySection(
                   key: const ValueKey('policy-discover-section'),
-                  title: '더 둘러볼 정책',
-                  subtitle: '추천 조건과 관계없이 함께 확인할 수 있어요.',
+                  title: '다른 정책',
                   sort: recommended.isEmpty && checkRequired.isEmpty
                       ? _sort
                       : null,
@@ -545,8 +540,6 @@ class _PolicyListPageState extends State<PolicyListPage> {
 class _BriefingHeader extends StatelessWidget {
   const _BriefingHeader({
     required this.condition,
-    required this.recommendedCount,
-    required this.loading,
     required this.searchController,
     required this.keyword,
     required this.category,
@@ -557,8 +550,6 @@ class _BriefingHeader extends StatelessWidget {
   });
 
   final PolicyFilterCondition condition;
-  final int recommendedCount;
-  final bool loading;
   final TextEditingController searchController;
   final String keyword;
   final PolicyCategory? category;
@@ -583,15 +574,6 @@ class _BriefingHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          loading
-              ? '나에게 맞는 정책을 찾고 있어요'
-              : recommendedCount > 0
-                  ? '놓치면 아쉬운 정책이 $recommendedCount개 있어요'
-                  : '오늘 확인할 정책을 모았어요',
-          style: AppTextStyles.title,
-        ),
-        const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -624,7 +606,7 @@ class _BriefingHeader extends StatelessWidget {
           maxLength: 50,
           onSubmitted: (_) => onSearch(),
           decoration: InputDecoration(
-            hintText: '정책 이름을 검색해 보세요',
+            hintText: '정책 검색',
             counterText: '',
             prefixIcon: const Icon(Icons.search_rounded),
             suffixIcon: keyword.isNotEmpty
@@ -722,7 +704,6 @@ class _RecommendedSection extends StatelessWidget {
       children: [
         _PolicySectionHeading(
           title: '내게 잘 맞는 정책',
-          subtitle: '저장한 상황과 신청 조건이 잘 맞는 순서예요.',
           sort: sort,
           onSortChanged: onSortChanged,
         ),
@@ -751,7 +732,6 @@ class _PolicySection extends StatelessWidget {
   const _PolicySection({
     super.key,
     required this.title,
-    required this.subtitle,
     this.sort,
     this.onSortChanged,
     required this.policies,
@@ -759,7 +739,6 @@ class _PolicySection extends StatelessWidget {
   });
 
   final String title;
-  final String subtitle;
   final _PolicySort? sort;
   final ValueChanged<_PolicySort>? onSortChanged;
   final List<PolicySummary> policies;
@@ -772,7 +751,6 @@ class _PolicySection extends StatelessWidget {
       children: [
         _PolicySectionHeading(
           title: title,
-          subtitle: subtitle,
           sort: sort,
           onSortChanged: onSortChanged,
         ),
@@ -789,13 +767,11 @@ class _PolicySection extends StatelessWidget {
 class _PolicySectionHeading extends StatelessWidget {
   const _PolicySectionHeading({
     required this.title,
-    required this.subtitle,
     this.sort,
     this.onSortChanged,
   });
 
   final String title;
-  final String subtitle;
   final _PolicySort? sort;
   final ValueChanged<_PolicySort>? onSortChanged;
 
@@ -820,13 +796,6 @@ class _PolicySectionHeading extends StatelessWidget {
               _PolicySortMenu(sort: sort!, onChanged: onSortChanged!),
             ],
           ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: AppTextStyles.caption,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
         ),
       ],
     );
@@ -1284,13 +1253,7 @@ class _PolicyLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 52),
-      child: Column(
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('저장한 조건으로 정책을 정리하고 있어요.', style: AppTextStyles.bodyMuted),
-        ],
-      ),
+      child: Center(child: CircularProgressIndicator()),
     );
   }
 }

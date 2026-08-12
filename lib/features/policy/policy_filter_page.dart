@@ -460,11 +460,6 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
           const _StepLabel(step: 1),
           const SizedBox(height: 10),
           const Text('어디에 살고 있나요?', style: AppTextStyles.title),
-          const SizedBox(height: 8),
-          const Text(
-            '나이와 거주 지역만 있으면 추천을 시작할 수 있어요.',
-            style: AppTextStyles.bodyMuted,
-          ),
           if (_loadMessage != null) ...[
             const SizedBox(height: 16),
             AppCard(
@@ -481,10 +476,9 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
             readOnly: _profileAge != null,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: '나이',
               suffixText: '세',
-              helperText: _profileAge == null ? null : '회원정보에서 자동으로 적용했어요.',
             ),
             validator: (value) {
               final age = int.tryParse(value ?? '');
@@ -531,11 +525,6 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
         const _StepLabel(step: 2),
         const SizedBox(height: 10),
         const Text('지금 어떤 상황에 가까운가요?', style: AppTextStyles.title),
-        const SizedBox(height: 8),
-        const Text(
-          '여러 개를 선택할 수 있고, 잘 모르겠다면 건너뛰어도 괜찮아요.',
-          style: AppTextStyles.bodyMuted,
-        ),
         const SizedBox(height: 28),
         LayoutBuilder(
           key: const ValueKey('policy-situation-options'),
@@ -599,31 +588,6 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
           enabled: _educationLevel != null,
           onTap: _pickEnrollmentStatus,
         ),
-        const SizedBox(height: 10),
-        const Text(
-          '2·3년제와 4년제는 온통청년에서 같은 대학 학력 범위로 조회돼요.',
-          style: AppTextStyles.captionTiny,
-        ),
-        const SizedBox(height: 22),
-        const AppCard(
-          color: AppColors.primarySoft,
-          borderColor: AppColors.primarySoft,
-          padding: EdgeInsets.all(14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.lightbulb_outline_rounded,
-                  color: AppColors.primaryDeep),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '교육 조건이 명확히 다른 정책은 제외하고, 애매한 조건은 확인이 필요한 정책으로 보여드려요.',
-                  style: AppTextStyles.caption,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -644,12 +608,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
       children: [
         const _StepLabel(step: 3),
         const SizedBox(height: 10),
-        const Text('추천 준비가 끝났어요', style: AppTextStyles.title),
-        const SizedBox(height: 8),
-        const Text(
-          '아래 조건으로 놓치기 쉬운 정책부터 찾아드릴게요.',
-          style: AppTextStyles.bodyMuted,
-        ),
+        const Text('조건 확인', style: AppTextStyles.title),
         const SizedBox(height: 26),
         AppCard(
           color: AppColors.primarySoft,
@@ -658,12 +617,6 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.auto_awesome_rounded,
-                color: AppColors.primaryDeep,
-                size: 30,
-              ),
-              const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -675,11 +628,6 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
                       side: BorderSide.none,
                     ),
                 ],
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                '이 조건은 로그인한 계정에 자동으로 저장돼요.',
-                style: AppTextStyles.caption,
               ),
             ],
           ),
