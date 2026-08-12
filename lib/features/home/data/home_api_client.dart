@@ -72,6 +72,55 @@ class HomeApiClient {
     }
   }
 
+  Future<List<HomeNews>> getRecommendedNews({
+    required String accessToken,
+    int size = 20,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/api/news/recommendations').replace(
+      queryParameters: {
+        'size': size.toString(),
+        '_t': DateTime.now().millisecondsSinceEpoch.toString(),
+      },
+    );
+
+    late final http.Response response;
+    try {
+      response = await _client.get(
+        uri,
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+          'Cache-Control': 'no-cache',
+        },
+      ).timeout(const Duration(seconds: 30));
+    } on http.ClientException catch (error) {
+      throw HomeApiException('맞춤 뉴스를 불러오지 못했어요.\n${error.message}');
+    } on TimeoutException {
+      throw const HomeApiException(
+        '맞춤 뉴스 응답이 지연되고 있어요. 잠시 후 다시 시도해 주세요.',
+      );
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw HomeApiException(
+        _errorMessage(response, fallback: '맞춤 뉴스를 불러오지 못했어요.'),
+      );
+    }
+
+    try {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      final data = body is Map<String, dynamic> ? body['data'] : null;
+      if (data is! List) throw const FormatException();
+      return data
+          .map((item) => HomeNews.fromJson(item as Map<String, dynamic>))
+          .toList(growable: false);
+    } on FormatException {
+      throw const HomeApiException('맞춤 뉴스 응답 형식을 확인할 수 없어요.');
+    } on TypeError {
+      throw const HomeApiException('맞춤 뉴스 응답 형식을 확인할 수 없어요.');
+    }
+  }
+
   int _int(Object? value) => (value as num?)?.toInt() ?? 0;
 
   ExpenseCategory? _category(Object? value) => switch ((value as num?)?.toInt()) {
@@ -83,7 +132,10 @@ class HomeApiClient {
         _ => null,
       };
 
-  String _errorMessage(http.Response response) {
+  String _errorMessage(
+    http.Response response, {
+    String fallback = '메인 데이터를 불러오지 못했어요.',
+  }) {
     try {
       final body = jsonDecode(utf8.decode(response.bodyBytes));
       if (body is Map<String, dynamic>) {
@@ -98,6 +150,6 @@ class HomeApiClient {
     if (response.statusCode == 401 || response.statusCode == 403) {
       return '로그인 세션이 만료됐어요. 다시 로그인해 주세요.';
     }
-    return '메인 데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.';
+    return '$fallback 잠시 후 다시 시도해 주세요.';
   }
 }

@@ -202,41 +202,6 @@ class MockData {
     ),
   ];
 
-  static const homeNews = [
-    HomeNews(
-      id: 'news-1',
-      category: '생활경제',
-      title: '소비자물가 2개월 연속 상승…석유류·외식비 부담 커져',
-      source: '생존뉴스',
-      timeAgo: '2시간 전',
-      icon: Icons.shopping_cart_outlined,
-    ),
-    HomeNews(
-      id: 'news-2',
-      category: '금융',
-      title: '기준금리 연 3.50% 동결…생활비 부담은 계속',
-      source: '금융저널',
-      timeAgo: '4시간 전',
-      icon: Icons.account_balance_rounded,
-    ),
-    HomeNews(
-      id: 'news-3',
-      category: '절약',
-      title: '주 3회 도시락 챙기면 한 달 식비 얼마나 줄까',
-      source: '살림리포트',
-      timeAgo: '6시간 전',
-      icon: Icons.lunch_dining_outlined,
-    ),
-    HomeNews(
-      id: 'news-4',
-      category: '트렌드',
-      title: '똑똑한 절약부터 보험 추천까지, AI 핀테크 확산',
-      source: '테크이코노미',
-      timeAgo: '8시간 전',
-      icon: Icons.smart_toy_outlined,
-    ),
-  ];
-
   static const regions = {
     '서울특별시': {
       '강남구': ['역삼동', '논현동', '삼성동'],

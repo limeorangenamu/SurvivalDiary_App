@@ -414,15 +414,50 @@ class HomeNews {
     required this.id,
     required this.category,
     required this.title,
+    required this.summary,
     required this.source,
-    required this.timeAgo,
-    required this.icon,
+    required this.sourceUrl,
+    required this.publishedAt,
+    required this.recommendationReason,
   });
 
-  final String id;
+  factory HomeNews.fromJson(Map<String, dynamic> json) {
+    return HomeNews(
+      id: (json['newsId'] as num).toInt(),
+      category: json['category'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      summary: json['summary'] as String? ?? '',
+      source: json['source'] as String? ?? '',
+      sourceUrl: json['sourceUrl'] as String? ?? '',
+      publishedAt: DateTime.parse(json['publishedAt'] as String),
+      recommendationReason: json['recommendationReason'] as String? ?? '',
+    );
+  }
+
+  final int id;
   final String category;
   final String title;
+  final String summary;
   final String source;
-  final String timeAgo;
-  final IconData icon;
+  final String sourceUrl;
+  final DateTime publishedAt;
+  final String recommendationReason;
+
+  IconData get icon => switch (category) {
+        '생활경제' => Icons.shopping_bag_outlined,
+        '금융' => Icons.account_balance_outlined,
+        '절약' => Icons.lightbulb_outline_rounded,
+        '정책' => Icons.newspaper_outlined,
+        '트렌드' => Icons.auto_awesome_rounded,
+        _ => Icons.article_outlined,
+      };
+
+  String get timeAgo {
+    final difference = DateTime.now().difference(publishedAt);
+    if (difference.isNegative || difference.inMinutes < 1) return '방금 전';
+    if (difference.inHours < 1) return '${difference.inMinutes}분 전';
+    if (difference.inDays < 1) return '${difference.inHours}시간 전';
+    if (difference.inDays < 7) return '${difference.inDays}일 전';
+    return '${publishedAt.month}월 ${publishedAt.day}일';
+  }
 }

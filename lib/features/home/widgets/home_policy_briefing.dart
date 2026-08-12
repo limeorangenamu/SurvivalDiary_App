@@ -36,7 +36,8 @@ class HomePolicyBriefing extends StatefulWidget {
   State<HomePolicyBriefing> createState() => _HomePolicyBriefingState();
 }
 
-class _HomePolicyBriefingState extends State<HomePolicyBriefing> {
+class _HomePolicyBriefingState extends State<HomePolicyBriefing>
+    with AutomaticKeepAliveClientMixin<HomePolicyBriefing> {
   late final PolicyApiClient _defaultApiClient;
   int _requestGeneration = 0;
   List<PolicySummary> _policies = const [];
@@ -53,6 +54,9 @@ class _HomePolicyBriefingState extends State<HomePolicyBriefing> {
     final value = (widget.nowProvider ?? DateTime.now)();
     return DateTime(value.year, value.month, value.day);
   }
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -215,6 +219,7 @@ class _HomePolicyBriefingState extends State<HomePolicyBriefing> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

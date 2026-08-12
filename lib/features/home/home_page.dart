@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/formatters.dart';
-import '../../data/mock_data.dart';
 import '../../data/models.dart';
 import '../auth/auth_session.dart';
 import '../diary/notification_detection/notification_expense_repository.dart';
@@ -15,6 +15,10 @@ import 'widgets/home_policy_briefing.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/pig_mascot.dart';
 import '../../shared/widgets/section_header.dart';
+
+const _newsPerPage = 4;
+const _newsPreviewSize = 20;
+const _newsPageGap = 12.0;
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -30,18 +34,28 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   final _detectedExpenseRepository = NotificationExpenseRepository.instance;
+  final _homeApiClient = HomeApiClient();
   BudgetSummary? _budget;
   String? _errorMessage;
+  List<HomeNews> _news = const [];
+  String? _newsErrorMessage;
+  bool _isNewsLoading = true;
+  int _newsPageIndex = 0;
+  late final AnimationController _newsDragController;
+  double _newsViewportWidth = 0;
   int _policyRefreshVersion = 0;
 
   @override
   void initState() {
     super.initState();
+    _newsDragController = AnimationController.unbounded(vsync: this);
     _detectedExpenseRepository.addListener(_handleDetectedExpensesChanged);
     unawaited(_detectedExpenseRepository.start());
     _loadSummary();
+    _loadNews();
   }
 
   @override
@@ -58,6 +72,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _newsDragController.dispose();
     _detectedExpenseRepository.removeListener(_handleDetectedExpensesChanged);
     super.dispose();
   }
@@ -73,7 +88,7 @@ class _HomePageState extends State<HomePage> {
     if (token == null) return;
 
     try {
-      final summary = await HomeApiClient().getSummary(accessToken: token);
+      final summary = await _homeApiClient.getSummary(accessToken: token);
       if (!mounted) return;
       setState(() {
         _budget = summary;
@@ -85,14 +100,156 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _loadNews() async {
+    final token = AuthSession.instance.accessToken;
+    if (token == null) return;
+
+    if (mounted) {
+      setState(() {
+        _isNewsLoading = true;
+        _newsErrorMessage = null;
+      });
+    }
+
+    try {
+      final news = await _homeApiClient.getRecommendedNews(
+        accessToken: token,
+        size: _newsPreviewSize,
+      );
+      if (!mounted) return;
+      setState(() {
+        _news = news;
+        _newsPageIndex = 0;
+        _isNewsLoading = false;
+      });
+    } on HomeApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _newsErrorMessage = error.message;
+        _isNewsLoading = false;
+      });
+    }
+  }
+
   Future<void> _refreshHome({bool refreshPolicies = true}) async {
     if (mounted && refreshPolicies) {
       setState(() => _policyRefreshVersion++);
     }
     await Future.wait([
       _loadSummary(),
+      _loadNews(),
       _detectedExpenseRepository.refresh(),
     ]);
+  }
+
+  Future<void> _openNews(HomeNews news) async {
+    final uri = Uri.tryParse(news.sourceUrl);
+    if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+      _showNewsLinkError();
+      return;
+    }
+
+    try {
+      final opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) _showNewsLinkError();
+    } on Exception {
+      if (mounted) _showNewsLinkError();
+    }
+  }
+
+  void _showNewsLinkError() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('뉴스 링크를 열 수 없어요. 잠시 후 다시 시도해 주세요.')),
+    );
+  }
+
+  void _changeNewsPage(int direction, int pageCount) {
+    final nextPage = _newsPageIndex + direction;
+    if (nextPage < 0 || nextPage >= pageCount) return;
+    unawaited(_settleNewsPage(direction, pageCount));
+  }
+
+  void _startNewsDrag(DragStartDetails _) {
+    if (_newsDragController.isAnimating) return;
+    _newsDragController.value = 0;
+  }
+
+  void _updateNewsDrag(DragUpdateDetails details, int pageCount) {
+    if (_newsDragController.isAnimating) return;
+
+    final delta = details.primaryDelta ?? 0;
+    final nextOffset = _newsDragController.value + delta;
+    final isDraggingPastFirst = nextOffset > 0 && _newsPageIndex == 0;
+    final isDraggingPastLast =
+        nextOffset < 0 && _newsPageIndex == pageCount - 1;
+
+    _newsDragController.value =
+        isDraggingPastFirst || isDraggingPastLast
+            ? _newsDragController.value + (delta * 0.28)
+            : nextOffset;
+  }
+
+  void _finishNewsDrag(DragEndDetails details, int pageCount) {
+    final velocity = details.primaryVelocity ?? 0;
+    final dragOffset = _newsDragController.value;
+    final distanceThreshold = _newsViewportWidth * 0.16;
+    final hasEnoughDistance = dragOffset.abs() >= distanceThreshold;
+    final hasEnoughVelocity = velocity.abs() >= 350;
+    if (!hasEnoughDistance && !hasEnoughVelocity) {
+      unawaited(_resetNewsDrag());
+      return;
+    }
+
+    final direction = hasEnoughVelocity
+        ? (velocity < 0 ? 1 : -1)
+        : (dragOffset < 0 ? 1 : -1);
+    final nextPage = _newsPageIndex + direction;
+    if (nextPage < 0 || nextPage >= pageCount) {
+      unawaited(_resetNewsDrag());
+      return;
+    }
+
+    unawaited(_settleNewsPage(direction, pageCount));
+  }
+
+  Future<void> _settleNewsPage(int direction, int pageCount) async {
+    if (_newsDragController.isAnimating || _newsViewportWidth <= 0) return;
+
+    final nextPage = _newsPageIndex + direction;
+    if (nextPage < 0 || nextPage >= pageCount) {
+      await _resetNewsDrag();
+      return;
+    }
+
+    final pageExtent = _newsViewportWidth + _newsPageGap;
+    final targetOffset = -direction * pageExtent;
+    final remainingRatio =
+        ((targetOffset - _newsDragController.value).abs() / pageExtent)
+            .clamp(0.0, 1.0);
+    await _newsDragController.animateTo(
+      targetOffset,
+      duration: Duration(milliseconds: 160 + (100 * remainingRatio).round()),
+      curve: Curves.easeOutCubic,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _newsPageIndex = nextPage;
+      _newsDragController.value = 0;
+    });
+  }
+
+  Future<void> _resetNewsDrag() async {
+    if (_newsDragController.value == 0) return;
+    await _newsDragController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   Future<void> _openBudgetSetting() async {
@@ -131,6 +288,7 @@ class _HomePageState extends State<HomePage> {
         BudgetSummary.empty(
           userName: AuthSession.instance.currentUser?.displayName ?? '',
         );
+    final newsPages = _paginateNews(_news);
     return SafeArea(
       bottom: false,
       child: RefreshIndicator(
@@ -335,19 +493,78 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  SectionHeader(
-                    title: '맞춤 뉴스',
-                    actionLabel: '더보기',
-                    onAction: () {},
+                  _NewsSectionHeader(
+                    currentPage: _newsPageIndex,
+                    pageCount: newsPages.length,
+                    onPrevious: () => _changeNewsPage(-1, newsPages.length),
+                    onNext: () => _changeNewsPage(1, newsPages.length),
                   ),
                   const SizedBox(height: 8),
-                  for (var index = 0;
-                      index < MockData.homeNews.length;
-                      index++) ...[
-                    _NewsListItem(news: MockData.homeNews[index]),
-                    if (index != MockData.homeNews.length - 1)
-                      const Divider(height: 14),
-                  ],
+                  if (_isNewsLoading)
+                    const _NewsStateCard.loading()
+                  else if (_newsErrorMessage != null)
+                    _NewsStateCard.error(
+                      message: _newsErrorMessage!,
+                      onRetry: _loadNews,
+                    )
+                  else if (_news.isEmpty)
+                    const _NewsStateCard.empty()
+                  else
+                    GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onHorizontalDragStart: _startNewsDrag,
+                      onHorizontalDragUpdate: (details) =>
+                          _updateNewsDrag(details, newsPages.length),
+                      onHorizontalDragEnd: (details) =>
+                          _finishNewsDrag(details, newsPages.length),
+                      onHorizontalDragCancel: () => unawaited(_resetNewsDrag()),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final pageWidth = constraints.maxWidth;
+                          _newsViewportWidth = pageWidth;
+
+                          return ClipRect(
+                            child: AnimatedBuilder(
+                              animation: _newsDragController,
+                              builder: (context, _) {
+                                final dragOffset = _newsDragController.value;
+                                final neighborDirection = dragOffset < 0 ? 1 : -1;
+                                final neighborIndex =
+                                    _newsPageIndex + neighborDirection;
+                                final hasNeighbor = neighborIndex >= 0 &&
+                                    neighborIndex < newsPages.length;
+
+                                return Stack(
+                                  alignment: Alignment.topLeft,
+                                  children: [
+                                    Transform.translate(
+                                      offset: Offset(dragOffset, 0),
+                                      child: _NewsPage(
+                                        news: newsPages[_newsPageIndex],
+                                        onOpenNews: _openNews,
+                                      ),
+                                    ),
+                                    if (hasNeighbor && dragOffset != 0)
+                                      Transform.translate(
+                                        offset: Offset(
+                                          dragOffset +
+                                              (neighborDirection *
+                                                  (pageWidth + _newsPageGap)),
+                                          0,
+                                        ),
+                                        child: _NewsPage(
+                                          news: newsPages[neighborIndex],
+                                          onOpenNews: _openNews,
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -358,71 +575,270 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _NewsListItem extends StatelessWidget {
-  const _NewsListItem({required this.news});
+class _NewsSectionHeader extends StatelessWidget {
+  const _NewsSectionHeader({
+    required this.currentPage,
+    required this.pageCount,
+    required this.onPrevious,
+    required this.onNext,
+  });
 
-  final HomeNews news;
-
-  Color get _accentColor => switch (news.category) {
-        '생활경제' => AppColors.categoryTransport,
-        '금융' => AppColors.info,
-        '절약' => AppColors.primary,
-        _ => AppColors.primaryDeep,
-      };
+  final int currentPage;
+  final int pageCount;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = _accentColor;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Container(
-          width: 76,
-          height: 54,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                accentColor.withValues(alpha: 0.18),
-                accentColor.withValues(alpha: 0.06),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(news.icon, color: accentColor, size: 28),
-        ),
-        const SizedBox(width: 11),
-        Expanded(
+        const Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text('맞춤 뉴스', style: AppTextStyles.sectionTitle),
+              SizedBox(height: 3),
               Text(
-                news.title,
-                style: AppTextStyles.body.copyWith(
-                  fontWeight: FontWeight.w700,
-                  height: 1.35,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${news.category} · ${news.source} · ${news.timeAgo}',
-                style: AppTextStyles.captionTiny,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                '청년의 지갑에 도움 되는 기사를 모았어요.',
+                style: AppTextStyles.caption,
               ),
             ],
           ),
         ),
-        const SizedBox(width: 6),
-        const Icon(
-          Icons.chevron_right_rounded,
-          size: 20,
-          color: AppColors.textTertiary,
-        ),
+        if (pageCount > 1) ...[
+          _NewsPageButton(
+            tooltip: '이전 뉴스 페이지',
+            icon: Icons.chevron_left_rounded,
+            enabled: currentPage > 0,
+            onPressed: onPrevious,
+          ),
+          SizedBox(
+            width: 42,
+            child: Text(
+              '${currentPage + 1} / $pageCount',
+              style: AppTextStyles.captionTiny.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          _NewsPageButton(
+            tooltip: '다음 뉴스 페이지',
+            icon: Icons.chevron_right_rounded,
+            enabled: currentPage < pageCount - 1,
+            onPressed: onNext,
+          ),
+        ] else
+          const Icon(
+            Icons.newspaper_outlined,
+            color: AppColors.primary,
+          ),
       ],
+    );
+  }
+}
+
+class _NewsPageButton extends StatelessWidget {
+  const _NewsPageButton({
+    required this.tooltip,
+    required this.icon,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton.outlined(
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      onPressed: enabled ? onPressed : null,
+      icon: Icon(icon, size: 20),
+    );
+  }
+}
+
+class _NewsPage extends StatelessWidget {
+  const _NewsPage({
+    super.key,
+    required this.news,
+    required this.onOpenNews,
+  });
+
+  final List<HomeNews> news;
+  final Future<void> Function(HomeNews news) onOpenNews;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var index = 0; index < news.length; index++) ...[
+          _NewsListItem(
+            news: news[index],
+            onTap: () => unawaited(onOpenNews(news[index])),
+          ),
+          if (index != news.length - 1) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _NewsListItem extends StatelessWidget {
+  const _NewsListItem({required this.news, required this.onTap});
+
+  final HomeNews news;
+  final VoidCallback onTap;
+
+  Color get _iconColor => switch (news.category) {
+        '금융' => AppColors.newsInfo,
+        '절약' => AppColors.newsSaving,
+        '정책' || '트렌드' => AppColors.newsPurple,
+        _ => AppColors.newsPrimary,
+      };
+
+  Color get _iconBackgroundColor => switch (news.category) {
+        '금융' => AppColors.newsInfoSoft,
+        '절약' => AppColors.newsSavingSoft,
+        '정책' || '트렌드' => AppColors.newsPurpleSoft,
+        _ => AppColors.newsPrimarySoft,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor = _iconColor;
+    final iconBackgroundColor = _iconBackgroundColor;
+    return AppCard(
+      onTap: onTap,
+      radius: 14,
+      padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: iconBackgroundColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(news.icon, color: iconColor, size: 21),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 1),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    news.category.trim().isEmpty ? '생활경제' : news.category,
+                    style: AppTextStyles.captionTiny.copyWith(
+                      color: iconColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    news.title,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (news.summary.trim().isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      news.summary,
+                      style: AppTextStyles.caption,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    '${news.source} · ${news.timeAgo}',
+                    style: AppTextStyles.captionTiny,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 21,
+            color: AppColors.textTertiary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<List<HomeNews>> _paginateNews(List<HomeNews> news) {
+  return List.generate(
+    (news.length / _newsPerPage).ceil(),
+    (pageIndex) {
+      final start = pageIndex * _newsPerPage;
+      final requestedEnd = start + _newsPerPage;
+      final end = requestedEnd < news.length ? requestedEnd : news.length;
+      return news.sublist(start, end);
+    },
+    growable: false,
+  );
+}
+
+class _NewsStateCard extends StatelessWidget {
+  const _NewsStateCard.loading()
+      : message = '관심사에 맞는 뉴스를 고르고 있어요.',
+        icon = Icons.hourglass_top_rounded,
+        onRetry = null;
+
+  const _NewsStateCard.empty()
+      : message = '지금 보여드릴 맞춤 뉴스가 없어요.',
+        icon = Icons.article_outlined,
+        onRetry = null;
+
+  const _NewsStateCard.error({required this.message, required this.onRetry})
+      : icon = Icons.error_outline_rounded;
+
+  final String message;
+  final IconData icon;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.textTertiary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.bodyMuted,
+            ),
+          ),
+          if (onRetry != null)
+            IconButton(
+              tooltip: '다시 시도',
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+        ],
+      ),
     );
   }
 }
