@@ -225,7 +225,6 @@ class _HomePolicyBriefingState extends State<HomePolicyBriefing>
       children: [
         SectionHeader(
           title: '놓치면 아쉬운 정책',
-          subtitle: '저장한 조건과 신청 마감일을 함께 살폈어요.',
           actionLabel: '전체 보기',
           onAction: widget.onOpenPolicies,
         ),

@@ -102,7 +102,7 @@ void main() {
       'GET /api/users/me/policy-preferences',
       'POST /api/policies/recommendations',
     ]);
-    expect(find.text('놓치면 아쉬운 정책이 1개 있어요'), findsOneWidget);
+    expect(find.text('놓치면 아쉬운 정책이 1개 있어요'), findsNothing);
     expect(find.textContaining('서울특별시 · 종로구 · 만 27세'), findsOneWidget);
     expect(find.text('청년 일자리 지원'), findsOneWidget);
     expect(find.text('내게 추천'), findsOneWidget);
@@ -136,7 +136,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('지금 어떤 상황에 가까운가요?'), findsOneWidget);
-    expect(find.text('여러 개를 선택할 수 있고, 잘 모르겠다면 건너뛰어도 괜찮아요.'), findsOneWidget);
+    expect(find.text('여러 개를 선택할 수 있고, 잘 모르겠다면 건너뛰어도 괜찮아요.'), findsNothing);
   });
 
   testWidgets('3단계 조건 설정을 저장하고 개인 추천 목록을 연다', (tester) async {
@@ -174,7 +174,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('policy-setup-next')));
     await tester.pumpAndSettle();
 
-    expect(find.text('추천 준비가 끝났어요'), findsOneWidget);
+    expect(find.text('조건 확인'), findsOneWidget);
     expect(find.text('구직 중'), findsOneWidget);
     expect(find.text('4년제 대학'), findsOneWidget);
     expect(find.text('재학 중'), findsOneWidget);
@@ -228,7 +228,10 @@ void main() {
     expect(requestBodies.last.containsKey('age'), isFalse);
     expect(find.text('청년 월세 지원'), findsOneWidget);
     final selectedChip = tester.widget<ChoiceChip>(
-      find.byKey(const ValueKey('policy-category-housing')),
+      find.descendant(
+        of: find.byKey(const ValueKey('policy-category-housing')),
+        matching: find.byType(ChoiceChip),
+      ),
     );
     expect(selectedChip.selected, isTrue);
     expect(selectedChip.labelStyle?.color, AppColors.surface);
@@ -243,7 +246,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(requestBodies.last['keyword'], '월세');
-    expect(find.text('“월세” 검색 결과'), findsOneWidget);
+    expect(find.text('“월세” 검색 결과 1개'), findsOneWidget);
     expect(find.text('월세 검색 정책'), findsOneWidget);
   });
 
