@@ -186,7 +186,7 @@ void main() {
         findsNothing);
     return;
 
-    expect(find.text('안녕하세요, 생존러님! 👋'), findsOneWidget);
+    expect(find.text('안녕하세요, 생존자님! 👋'), findsOneWidget);
   });
 
   testWidgets('앱 실행 시 홈 인사말과 하단 5개 탭이 나타난다', (tester) async {
@@ -194,7 +194,7 @@ void main() {
         .pumpWidget(const SurvivalDiaryApp(initialRoute: AppRoutes.root));
     await tester.pumpAndSettle();
 
-    expect(find.text('안녕하세요, 생존러님! 👋'), findsOneWidget);
+    expect(find.text('안녕하세요, 생존자님! 👋'), findsOneWidget);
     for (final label in ['홈', '일기', '정책', '지도', '커뮤니티']) {
       expect(find.text(label), findsOneWidget);
     }
