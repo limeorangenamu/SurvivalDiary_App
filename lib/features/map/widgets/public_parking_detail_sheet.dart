@@ -105,7 +105,7 @@ class PublicParkingDetailSheet extends StatelessWidget {
             ),
             _optionalRow(
               icon: Icons.date_range_outlined,
-              label: '월 정기',
+              label: '월 정기권',
               value: _amount(parkingLot.monthlyFee),
             ),
             _optionalRow(
@@ -177,7 +177,7 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, color: AppColors.pinParking),
           const SizedBox(width: 12),

@@ -105,7 +105,11 @@ class PublicParkingLot {
     final fee = basicFee;
     final minutes = basicMinutes;
     if (fee == null || fee <= 0 || minutes == null || minutes <= 0) {
-      return '요금 정보 없음';
+      final monthly = monthlyFee;
+      if (monthly != null && monthly > 0) {
+        return '월 ${Formatters.amount(monthly)}';
+      }
+      return '일반 주차요금 정보 없음';
     }
     return '$minutes분 ${Formatters.amount(fee)}';
   }

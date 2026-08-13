@@ -161,7 +161,7 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, color: AppColors.primary),
           const SizedBox(width: 12),
