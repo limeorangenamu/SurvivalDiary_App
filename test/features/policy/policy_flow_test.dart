@@ -117,6 +117,35 @@ void main() {
     );
   });
 
+  testWidgets('일시적인 정책 제공처 오류는 화면 전환 없이 자동 재시도한다', (tester) async {
+    var recommendationRequests = 0;
+    final retryClient = PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        if (request.method == 'GET' &&
+            request.url.path == '/api/users/me/policy-preferences') {
+          return _successResponse(_savedPreferenceJson());
+        }
+        if (request.method == 'POST' &&
+            request.url.path == '/api/policies/recommendations') {
+          recommendationRequests++;
+          if (recommendationRequests == 1) {
+            return _policyProviderUnavailableResponse();
+          }
+          return _recommendationResponse();
+        }
+        return http.Response('{}', 404);
+      }),
+    );
+
+    await tester.pumpWidget(policyApp(filterPage(client: retryClient)));
+    await tester.pumpAndSettle();
+
+    expect(recommendationRequests, 2);
+    expect(find.text('정책 목록을 불러오지 못했어요'), findsNothing);
+    expect(find.text('청년 일자리 지원'), findsOneWidget);
+  });
+
   testWidgets('최초 설정은 지역 누락을 안내하고 한 단계씩 이동한다', (tester) async {
     await tester.pumpWidget(policyApp(filterPage()));
     await tester.pumpAndSettle();
@@ -695,6 +724,20 @@ http.Response _recommendationResponse() {
     'checkedProviderPages': 1,
     'nextPage': null,
   });
+}
+
+http.Response _policyProviderUnavailableResponse() {
+  return http.Response(
+    jsonEncode({
+      'success': false,
+      'error': {
+        'code': 'Y002',
+        'message': '정책 정보를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.',
+      },
+    }),
+    503,
+    headers: {'content-type': 'application/json; charset=utf-8'},
+  );
 }
 
 Map<String, dynamic> _housingSummary() {
