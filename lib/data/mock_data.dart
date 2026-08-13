@@ -7,7 +7,7 @@ class MockData {
   MockData._();
 
   static const budget = BudgetSummary(
-    userName: '생존러',
+    userName: '생존자',
     dailyLimit: 35000,
     remainingToday: 23500,
     spentToday: 11500,
