@@ -26,6 +26,7 @@ import 'housing_deal_detail_page.dart';
 import 'housing_deal_marker_style.dart';
 import 'housing_lawd_code.dart';
 import 'place_detail_page.dart';
+import 'data/map_favorite_repository.dart';
 import 'widgets/map_canvas.dart';
 import 'widgets/public_facility_detail_sheet.dart';
 import 'widgets/public_parking_detail_sheet.dart';
@@ -46,6 +47,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
       PublicParkingApiService();
   final HousingRentApiService _housingRentApiService = HousingRentApiService();
   final LocationService _locationService = LocationService();
+  final MapFavoriteRepository _favoriteRepository = MapFavoriteRepository();
 
   String _filter = '전체';
   int _sortIndex = 0;
@@ -56,6 +58,9 @@ class _SavingMapPageState extends State<SavingMapPage> {
   HousingRentDeal? _selectedHousingDeal;
   String? _selectedGoodPriceCategoryKey;
   final Map<String, GoodPriceStore> _favoriteGoodPriceStores = {};
+  final Map<String, PublicFacility> _favoritePublicFacilities = {};
+  final Map<String, PublicParkingLot> _favoriteParkingLots = {};
+  final Map<String, HousingRentDeal> _favoriteHousingDeals = {};
   NaverMapController? _mapController;
   List<GoodPriceStore> _goodPriceStores = const [];
   List<PublicFacility> _publicFacilities = const [];
@@ -89,6 +94,53 @@ class _SavingMapPageState extends State<SavingMapPage> {
   DirectionsMode _directionsMode = DirectionsMode.walking;
   bool _isLoadingDirections = false;
   int _directionsRequestId = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadFavorites());
+  }
+
+  Future<void> _loadFavorites() async {
+    try {
+      final favorites = await _favoriteRepository.load();
+      if (!mounted) return;
+      setState(() {
+        _favoriteGoodPriceStores
+          ..clear()
+          ..addAll(favorites.goodPriceStores);
+        _favoritePublicFacilities
+          ..clear()
+          ..addAll(favorites.publicFacilities);
+        _favoriteParkingLots
+          ..clear()
+          ..addAll(favorites.parkingLots);
+        _favoriteHousingDeals
+          ..clear()
+          ..addAll(favorites.housingDeals);
+      });
+    } on Object {
+      // The map remains usable even if platform storage is temporarily unavailable.
+    }
+  }
+
+  Future<void> _persistFavorites() async {
+    try {
+      await _favoriteRepository.save(
+        MapFavorites(
+          goodPriceStores: _favoriteGoodPriceStores,
+          publicFacilities: _favoritePublicFacilities,
+          parkingLots: _favoriteParkingLots,
+          housingDeals: _favoriteHousingDeals,
+        ),
+      );
+    } on Object {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('찜 목록을 저장하지 못했어요. 다시 시도해 주세요.')),
+      );
+    }
+  }
 
   List<GoodPriceStore> get _visibleGoodPriceStores {
     final bounds = _viewportBounds;
@@ -857,6 +909,49 @@ class _SavingMapPageState extends State<SavingMapPage> {
         _favoriteGoodPriceStores[store.id] = store;
       }
     });
+    unawaited(_persistFavorites());
+  }
+
+  void _toggleSelectedPublicFacilityFavorite() {
+    final facility = _selectedPublicFacility;
+    if (facility == null) return;
+    setState(() {
+      if (_favoritePublicFacilities.containsKey(facility.id)) {
+        _favoritePublicFacilities.remove(facility.id);
+        if (_filter == '전체') _selectedPublicFacility = null;
+      } else {
+        _favoritePublicFacilities[facility.id] = facility;
+      }
+    });
+    unawaited(_persistFavorites());
+  }
+
+  void _toggleSelectedParkingFavorite() {
+    final parkingLot = _selectedParkingLot;
+    if (parkingLot == null) return;
+    setState(() {
+      if (_favoriteParkingLots.containsKey(parkingLot.id)) {
+        _favoriteParkingLots.remove(parkingLot.id);
+        if (_filter == '전체') _selectedParkingLot = null;
+      } else {
+        _favoriteParkingLots[parkingLot.id] = parkingLot;
+      }
+    });
+    unawaited(_persistFavorites());
+  }
+
+  void _toggleSelectedHousingFavorite() {
+    final deal = _selectedHousingDeal;
+    if (deal == null) return;
+    setState(() {
+      if (_favoriteHousingDeals.containsKey(deal.id)) {
+        _favoriteHousingDeals.remove(deal.id);
+        if (_filter == '전체') _selectedHousingDeal = null;
+      } else {
+        _favoriteHousingDeals[deal.id] = deal;
+      }
+    });
+    unawaited(_persistFavorites());
   }
 
   @override
@@ -866,6 +961,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
     final isPublicFacility = _filter == '공공시설';
     final isPublicParking = _filter == '공영주차장';
     final isHousing = _filter == '주거지';
+    final isMy = _filter == '전체';
     final visibleGoodPriceStores = _visibleGoodPriceStores;
     final visibleHousingDeals = _visibleHousingDeals;
     final categoryGoodPriceStores = visibleGoodPriceStores
@@ -898,9 +994,21 @@ class _SavingMapPageState extends State<SavingMapPage> {
             child: SavingMapCanvas(
               places: places,
               goodPriceStores: mapGoodPriceStores,
-              publicFacilities: isPublicFacility ? _publicFacilities : const [],
-              parkingLots: isPublicParking ? _parkingLots : const [],
-              housingDeals: isHousing ? visibleHousingDeals : const [],
+              publicFacilities: isMy
+                  ? _favoritePublicFacilities.values.toList(growable: false)
+                  : isPublicFacility
+                      ? _publicFacilities
+                      : const [],
+              parkingLots: isMy
+                  ? _favoriteParkingLots.values.toList(growable: false)
+                  : isPublicParking
+                      ? _parkingLots
+                      : const [],
+              housingDeals: isMy
+                  ? _favoriteHousingDeals.values.toList(growable: false)
+                  : isHousing
+                      ? visibleHousingDeals
+                      : const [],
               directionsRoute: _directionsRoute,
               onPlaceTap: (place) {
                 setState(() => _selectedPlace = place);
@@ -927,7 +1035,18 @@ class _SavingMapPageState extends State<SavingMapPage> {
                   _favoriteGoodPriceStores.containsKey(
                     _selectedGoodPriceStore!.id,
                   ),
-              onFavoritePressed: _toggleSelectedGoodPriceStoreFavorite,
+              isSelectedFacilityFavorite: _selectedPublicFacility != null &&
+                  _favoritePublicFacilities.containsKey(
+                    _selectedPublicFacility!.id,
+                  ),
+              isSelectedParkingFavorite: _selectedParkingLot != null &&
+                  _favoriteParkingLots.containsKey(_selectedParkingLot!.id),
+              isSelectedHousingFavorite: _selectedHousingDeal != null &&
+                  _favoriteHousingDeals.containsKey(_selectedHousingDeal!.id),
+              onStoreFavoritePressed: _toggleSelectedGoodPriceStoreFavorite,
+              onFacilityFavoritePressed: _toggleSelectedPublicFacilityFavorite,
+              onParkingFavoritePressed: _toggleSelectedParkingFavorite,
+              onHousingFavoritePressed: _toggleSelectedHousingFavorite,
               onDirectionsPressed: () {
                 unawaited(_openSelectedGoodPriceStoreDirections());
               },
@@ -1103,7 +1222,44 @@ class _SavingMapPageState extends State<SavingMapPage> {
                 place: _selectedPlace!,
                 onTap: () => _showPlaceDetail(_selectedPlace!),
               ),
+            )
+          else if (isMy)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: _MyFavoritesSummary(
+                count: _favoriteGoodPriceStores.length +
+                    _favoritePublicFacilities.length +
+                    _favoriteParkingLots.length +
+                    _favoriteHousingDeals.length,
+              ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MyFavoritesSummary extends StatelessWidget {
+  const _MyFavoritesSummary({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          const Icon(Icons.favorite_rounded, color: AppColors.danger),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              count == 0 ? '아직 찜한 장소가 없어요.' : '찜한 장소 $count개만 지도에 표시하고 있어요.',
+              style: AppTextStyles.body,
+            ),
+          ),
         ],
       ),
     );

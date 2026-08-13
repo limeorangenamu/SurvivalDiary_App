@@ -6,6 +6,7 @@ import 'package:project_survival_diary/features/map/widgets/housing_deal_map_car
 void main() {
   testWidgets('실거래 마커 요약카드를 누르면 상세 동작을 호출한다', (tester) async {
     var tapCount = 0;
+    var favoriteTapCount = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -14,6 +15,8 @@ void main() {
             height: 146,
             child: HousingDealMapCard(
               deal: _deal,
+              isFavorite: false,
+              onFavoritePressed: () => favoriteTapCount++,
               onTap: () => tapCount++,
             ),
           ),
@@ -23,6 +26,9 @@ void main() {
 
     expect(find.text('오피스텔 · 월세'), findsOneWidget);
     expect(find.text('강남역 오피스텔'), findsOneWidget);
+    await tester
+        .tap(find.byKey(const ValueKey('housing-deal-favorite-button')));
+    expect(favoriteTapCount, 1);
     await tester.tap(find.byKey(const ValueKey('housing-deal-map-card')));
     expect(tapCount, 1);
   });

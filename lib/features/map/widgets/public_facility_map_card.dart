@@ -9,11 +9,15 @@ class PublicFacilityMapCard extends StatelessWidget {
   const PublicFacilityMapCard({
     super.key,
     required this.facility,
+    required this.isFavorite,
+    required this.onFavoritePressed,
     required this.onDirectionsPressed,
     required this.onTap,
   });
 
   final PublicFacility facility;
+  final bool isFavorite;
+  final VoidCallback onFavoritePressed;
   final VoidCallback onDirectionsPressed;
   final VoidCallback onTap;
 
@@ -67,6 +71,20 @@ class PublicFacilityMapCard extends StatelessWidget {
                       ),
                       icon: const Icon(Icons.directions_walk_rounded, size: 17),
                       label: const Text('길찾기'),
+                    ),
+                    IconButton(
+                      key: const ValueKey('public-facility-favorite-button'),
+                      tooltip: isFavorite ? '찜 해제' : '찜하기',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onFavoritePressed,
+                      icon: Icon(
+                        isFavorite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: isFavorite
+                            ? AppColors.danger
+                            : AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),

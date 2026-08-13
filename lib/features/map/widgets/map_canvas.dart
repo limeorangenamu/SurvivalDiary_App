@@ -48,7 +48,13 @@ class SavingMapCanvas extends StatefulWidget {
     required this.selectedParkingLot,
     required this.selectedHousingDeal,
     required this.isSelectedStoreFavorite,
-    required this.onFavoritePressed,
+    required this.isSelectedFacilityFavorite,
+    required this.isSelectedParkingFavorite,
+    required this.isSelectedHousingFavorite,
+    required this.onStoreFavoritePressed,
+    required this.onFacilityFavoritePressed,
+    required this.onParkingFavoritePressed,
+    required this.onHousingFavoritePressed,
     required this.onDirectionsPressed,
     required this.onGoodPriceStoreCardTap,
     required this.onPublicFacilityDirectionsPressed,
@@ -80,7 +86,13 @@ class SavingMapCanvas extends StatefulWidget {
   final PublicParkingLot? selectedParkingLot;
   final HousingRentDeal? selectedHousingDeal;
   final bool isSelectedStoreFavorite;
-  final VoidCallback onFavoritePressed;
+  final bool isSelectedFacilityFavorite;
+  final bool isSelectedParkingFavorite;
+  final bool isSelectedHousingFavorite;
+  final VoidCallback onStoreFavoritePressed;
+  final VoidCallback onFacilityFavoritePressed;
+  final VoidCallback onParkingFavoritePressed;
+  final VoidCallback onHousingFavoritePressed;
   final VoidCallback onDirectionsPressed;
   final VoidCallback onGoodPriceStoreCardTap;
   final VoidCallback onPublicFacilityDirectionsPressed;
@@ -232,6 +244,8 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
                 height: cardHeight,
                 child: PublicFacilityMapCard(
                   facility: facility,
+                  isFavorite: widget.isSelectedFacilityFavorite,
+                  onFavoritePressed: widget.onFacilityFavoritePressed,
                   onDirectionsPressed: widget.onPublicFacilityDirectionsPressed,
                   onTap: widget.onPublicFacilityCardTap,
                 ),
@@ -285,6 +299,8 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
                 height: cardHeight,
                 child: PublicParkingMapCard(
                   parkingLot: parkingLot,
+                  isFavorite: widget.isSelectedParkingFavorite,
+                  onFavoritePressed: widget.onParkingFavoritePressed,
                   onDirectionsPressed: widget.onParkingDirectionsPressed,
                   onTap: widget.onParkingCardTap,
                 ),
@@ -339,7 +355,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
                 child: GoodPriceStoreMapCard(
                   store: store,
                   isFavorite: widget.isSelectedStoreFavorite,
-                  onFavoritePressed: widget.onFavoritePressed,
+                  onFavoritePressed: widget.onStoreFavoritePressed,
                   onDirectionsPressed: widget.onDirectionsPressed,
                   onTap: widget.onGoodPriceStoreCardTap,
                 ),
@@ -387,6 +403,8 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
               height: cardHeight,
               child: HousingDealMapCard(
                 deal: deal,
+                isFavorite: widget.isSelectedHousingFavorite,
+                onFavoritePressed: widget.onHousingFavoritePressed,
                 onTap: widget.onHousingDealCardTap,
               ),
             ),
@@ -445,7 +463,9 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
   Future<void> _updateSelectedParkingScreenPoint() async {
     final controller = _controller;
     final parkingLot = widget.selectedParkingLot;
-    if (controller == null || parkingLot == null || !parkingLot.hasCoordinates) {
+    if (controller == null ||
+        parkingLot == null ||
+        !parkingLot.hasCoordinates) {
       return;
     }
     final point = await controller.latLngToScreenLocation(

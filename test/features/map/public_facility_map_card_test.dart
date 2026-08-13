@@ -7,6 +7,7 @@ void main() {
   testWidgets('공공시설 카드에서 요금과 거리 및 길찾기를 제공한다', (tester) async {
     var directionsTapCount = 0;
     var detailTapCount = 0;
+    var favoriteTapCount = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -16,6 +17,8 @@ void main() {
               height: 158,
               child: PublicFacilityMapCard(
                 facility: _facility,
+                isFavorite: false,
+                onFavoritePressed: () => favoriteTapCount++,
                 onDirectionsPressed: () => directionsTapCount++,
                 onTap: () => detailTapCount++,
               ),
@@ -35,6 +38,12 @@ void main() {
     );
     await tester.pump();
     expect(directionsTapCount, 1);
+
+    await tester.tap(
+      find.byKey(const ValueKey('public-facility-favorite-button')),
+    );
+    await tester.pump();
+    expect(favoriteTapCount, 1);
 
     await tester.tap(find.byKey(const ValueKey('public-facility-card')));
     await tester.pump();

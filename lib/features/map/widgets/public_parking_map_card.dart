@@ -8,11 +8,15 @@ class PublicParkingMapCard extends StatelessWidget {
   const PublicParkingMapCard({
     super.key,
     required this.parkingLot,
+    required this.isFavorite,
+    required this.onFavoritePressed,
     required this.onDirectionsPressed,
     required this.onTap,
   });
 
   final PublicParkingLot parkingLot;
+  final bool isFavorite;
+  final VoidCallback onFavoritePressed;
   final VoidCallback onDirectionsPressed;
   final VoidCallback onTap;
 
@@ -67,6 +71,20 @@ class PublicParkingMapCard extends StatelessWidget {
                       ),
                       icon: const Icon(Icons.directions_car_rounded, size: 17),
                       label: const Text('길찾기'),
+                    ),
+                    IconButton(
+                      key: const ValueKey('public-parking-favorite-button'),
+                      tooltip: isFavorite ? '찜 해제' : '찜하기',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onFavoritePressed,
+                      icon: Icon(
+                        isFavorite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: isFavorite
+                            ? AppColors.danger
+                            : AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
