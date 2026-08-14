@@ -37,6 +37,7 @@ class AppColors {
   static const categoryCafe = Color(0xFFEE6C9C);
   static const categoryTransport = Color(0xFF3FA9D8);
   static const categoryShopping = Color(0xFFFFC145);
+  static const categoryLeisure = Color(0xFF8367E8);
   static const categoryEtc = Color(0xFF9EA3A8);
 
   static const snsKakao = Color(0xFFFEE500);

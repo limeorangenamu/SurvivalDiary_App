@@ -79,6 +79,7 @@ extension on ExpenseCategory {
         ExpenseCategory.cafe => 2,
         ExpenseCategory.transport => 3,
         ExpenseCategory.shopping => 4,
+        ExpenseCategory.leisure => 6,
         ExpenseCategory.etc => 5,
       };
 }
@@ -304,6 +305,7 @@ ExpenseCategory _categoryFromDatabaseId(int categoryId) => switch (categoryId) {
       3 => ExpenseCategory.transport,
       4 => ExpenseCategory.shopping,
       5 => ExpenseCategory.etc,
+      6 => ExpenseCategory.leisure,
       _ => throw const FormatException(),
     };
 
