@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
 
-enum ExpenseCategory { food, cafe, transport, shopping, etc }
+enum ExpenseCategory { food, cafe, transport, shopping, leisure, etc }
 
 extension ExpenseCategoryExtension on ExpenseCategory {
   String get label => switch (this) {
@@ -10,6 +10,7 @@ extension ExpenseCategoryExtension on ExpenseCategory {
         ExpenseCategory.cafe => '카페',
         ExpenseCategory.transport => '교통',
         ExpenseCategory.shopping => '쇼핑',
+        ExpenseCategory.leisure => '여가',
         ExpenseCategory.etc => '기타',
       };
 
@@ -18,6 +19,7 @@ extension ExpenseCategoryExtension on ExpenseCategory {
         ExpenseCategory.cafe => Icons.local_cafe_rounded,
         ExpenseCategory.transport => Icons.directions_bus_rounded,
         ExpenseCategory.shopping => Icons.shopping_bag_rounded,
+        ExpenseCategory.leisure => Icons.sports_esports_rounded,
         ExpenseCategory.etc => Icons.more_horiz_rounded,
       };
 
@@ -26,6 +28,7 @@ extension ExpenseCategoryExtension on ExpenseCategory {
         ExpenseCategory.cafe => AppColors.categoryCafe,
         ExpenseCategory.transport => AppColors.categoryTransport,
         ExpenseCategory.shopping => AppColors.categoryShopping,
+        ExpenseCategory.leisure => AppColors.categoryLeisure,
         ExpenseCategory.etc => AppColors.categoryEtc,
       };
 }
