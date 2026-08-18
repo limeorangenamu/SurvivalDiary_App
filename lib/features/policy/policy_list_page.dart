@@ -237,6 +237,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
         SnackBar(
           content: Text('${policy.title} 정책을 목록에서 숨겼어요.'),
           duration: const Duration(seconds: 5),
+          persist: false,
           action: SnackBarAction(
             label: '실행취소',
             onPressed: () {
