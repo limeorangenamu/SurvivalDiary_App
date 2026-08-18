@@ -321,6 +321,7 @@ void main() {
     expect(find.text('청년 일자리 지원'), findsNothing);
     final snackBar = tester.widget<SnackBar>(find.byType(SnackBar));
     expect(snackBar.duration, const Duration(seconds: 5));
+    expect(snackBar.persist, isFalse);
     await tester.tap(find.text('실행취소'));
     await tester.pumpAndSettle();
     expect(find.text('청년 일자리 지원'), findsOneWidget);
