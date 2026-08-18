@@ -57,6 +57,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
   PublicParkingLot? _selectedParkingLot;
   HousingRentDeal? _selectedHousingDeal;
   String? _selectedGoodPriceCategoryKey;
+  String? _selectedHousingPropertyType;
   final Map<String, GoodPriceStore> _favoriteGoodPriceStores = {};
   final Map<String, PublicFacility> _favoritePublicFacilities = {};
   final Map<String, PublicParkingLot> _favoriteParkingLots = {};
@@ -590,6 +591,24 @@ class _SavingMapPageState extends State<SavingMapPage> {
     return result;
   }
 
+  void _selectGoodPriceCategory(String categoryKey) {
+    setState(() {
+      _selectedGoodPriceStore = null;
+      _selectedGoodPriceCategoryKey =
+          categoryKey == 'all' || categoryKey == _selectedGoodPriceCategoryKey
+              ? null
+              : categoryKey;
+    });
+  }
+
+  void _selectHousingPropertyType(String propertyType) {
+    setState(() {
+      _selectedHousingDeal = null;
+      _selectedHousingPropertyType =
+          propertyType == _selectedHousingPropertyType ? null : propertyType;
+    });
+  }
+
   void _changeFilter(String value) {
     setState(() {
       _filter = value;
@@ -605,6 +624,9 @@ class _SavingMapPageState extends State<SavingMapPage> {
       _directionsRequestId++;
       if (value != '착한가격업소') {
         _selectedGoodPriceCategoryKey = null;
+      }
+      if (value != '주거지') {
+        _selectedHousingPropertyType = null;
       }
     });
     if (value == '착한가격업소' && _goodPriceStores.isEmpty) {
@@ -972,6 +994,13 @@ class _SavingMapPageState extends State<SavingMapPage> {
           ),
         )
         .toList(growable: false);
+    final categoryHousingDeals = visibleHousingDeals
+        .where(
+          (deal) =>
+              _selectedHousingPropertyType == null ||
+              deal.propertyType == _selectedHousingPropertyType,
+        )
+        .toList(growable: false);
     final mapGoodPriceStores = goodPriceStoresForMap(
       filter: _filter,
       visibleStores: categoryGoodPriceStores,
@@ -980,13 +1009,6 @@ class _SavingMapPageState extends State<SavingMapPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('절약 지도'),
-        actions: [
-          IconButton(
-            tooltip: '현재 위치',
-            onPressed: () => _moveToCurrentLocation(showMessage: true),
-            icon: const Icon(Icons.my_location_rounded),
-          ),
-        ],
       ),
       body: Stack(
         children: [
@@ -1007,7 +1029,7 @@ class _SavingMapPageState extends State<SavingMapPage> {
               housingDeals: isMy
                   ? _favoriteHousingDeals.values.toList(growable: false)
                   : isHousing
-                      ? visibleHousingDeals
+                      ? categoryHousingDeals
                       : const [],
               directionsRoute: _directionsRoute,
               onPlaceTap: (place) {
@@ -1110,6 +1132,26 @@ class _SavingMapPageState extends State<SavingMapPage> {
               ),
             ),
           ),
+          if ((isGoodPrice || isHousing) &&
+              !_isLoadingDirections &&
+              _directionsRoute == null)
+            Positioned(
+              key: const ValueKey('map-category-panel'),
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: isGoodPrice
+                  ? _GoodPriceCategorySummary(
+                      stores: visibleGoodPriceStores,
+                      selectedCategoryKey: _selectedGoodPriceCategoryKey,
+                      onCategorySelected: _selectGoodPriceCategory,
+                    )
+                  : _HousingPropertyTypeBar(
+                      deals: visibleHousingDeals,
+                      selectedPropertyType: _selectedHousingPropertyType,
+                      onPropertyTypeSelected: _selectHousingPropertyType,
+                    ),
+            ),
           if (_isLoadingDirections || _directionsRoute != null)
             Positioned(
               left: 16,
@@ -1121,56 +1163,6 @@ class _SavingMapPageState extends State<SavingMapPage> {
                 mode: _directionsMode,
                 isLoading: _isLoadingDirections,
                 onClose: _clearDirections,
-              ),
-            )
-          else if (isGoodPrice)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              height: 180,
-              child: _GoodPriceStorePanel(
-                stores: visibleGoodPriceStores,
-                isLoading: _isLoadingStores,
-                error: _storeError,
-                regionLabel: _viewportRegionLabel,
-                isLocating: _isLocating,
-                locationError: _locationError,
-                onRetry: _loadGoodPriceStores,
-                onLocationRetry: _refreshCurrentViewport,
-                selectedCategoryKey: _selectedGoodPriceCategoryKey,
-                onCategorySelected: (categoryKey) {
-                  setState(() {
-                    _selectedGoodPriceStore = null;
-                    _selectedGoodPriceCategoryKey = categoryKey == 'all' ||
-                            categoryKey == _selectedGoodPriceCategoryKey
-                        ? null
-                        : categoryKey;
-                  });
-                },
-              ),
-            )
-          else if (isPublicFacility)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              height: 210,
-              child: _PublicFacilityPanel(
-                facilities: _publicFacilities,
-                isLoading: _isLoadingPublicFacilities,
-                error: _publicFacilityError,
-                freeOnly: _publicFacilityFreeOnly,
-                onRetry: _loadPublicFacilities,
-                onFreeOnlyChanged: (value) {
-                  setState(() {
-                    _publicFacilityFreeOnly = value;
-                    _selectedPublicFacility = null;
-                    _publicFacilities = const [];
-                  });
-                  unawaited(_loadPublicFacilities());
-                },
-                onFacilitySelected: _selectPublicFacility,
               ),
             )
           else if (isPublicParking)
@@ -1194,23 +1186,6 @@ class _SavingMapPageState extends State<SavingMapPage> {
                   unawaited(_loadParkingLots());
                 },
                 onParkingSelected: _selectParkingLot,
-              ),
-            )
-          else if (_filter == '주거지')
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              height: 150,
-              child: _HousingDealPanel(
-                deals: visibleHousingDeals,
-                isLoading: _isLoadingHousingDeals,
-                error: _housingDealError,
-                regionLabel: _viewportRegionLabel,
-                isLocating: _isLocating,
-                locationError: _locationError,
-                onRetry: _loadHousingDeals,
-                onLocationRetry: _refreshCurrentViewport,
               ),
             )
           else if (_selectedPlace != null)
@@ -1883,6 +1858,7 @@ class _GoodPriceCategorySummary extends StatelessWidget {
             selected: isSelected,
             label: '${summary.label}, 주변 ${summary.count}곳',
             child: GestureDetector(
+              key: ValueKey('good-price-category-${summary.key}'),
               behavior: HitTestBehavior.opaque,
               onTap: () => onCategorySelected(summary.key),
               child: AnimatedContainer(
@@ -1894,7 +1870,7 @@ class _GoodPriceCategorySummary extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: style.color.withValues(
-                    alpha: isSelected ? 0.16 : 0.07,
+                    alpha: isSelected ? 0.22 : 0.12,
                   ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
@@ -2134,6 +2110,119 @@ class _HousingPanelError extends StatelessWidget {
         ),
         TextButton(onPressed: onRetry, child: const Text('다시 시도')),
       ],
+    );
+  }
+}
+
+class _HousingPropertyTypeBar extends StatelessWidget {
+  const _HousingPropertyTypeBar({
+    required this.deals,
+    required this.selectedPropertyType,
+    required this.onPropertyTypeSelected,
+  });
+
+  final List<HousingRentDeal> deals;
+  final String? selectedPropertyType;
+  final ValueChanged<String> onPropertyTypeSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    const propertyTypes = ['단독/다가구', '오피스텔'];
+    return SizedBox(
+      height: 70,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var index = 0; index < propertyTypes.length; index++) ...[
+            if (index > 0) const SizedBox(width: 8),
+            Flexible(
+              child: _HousingPropertyTypeItem(
+                propertyType: propertyTypes[index],
+                count: deals
+                    .where(
+                      (deal) => deal.propertyType == propertyTypes[index],
+                    )
+                    .length,
+                isSelected: selectedPropertyType == propertyTypes[index],
+                onTap: () => onPropertyTypeSelected(propertyTypes[index]),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HousingPropertyTypeItem extends StatelessWidget {
+  const _HousingPropertyTypeItem({
+    required this.propertyType,
+    required this.count,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String propertyType;
+  final int count;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = HousingDealMarkerStyle.fromPropertyType(propertyType);
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: '$propertyType, 주변 $count건',
+      child: GestureDetector(
+        key: ValueKey('housing-property-type-$propertyType'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 148,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          decoration: BoxDecoration(
+            color: style.color.withValues(alpha: isSelected ? 0.22 : 0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: style.color.withValues(alpha: isSelected ? 0.9 : 0.24),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              HousingDealMarkerIcon(style: style),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      propertyType,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '주변 $count건',
+                      style: AppTextStyles.captionTiny.copyWith(
+                        color: style.color,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
