@@ -27,9 +27,17 @@ import 'housing_deal_marker_style.dart';
 import 'housing_lawd_code.dart';
 import 'place_detail_page.dart';
 import 'data/map_favorite_repository.dart';
+import 'public_facility_marker_style.dart';
 import 'widgets/map_canvas.dart';
 import 'widgets/public_facility_detail_sheet.dart';
 import 'widgets/public_parking_detail_sheet.dart';
+
+const _allBannerKey = '__all__';
+const _freeBannerKey = '__free__';
+const _myGoodPriceKey = 'good-price';
+const _myPublicFacilityKey = 'public-facility';
+const _myPublicParkingKey = 'public-parking';
+const _myHousingKey = 'housing';
 
 class SavingMapPage extends StatefulWidget {
   const SavingMapPage({super.key});
@@ -56,7 +64,10 @@ class _SavingMapPageState extends State<SavingMapPage> {
   PublicFacility? _selectedPublicFacility;
   PublicParkingLot? _selectedParkingLot;
   HousingRentDeal? _selectedHousingDeal;
+  String? _selectedMyFavoriteType;
   String? _selectedGoodPriceCategoryKey;
+  String? _selectedPublicFacilityCategory;
+  String? _selectedParkingType;
   String? _selectedHousingPropertyType;
   final Map<String, GoodPriceStore> _favoriteGoodPriceStores = {};
   final Map<String, PublicFacility> _favoritePublicFacilities = {};
@@ -169,6 +180,22 @@ class _SavingMapPageState extends State<SavingMapPage> {
       }
       return bounds.containsPoint(NLatLng(deal.latitude!, deal.longitude!));
     }).toList(growable: false);
+  }
+
+  List<PublicFacility> get _visiblePublicFacilities {
+    final category = _selectedPublicFacilityCategory;
+    if (category == null) return _publicFacilities;
+    return _publicFacilities
+        .where((facility) => _facilityCategory(facility) == category)
+        .toList(growable: false);
+  }
+
+  List<PublicParkingLot> get _visibleParkingLots {
+    final parkingType = _selectedParkingType;
+    if (parkingType == null) return _parkingLots;
+    return _parkingLots
+        .where((parkingLot) => _parkingType(parkingLot) == parkingType)
+        .toList(growable: false);
   }
 
   Future<void> _loadPublicFacilities() async {
@@ -609,6 +636,59 @@ class _SavingMapPageState extends State<SavingMapPage> {
     });
   }
 
+  void _selectPublicFacilityCategory(String category) {
+    final wasFreeOnly = _publicFacilityFreeOnly;
+    setState(() {
+      _selectedPublicFacility = null;
+      _publicFacilityFreeOnly = category == _freeBannerKey;
+      _selectedPublicFacilityCategory =
+          category == _allBannerKey || category == _freeBannerKey
+              ? null
+              : category == _selectedPublicFacilityCategory
+                  ? null
+                  : category;
+      if (wasFreeOnly != _publicFacilityFreeOnly) {
+        _publicFacilities = const [];
+      }
+    });
+    if (wasFreeOnly != _publicFacilityFreeOnly) {
+      unawaited(_loadPublicFacilities());
+    }
+  }
+
+  void _selectParkingType(String parkingType) {
+    final wasFreeOnly = _parkingFreeOnly;
+    setState(() {
+      _selectedParkingLot = null;
+      _parkingFreeOnly = parkingType == _freeBannerKey;
+      _selectedParkingType =
+          parkingType == _allBannerKey || parkingType == _freeBannerKey
+              ? null
+              : parkingType == _selectedParkingType
+                  ? null
+                  : parkingType;
+      if (wasFreeOnly != _parkingFreeOnly) {
+        _parkingLots = const [];
+      }
+    });
+    if (wasFreeOnly != _parkingFreeOnly) {
+      unawaited(_loadParkingLots());
+    }
+  }
+
+  void _selectMyFavoriteType(String favoriteType) {
+    setState(() {
+      _selectedGoodPriceStore = null;
+      _selectedPublicFacility = null;
+      _selectedParkingLot = null;
+      _selectedHousingDeal = null;
+      _selectedMyFavoriteType = favoriteType == _allBannerKey ||
+              favoriteType == _selectedMyFavoriteType
+          ? null
+          : favoriteType;
+    });
+  }
+
   void _changeFilter(String value) {
     setState(() {
       _filter = value;
@@ -622,8 +702,17 @@ class _SavingMapPageState extends State<SavingMapPage> {
       _directionsDestinationName = null;
       _isLoadingDirections = false;
       _directionsRequestId++;
+      if (value != '전체') {
+        _selectedMyFavoriteType = null;
+      }
       if (value != '착한가격업소') {
         _selectedGoodPriceCategoryKey = null;
+      }
+      if (value != '공공시설') {
+        _selectedPublicFacilityCategory = null;
+      }
+      if (value != '공영주차장') {
+        _selectedParkingType = null;
       }
       if (value != '주거지') {
         _selectedHousingPropertyType = null;
@@ -984,7 +1073,18 @@ class _SavingMapPageState extends State<SavingMapPage> {
     final isPublicParking = _filter == '공영주차장';
     final isHousing = _filter == '주거지';
     final isMy = _filter == '전체';
+    final showsAllMyFavorites = _selectedMyFavoriteType == null;
+    final showsMyGoodPrice =
+        showsAllMyFavorites || _selectedMyFavoriteType == _myGoodPriceKey;
+    final showsMyPublicFacility =
+        showsAllMyFavorites || _selectedMyFavoriteType == _myPublicFacilityKey;
+    final showsMyPublicParking =
+        showsAllMyFavorites || _selectedMyFavoriteType == _myPublicParkingKey;
+    final showsMyHousing =
+        showsAllMyFavorites || _selectedMyFavoriteType == _myHousingKey;
     final visibleGoodPriceStores = _visibleGoodPriceStores;
+    final visiblePublicFacilities = _visiblePublicFacilities;
+    final visibleParkingLots = _visibleParkingLots;
     final visibleHousingDeals = _visibleHousingDeals;
     final categoryGoodPriceStores = visibleGoodPriceStores
         .where(
@@ -1001,11 +1101,15 @@ class _SavingMapPageState extends State<SavingMapPage> {
               deal.propertyType == _selectedHousingPropertyType,
         )
         .toList(growable: false);
-    final mapGoodPriceStores = goodPriceStoresForMap(
-      filter: _filter,
-      visibleStores: categoryGoodPriceStores,
-      favoriteStores: _favoriteGoodPriceStores.values,
-    );
+    final mapGoodPriceStores = isMy
+        ? showsMyGoodPrice
+            ? _favoriteGoodPriceStores.values.toList(growable: false)
+            : const <GoodPriceStore>[]
+        : goodPriceStoresForMap(
+            filter: _filter,
+            visibleStores: categoryGoodPriceStores,
+            favoriteStores: _favoriteGoodPriceStores.values,
+          );
     return Scaffold(
       appBar: AppBar(
         title: const Text('절약 지도'),
@@ -1017,17 +1121,23 @@ class _SavingMapPageState extends State<SavingMapPage> {
               places: places,
               goodPriceStores: mapGoodPriceStores,
               publicFacilities: isMy
-                  ? _favoritePublicFacilities.values.toList(growable: false)
+                  ? showsMyPublicFacility
+                      ? _favoritePublicFacilities.values.toList(growable: false)
+                      : const []
                   : isPublicFacility
-                      ? _publicFacilities
+                      ? visiblePublicFacilities
                       : const [],
               parkingLots: isMy
-                  ? _favoriteParkingLots.values.toList(growable: false)
+                  ? showsMyPublicParking
+                      ? _favoriteParkingLots.values.toList(growable: false)
+                      : const []
                   : isPublicParking
-                      ? _parkingLots
+                      ? visibleParkingLots
                       : const [],
               housingDeals: isMy
-                  ? _favoriteHousingDeals.values.toList(growable: false)
+                  ? showsMyHousing
+                      ? _favoriteHousingDeals.values.toList(growable: false)
+                      : const []
                   : isHousing
                       ? categoryHousingDeals
                       : const [],
@@ -1132,7 +1242,11 @@ class _SavingMapPageState extends State<SavingMapPage> {
               ),
             ),
           ),
-          if ((isGoodPrice || isHousing) &&
+          if ((isMy ||
+                  isGoodPrice ||
+                  isPublicFacility ||
+                  isPublicParking ||
+                  isHousing) &&
               !_isLoadingDirections &&
               _directionsRoute == null)
             Positioned(
@@ -1140,17 +1254,44 @@ class _SavingMapPageState extends State<SavingMapPage> {
               left: 16,
               right: 16,
               bottom: 16,
-              child: isGoodPrice
-                  ? _GoodPriceCategorySummary(
-                      stores: visibleGoodPriceStores,
-                      selectedCategoryKey: _selectedGoodPriceCategoryKey,
-                      onCategorySelected: _selectGoodPriceCategory,
-                    )
-                  : _HousingPropertyTypeBar(
-                      deals: visibleHousingDeals,
-                      selectedPropertyType: _selectedHousingPropertyType,
-                      onPropertyTypeSelected: _selectHousingPropertyType,
-                    ),
+              child: switch (_filter) {
+                '전체' => _MyFavoritesCategoryBar(
+                    goodPriceCount: _favoriteGoodPriceStores.length,
+                    publicFacilityCount: _favoritePublicFacilities.length,
+                    publicParkingCount: _favoriteParkingLots.length,
+                    housingCount: _favoriteHousingDeals.length,
+                    selectedType: _selectedMyFavoriteType,
+                    onTypeSelected: _selectMyFavoriteType,
+                  ),
+                '착한가격업소' => _GoodPriceCategorySummary(
+                    stores: visibleGoodPriceStores,
+                    selectedCategoryKey: _selectedGoodPriceCategoryKey,
+                    onCategorySelected: _selectGoodPriceCategory,
+                  ),
+                '공공시설' => _PublicFacilityCategoryBar(
+                    facilities: _publicFacilities,
+                    selectedCategory: _selectedPublicFacilityCategory,
+                    freeOnly: _publicFacilityFreeOnly,
+                    isLoading: _isLoadingPublicFacilities,
+                    error: _publicFacilityError,
+                    onRetry: _loadPublicFacilities,
+                    onCategorySelected: _selectPublicFacilityCategory,
+                  ),
+                '공영주차장' => _PublicParkingTypeBar(
+                    parkingLots: _parkingLots,
+                    selectedParkingType: _selectedParkingType,
+                    freeOnly: _parkingFreeOnly,
+                    isLoading: _isLoadingParkingLots,
+                    error: _parkingError,
+                    onRetry: _loadParkingLots,
+                    onParkingTypeSelected: _selectParkingType,
+                  ),
+                _ => _HousingPropertyTypeBar(
+                    deals: visibleHousingDeals,
+                    selectedPropertyType: _selectedHousingPropertyType,
+                    onPropertyTypeSelected: _selectHousingPropertyType,
+                  ),
+              },
             ),
           if (_isLoadingDirections || _directionsRoute != null)
             Positioned(
@@ -1165,29 +1306,6 @@ class _SavingMapPageState extends State<SavingMapPage> {
                 onClose: _clearDirections,
               ),
             )
-          else if (isPublicParking)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              height: 210,
-              child: _PublicParkingPanel(
-                parkingLots: _parkingLots,
-                isLoading: _isLoadingParkingLots,
-                error: _parkingError,
-                freeOnly: _parkingFreeOnly,
-                onRetry: _loadParkingLots,
-                onFreeOnlyChanged: (value) {
-                  setState(() {
-                    _parkingFreeOnly = value;
-                    _selectedParkingLot = null;
-                    _parkingLots = const [];
-                  });
-                  unawaited(_loadParkingLots());
-                },
-                onParkingSelected: _selectParkingLot,
-              ),
-            )
           else if (_selectedPlace != null)
             Positioned(
               left: 16,
@@ -1198,45 +1316,78 @@ class _SavingMapPageState extends State<SavingMapPage> {
                 onTap: () => _showPlaceDetail(_selectedPlace!),
               ),
             )
-          else if (isMy)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: _MyFavoritesSummary(
-                count: _favoriteGoodPriceStores.length +
-                    _favoritePublicFacilities.length +
-                    _favoriteParkingLots.length +
-                    _favoriteHousingDeals.length,
-              ),
-            ),
         ],
       ),
     );
   }
 }
 
-class _MyFavoritesSummary extends StatelessWidget {
-  const _MyFavoritesSummary({required this.count});
+class _MyFavoritesCategoryBar extends StatelessWidget {
+  const _MyFavoritesCategoryBar({
+    required this.goodPriceCount,
+    required this.publicFacilityCount,
+    required this.publicParkingCount,
+    required this.housingCount,
+    required this.selectedType,
+    required this.onTypeSelected,
+  });
 
-  final int count;
+  final int goodPriceCount;
+  final int publicFacilityCount;
+  final int publicParkingCount;
+  final int housingCount;
+  final String? selectedType;
+  final ValueChanged<String> onTypeSelected;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          const Icon(Icons.favorite_rounded, color: AppColors.danger),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              count == 0 ? '아직 찜한 장소가 없어요.' : '찜한 장소 $count개만 지도에 표시하고 있어요.',
-              style: AppTextStyles.body,
-            ),
-          ),
-        ],
-      ),
+    return _MapBannerList(
+      options: [
+        _MapBannerOption(
+          key: _allBannerKey,
+          label: '전체',
+          count: goodPriceCount +
+              publicFacilityCount +
+              publicParkingCount +
+              housingCount,
+          color: AppColors.danger,
+          icon: Icons.favorite_rounded,
+        ),
+        _MapBannerOption(
+          key: _myGoodPriceKey,
+          label: '착한가격업소',
+          count: goodPriceCount,
+          color: AppColors.pinGoodPrice,
+          icon: Icons.storefront_rounded,
+        ),
+        _MapBannerOption(
+          key: _myPublicFacilityKey,
+          label: '공공시설',
+          count: publicFacilityCount,
+          color: AppColors.pinPublic,
+          icon: Icons.account_balance_rounded,
+        ),
+        _MapBannerOption(
+          key: _myPublicParkingKey,
+          label: '공영주차장',
+          count: publicParkingCount,
+          color: AppColors.pinParking,
+          icon: Icons.local_parking_rounded,
+        ),
+        _MapBannerOption(
+          key: _myHousingKey,
+          label: '주거지',
+          count: housingCount,
+          color: AppColors.categoryLeisure,
+          icon: Icons.home_rounded,
+        ),
+      ],
+      selectedKey: selectedType ?? _allBannerKey,
+      keyPrefix: 'my-favorite-type',
+      onSelected: onTypeSelected,
+      favoriteCounts: true,
+      bannerWidth: 150,
+      centerItems: true,
     );
   }
 }
@@ -1825,6 +1976,474 @@ class _GoodPriceStorePanel extends StatelessWidget {
   }
 }
 
+class _MapBannerOption {
+  const _MapBannerOption({
+    required this.key,
+    required this.label,
+    required this.count,
+    required this.color,
+    required this.icon,
+  });
+
+  final String key;
+  final String label;
+  final int count;
+  final Color color;
+  final IconData icon;
+}
+
+class _MapCategoryBanner extends StatelessWidget {
+  const _MapCategoryBanner({
+    super.key,
+    required this.label,
+    required this.countLabel,
+    required this.color,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+    this.width = 132,
+  });
+
+  final String label;
+  final String countLabel;
+  final Color color;
+  final Widget icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: '$label, $countLabel',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          width: width,
+          transform: Matrix4.translationValues(0, isSelected ? -6 : 0, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          decoration: BoxDecoration(
+            color: isSelected ? color : color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? color : color.withValues(alpha: 0.28),
+              width: isSelected ? 2 : 1,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              icon,
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption.copyWith(
+                        color: isSelected
+                            ? AppColors.surface
+                            : AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      countLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.captionTiny.copyWith(
+                        color: isSelected
+                            ? AppColors.surface.withValues(alpha: 0.9)
+                            : color,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PublicFacilityCategoryBar extends StatelessWidget {
+  const _PublicFacilityCategoryBar({
+    required this.facilities,
+    required this.selectedCategory,
+    required this.freeOnly,
+    required this.isLoading,
+    required this.error,
+    required this.onRetry,
+    required this.onCategorySelected,
+  });
+
+  final List<PublicFacility> facilities;
+  final String? selectedCategory;
+  final bool freeOnly;
+  final bool isLoading;
+  final String? error;
+  final VoidCallback onRetry;
+  final ValueChanged<String> onCategorySelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = <String, int>{};
+    for (final facility in facilities) {
+      final category = _facilityCategory(facility);
+      counts[category] = (counts[category] ?? 0) + 1;
+    }
+    final categories = counts.entries.toList()
+      ..sort((left, right) {
+        final countOrder = right.value.compareTo(left.value);
+        return countOrder != 0 ? countOrder : left.key.compareTo(right.key);
+      });
+    final options = <_MapBannerOption>[
+      const _MapBannerOption(
+        key: _allBannerKey,
+        label: '전체',
+        count: 0,
+        color: AppColors.pinPublic,
+        icon: Icons.account_balance_rounded,
+      ),
+      _MapBannerOption(
+        key: _freeBannerKey,
+        label: '무료',
+        count: facilities.where((facility) => facility.isFree).length,
+        color: AppColors.primary,
+        icon: Icons.money_off_rounded,
+      ),
+      for (final category in categories)
+        _MapBannerOption(
+          key: category.key,
+          label: category.key,
+          count: category.value,
+          color: _facilityBannerColor(category.key),
+          icon: PublicFacilityMarkerStyle.fromCategory(category.key).icon,
+        ),
+    ];
+
+    return _MapBannerLoadState(
+      isLoading: isLoading,
+      error: error,
+      isEmpty: facilities.isEmpty,
+      loadingMessage: '공공시설 데이터를 준비하고 있어요.',
+      onRetry: onRetry,
+      child: _MapBannerList(
+        options: [
+          _MapBannerOption(
+            key: options.first.key,
+            label: options.first.label,
+            count: facilities.length,
+            color: options.first.color,
+            icon: options.first.icon,
+          ),
+          ...options.skip(1),
+        ],
+        selectedKey:
+            freeOnly ? _freeBannerKey : selectedCategory ?? _allBannerKey,
+        keyPrefix: 'public-facility-category',
+        onSelected: onCategorySelected,
+      ),
+    );
+  }
+}
+
+class _PublicParkingTypeBar extends StatelessWidget {
+  const _PublicParkingTypeBar({
+    required this.parkingLots,
+    required this.selectedParkingType,
+    required this.freeOnly,
+    required this.isLoading,
+    required this.error,
+    required this.onRetry,
+    required this.onParkingTypeSelected,
+  });
+
+  final List<PublicParkingLot> parkingLots;
+  final String? selectedParkingType;
+  final bool freeOnly;
+  final bool isLoading;
+  final String? error;
+  final VoidCallback onRetry;
+  final ValueChanged<String> onParkingTypeSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = <String, int>{};
+    for (final parkingLot in parkingLots) {
+      final parkingType = _parkingType(parkingLot);
+      counts[parkingType] = (counts[parkingType] ?? 0) + 1;
+    }
+    final parkingTypes = counts.entries.toList()
+      ..sort((left, right) {
+        final countOrder = right.value.compareTo(left.value);
+        return countOrder != 0 ? countOrder : left.key.compareTo(right.key);
+      });
+    final options = <_MapBannerOption>[
+      _MapBannerOption(
+        key: _allBannerKey,
+        label: '전체',
+        count: parkingLots.length,
+        color: AppColors.pinParking,
+        icon: Icons.local_parking_rounded,
+      ),
+      _MapBannerOption(
+        key: _freeBannerKey,
+        label: '무료',
+        count: parkingLots.where((parkingLot) => parkingLot.free).length,
+        color: AppColors.primary,
+        icon: Icons.money_off_rounded,
+      ),
+      for (final parkingType in parkingTypes)
+        _MapBannerOption(
+          key: parkingType.key,
+          label: parkingType.key,
+          count: parkingType.value,
+          color: _parkingBannerColor(parkingType.key),
+          icon: _parkingBannerIcon(parkingType.key),
+        ),
+    ];
+
+    return _MapBannerLoadState(
+      isLoading: isLoading,
+      error: error,
+      isEmpty: parkingLots.isEmpty,
+      loadingMessage: '공영주차장 데이터를 준비하고 있어요.',
+      onRetry: onRetry,
+      child: _MapBannerList(
+        options: options,
+        selectedKey:
+            freeOnly ? _freeBannerKey : selectedParkingType ?? _allBannerKey,
+        keyPrefix: 'public-parking-type',
+        onSelected: onParkingTypeSelected,
+        centerItems: true,
+      ),
+    );
+  }
+}
+
+class _MapBannerLoadState extends StatelessWidget {
+  const _MapBannerLoadState({
+    required this.isLoading,
+    required this.error,
+    required this.isEmpty,
+    required this.loadingMessage,
+    required this.onRetry,
+    required this.child,
+  });
+
+  final bool isLoading;
+  final String? error;
+  final bool isEmpty;
+  final String loadingMessage;
+  final VoidCallback onRetry;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading && isEmpty) {
+      return SizedBox(
+        height: 70,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+              const SizedBox(width: 10),
+              Text(loadingMessage, style: AppTextStyles.bodyMuted),
+            ],
+          ),
+        ),
+      );
+    }
+    if (error != null && isEmpty) {
+      return SizedBox(
+        height: 70,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                error!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.bodyMuted,
+              ),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('다시 시도')),
+          ],
+        ),
+      );
+    }
+    return Stack(
+      children: [
+        child,
+        if (isLoading)
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
+      ],
+    );
+  }
+}
+
+class _MapBannerList extends StatelessWidget {
+  const _MapBannerList({
+    required this.options,
+    required this.selectedKey,
+    required this.keyPrefix,
+    required this.onSelected,
+    this.centerItems = false,
+    this.favoriteCounts = false,
+    this.bannerWidth = 132,
+  });
+
+  final List<_MapBannerOption> options;
+  final String selectedKey;
+  final String keyPrefix;
+  final ValueChanged<String> onSelected;
+  final bool centerItems;
+  final bool favoriteCounts;
+  final double bannerWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget buildBanner(int index) {
+      final option = options[index];
+      final style = option.key == _freeBannerKey
+          ? null
+          : PublicFacilityMarkerStyle.fromCategory(option.label);
+      return _MapCategoryBanner(
+        key: ValueKey('$keyPrefix-${option.key}'),
+        label: option.label,
+        countLabel:
+            favoriteCounts ? '찜 ${option.count}개' : '주변 ${option.count}곳',
+        color: option.color,
+        icon: option.key.startsWith('__')
+            ? PublicFacilityMarkerIcon(
+                style: PublicFacilityMarkerStyle(
+                  color: option.color,
+                  icon: option.icon,
+                ),
+              )
+            : PublicFacilityMarkerIcon(
+                style: PublicFacilityMarkerStyle(
+                  color: option.color,
+                  icon: style?.icon ?? option.icon,
+                ),
+              ),
+        isSelected: selectedKey == option.key,
+        onTap: () => onSelected(option.key),
+        width: bannerWidth,
+      );
+    }
+
+    return SizedBox(
+      height: 70,
+      child: centerItems
+          ? LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                clipBehavior: Clip.none,
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (var index = 0; index < options.length; index++) ...[
+                        if (index > 0) const SizedBox(width: 8),
+                        buildBanner(index),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            )
+          : ListView.separated(
+              clipBehavior: Clip.none,
+              scrollDirection: Axis.horizontal,
+              itemCount: options.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, index) => buildBanner(index),
+            ),
+    );
+  }
+}
+
+String _facilityCategory(PublicFacility facility) {
+  final category = facility.category.trim();
+  return category.isEmpty ? '기타 시설' : category;
+}
+
+String _parkingType(PublicParkingLot parkingLot) {
+  final parkingType = parkingLot.parkingType.trim();
+  return parkingType.isEmpty ? '기타 주차장' : parkingType;
+}
+
+Color _facilityBannerColor(String category) {
+  final normalized = category.trim();
+  if (normalized.contains('회의') || normalized.contains('강의')) {
+    return AppColors.info;
+  }
+  if (_containsAny(normalized, ['체육', '운동', '구장', '골프', '수영'])) {
+    return AppColors.primary;
+  }
+  if (_containsAny(normalized, ['공연', '강당', '문화', '전시'])) {
+    return AppColors.categoryLeisure;
+  }
+  if (_containsAny(normalized, ['공원', '야외', '광장'])) {
+    return AppColors.primaryDark;
+  }
+  return AppColors.pinPublic;
+}
+
+Color _parkingBannerColor(String parkingType) {
+  final normalized = parkingType.trim();
+  if (normalized.contains('노외')) return AppColors.info;
+  if (normalized.contains('부설')) return AppColors.categoryLeisure;
+  if (normalized.contains('노상')) return AppColors.pinParking;
+  return AppColors.warning;
+}
+
+IconData _parkingBannerIcon(String parkingType) {
+  final normalized = parkingType.trim();
+  if (normalized.contains('노외')) return Icons.directions_car_rounded;
+  if (normalized.contains('부설')) return Icons.domain_rounded;
+  return Icons.local_parking_rounded;
+}
+
+bool _containsAny(String value, List<String> keywords) {
+  return keywords.any(value.contains);
+}
+
 class _GoodPriceCategorySummary extends StatelessWidget {
   const _GoodPriceCategorySummary({
     required this.stores,
@@ -1842,6 +2461,7 @@ class _GoodPriceCategorySummary extends StatelessWidget {
     return SizedBox(
       height: 70,
       child: ListView.separated(
+        clipBehavior: Clip.none,
         scrollDirection: Axis.horizontal,
         itemCount: summaries.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
@@ -1853,66 +2473,14 @@ class _GoodPriceCategorySummary extends StatelessWidget {
           final style = GoodPriceStoreMarkerStyle.fromCategory(
             summary.markerCategory,
           );
-          return Semantics(
-            button: true,
-            selected: isSelected,
-            label: '${summary.label}, 주변 ${summary.count}곳',
-            child: GestureDetector(
-              key: ValueKey('good-price-category-${summary.key}'),
-              behavior: HitTestBehavior.opaque,
-              onTap: () => onCategorySelected(summary.key),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 132,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: style.color.withValues(
-                    alpha: isSelected ? 0.22 : 0.12,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: style.color.withValues(
-                      alpha: isSelected ? 0.9 : 0.24,
-                    ),
-                    width: isSelected ? 2 : 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    GoodPriceStoreMarkerIcon(style: style),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            summary.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '주변 ${summary.count}곳',
-                            style: AppTextStyles.captionTiny.copyWith(
-                              color: style.color,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          return _MapCategoryBanner(
+            key: ValueKey('good-price-category-${summary.key}'),
+            label: summary.label,
+            countLabel: '주변 ${summary.count}곳',
+            color: style.color,
+            icon: GoodPriceStoreMarkerIcon(style: style),
+            isSelected: isSelected,
+            onTap: () => onCategorySelected(summary.key),
           );
         },
       ),
@@ -2170,59 +2738,15 @@ class _HousingPropertyTypeItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = HousingDealMarkerStyle.fromPropertyType(propertyType);
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      label: '$propertyType, 주변 $count건',
-      child: GestureDetector(
-        key: ValueKey('housing-property-type-$propertyType'),
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          width: 148,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          decoration: BoxDecoration(
-            color: style.color.withValues(alpha: isSelected ? 0.22 : 0.12),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: style.color.withValues(alpha: isSelected ? 0.9 : 0.24),
-              width: isSelected ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              HousingDealMarkerIcon(style: style),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      propertyType,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '주변 $count건',
-                      style: AppTextStyles.captionTiny.copyWith(
-                        color: style.color,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return _MapCategoryBanner(
+      key: ValueKey('housing-property-type-$propertyType'),
+      label: propertyType,
+      countLabel: '주변 $count건',
+      color: style.color,
+      icon: HousingDealMarkerIcon(style: style),
+      isSelected: isSelected,
+      width: 148,
+      onTap: onTap,
     );
   }
 }
