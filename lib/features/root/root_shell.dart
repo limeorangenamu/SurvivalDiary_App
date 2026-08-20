@@ -19,6 +19,7 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
   int _homeRefreshVersion = 0;
+  int _mapRefreshVersion = 0;
   bool _diaryStatsDaily = false;
   final _authSession = AuthSession.instance;
   bool _checkingSession = false;
@@ -78,7 +79,7 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
       ),
       ExpenseAddPage(initialDaily: _diaryStatsDaily),
       const PolicyFilterPage(),
-      const SavingMapPage(),
+      SavingMapPage(refreshVersion: _mapRefreshVersion),
       const CommunityPage(),
     ];
     return Scaffold(
@@ -89,6 +90,9 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
           _currentIndex = index;
           if (index == 0) {
             _homeRefreshVersion++;
+          }
+          if (index == 3) {
+            _mapRefreshVersion++;
           }
         }),
       ),

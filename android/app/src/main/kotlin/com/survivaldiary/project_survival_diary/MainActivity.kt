@@ -63,6 +63,14 @@ class MainActivity : FlutterFragmentActivity() {
                 "requestSmsAccess" -> requestSmsAccess(result)
                 "requestExpenseAlertPermission" -> requestExpenseAlertPermission(result)
                 "scanSmsInbox" -> scanSmsInbox(result)
+                "seedDemoDetectedExpenses" -> {
+                    val debugRequest = call.argument<Boolean>("debug") == true
+                    if (!debugRequest) {
+                        result.success(0)
+                    } else {
+                        result.success(seedDemoDetectedExpenses(store))
+                    }
+                }
                 "removeDetectedExpense" -> {
                     val id = call.argument<String>("id")
                     if (id.isNullOrBlank()) {
@@ -149,6 +157,53 @@ class MainActivity : FlutterFragmentActivity() {
         return enabledListeners.split(':')
             .mapNotNull(ComponentName::unflattenFromString)
             .any { it == component }
+    }
+
+    private fun seedDemoDetectedExpenses(store: PaymentNotificationStore): Int {
+        val preferences = getSharedPreferences(
+            DEMO_EXPENSE_PREFERENCES,
+            MODE_PRIVATE,
+        )
+        if (preferences.getBoolean(DEMO_EXPENSE_SEEDED_KEY, false)) {
+            return 0
+        }
+
+        val now = System.currentTimeMillis()
+        val candidates = listOf(
+            DetectedExpenseCandidate(
+                id = "demo-woojung-snack-8000-v1",
+                merchant = "우정분식",
+                amount = 8_000,
+                detectedAt = now - 120_000L,
+                source = "신한카드 알림",
+                sourcePackage = "demo.shinhan.card",
+                sourceKey = "shinhan-card-demo",
+                detectionChannel = "notification",
+                category = "food",
+                confidence = 1.0,
+            ),
+            DetectedExpenseCandidate(
+                id = "demo-woojung-snack-5000-v1",
+                merchant = "우정분식",
+                amount = 5_000,
+                detectedAt = now - 60_000L,
+                source = "신한카드 알림",
+                sourcePackage = "demo.shinhan.card",
+                sourceKey = "shinhan-card-demo",
+                detectionChannel = "notification",
+                category = "food",
+                confidence = 1.0,
+            ),
+        )
+        var addedCount = 0
+        candidates.forEach { candidate ->
+            store.add(candidate)?.let { added ->
+                PaymentNotificationEventBus.publish(added)
+                addedCount++
+            }
+        }
+        preferences.edit().putBoolean(DEMO_EXPENSE_SEEDED_KEY, true).apply()
+        return addedCount
     }
 
     private fun openNotificationAccessSettings() {
@@ -278,6 +333,8 @@ class MainActivity : FlutterFragmentActivity() {
             "com.survivaldiary.project_survival_diary/app_config"
         private const val EVENT_CHANNEL =
             "com.survivaldiary.project_survival_diary/payment_notification_events"
+        private const val DEMO_EXPENSE_PREFERENCES = "debug_demo_expenses"
+        private const val DEMO_EXPENSE_SEEDED_KEY = "woojung_snack_v1"
         private const val SMS_PERMISSION_REQUEST_CODE = 7201
         private const val EXPENSE_ALERT_PERMISSION_REQUEST_CODE = 7202
     }

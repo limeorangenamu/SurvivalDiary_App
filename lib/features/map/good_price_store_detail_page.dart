@@ -5,11 +5,18 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_card.dart';
 import 'good_price_store_marker_style.dart';
+import 'place_expense_summary.dart';
+import 'widgets/place_spending_summary.dart';
 
 class GoodPriceStoreDetailPage extends StatelessWidget {
-  const GoodPriceStoreDetailPage({super.key, required this.store});
+  const GoodPriceStoreDetailPage({
+    super.key,
+    required this.store,
+    this.spendingSummary,
+  });
 
   final GoodPriceStore store;
+  final PlaceExpenseSummary? spendingSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +47,13 @@ class GoodPriceStoreDetailPage extends StatelessWidget {
               ],
             ),
           ),
+          if (spendingSummary != null) ...[
+            const SizedBox(height: 14),
+            PlaceSpendingSummary(
+              summary: spendingSummary!,
+              accentColor: style.color,
+            ),
+          ],
           const SizedBox(height: 14),
           _DetailRow(
             icon: Icons.location_on_outlined,

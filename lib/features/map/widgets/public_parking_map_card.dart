@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/services/public_parking_api_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../place_expense_summary.dart';
+import 'place_spending_summary.dart';
 
 class PublicParkingMapCard extends StatelessWidget {
   const PublicParkingMapCard({
@@ -12,6 +14,7 @@ class PublicParkingMapCard extends StatelessWidget {
     required this.onFavoritePressed,
     required this.onDirectionsPressed,
     required this.onTap,
+    this.spendingSummary,
   });
 
   final PublicParkingLot parkingLot;
@@ -19,6 +22,7 @@ class PublicParkingMapCard extends StatelessWidget {
   final VoidCallback onFavoritePressed;
   final VoidCallback onDirectionsPressed;
   final VoidCallback onTap;
+  final PlaceExpenseSummary? spendingSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +105,14 @@ class PublicParkingMapCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.caption,
                 ),
+                if (spendingSummary != null) ...[
+                  const SizedBox(height: 6),
+                  PlaceSpendingSummary(
+                    summary: spendingSummary!,
+                    accentColor: AppColors.pinParking,
+                    compact: true,
+                  ),
+                ],
                 const Spacer(),
                 Row(
                   children: [

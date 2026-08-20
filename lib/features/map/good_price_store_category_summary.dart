@@ -72,7 +72,7 @@ List<GoodPriceStoreCategorySummary> summarizeGoodPriceStoreCategories(
       markerCategory: '기타비요식업',
       count: counts['other'] ?? 0,
     ),
-  ];
+  ].where((summary) => summary.count > 0).toList(growable: false);
 }
 
 bool goodPriceStoreMatchesCategory(

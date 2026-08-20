@@ -4,6 +4,8 @@ import '../../../core/services/good_price_api_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../good_price_store_marker_style.dart';
+import '../place_expense_summary.dart';
+import 'place_spending_summary.dart';
 
 class GoodPriceStoreMapCard extends StatelessWidget {
   const GoodPriceStoreMapCard({
@@ -13,6 +15,7 @@ class GoodPriceStoreMapCard extends StatelessWidget {
     required this.onFavoritePressed,
     required this.onDirectionsPressed,
     required this.onTap,
+    this.spendingSummary,
   });
 
   final GoodPriceStore store;
@@ -20,6 +23,7 @@ class GoodPriceStoreMapCard extends StatelessWidget {
   final VoidCallback onFavoritePressed;
   final VoidCallback onDirectionsPressed;
   final VoidCallback onTap;
+  final PlaceExpenseSummary? spendingSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +104,14 @@ class GoodPriceStoreMapCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.caption,
                 ),
+                if (spendingSummary != null) ...[
+                  const SizedBox(height: 6),
+                  PlaceSpendingSummary(
+                    summary: spendingSummary!,
+                    accentColor: style.color,
+                    compact: true,
+                  ),
+                ],
                 const Spacer(),
                 Text(
                   firstMenu == null
