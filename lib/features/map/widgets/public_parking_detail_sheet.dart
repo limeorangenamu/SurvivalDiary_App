@@ -5,6 +5,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/app_card.dart';
+import '../place_expense_summary.dart';
+import 'place_spending_summary.dart';
 
 class PublicParkingDetailSheet extends StatelessWidget {
   const PublicParkingDetailSheet({
@@ -12,11 +14,13 @@ class PublicParkingDetailSheet extends StatelessWidget {
     required this.parkingLot,
     required this.scrollController,
     required this.onDirectionsPressed,
+    this.spendingSummary,
   });
 
   final PublicParkingLot parkingLot;
   final ScrollController scrollController;
   final VoidCallback onDirectionsPressed;
+  final PlaceExpenseSummary? spendingSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +76,13 @@ class PublicParkingDetailSheet extends StatelessWidget {
                 ],
               ),
             ),
+            if (spendingSummary != null) ...[
+              const SizedBox(height: 14),
+              PlaceSpendingSummary(
+                summary: spendingSummary!,
+                accentColor: AppColors.pinParking,
+              ),
+            ],
             const SizedBox(height: 14),
             _DetailRow(
               icon: Icons.location_on_outlined,

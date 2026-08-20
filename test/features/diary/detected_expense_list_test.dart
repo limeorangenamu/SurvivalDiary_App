@@ -12,12 +12,19 @@ void main() {
   const eventChannel = MethodChannel(
     'com.survivaldiary.project_survival_diary/payment_notification_events',
   );
+  late int demoSeedCallCount;
 
   setUp(() async {
+    demoSeedCallCount = 0;
     await NotificationExpenseRepository.instance.reset();
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(methodChannel, (call) async {
+      if (call.method == 'seedDemoDetectedExpenses') {
+        demoSeedCallCount++;
+        expect(call.arguments, {'debug': true});
+        return 2;
+      }
       return switch (call.method) {
         'isNotificationAccessGranted' => true,
         'getSmsAccessState' => 'enabled',
@@ -63,6 +70,7 @@ void main() {
     expect(find.text('문자함의 결제 내역도 확인 중이에요'), findsNothing);
     expect(find.text('스타벅스 강남점'), findsOneWidget);
     expect(find.text('5,500원'), findsOneWidget);
+    expect(demoSeedCallCount, 1);
     expect(
       find.byKey(const ValueKey('edit-detected-detection-key')),
       findsOneWidget,

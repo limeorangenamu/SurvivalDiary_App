@@ -13,12 +13,15 @@ import '../../../core/theme/app_colors.dart';
 import '../../../data/models.dart';
 import '../good_price_store_marker_style.dart';
 import '../housing_deal_marker_style.dart';
+import '../place_expense_summary.dart';
 import '../public_parking_marker_style.dart';
 import '../public_facility_marker_style.dart';
 import 'good_price_store_map_card.dart';
 import 'housing_deal_map_card.dart';
 import 'public_parking_map_card.dart';
 import 'public_facility_map_card.dart';
+
+const _apiMarkerSize = Size(33, 39);
 
 class MapViewport {
   const MapViewport({required this.center, required this.bounds});
@@ -51,6 +54,8 @@ class SavingMapCanvas extends StatefulWidget {
     required this.isSelectedFacilityFavorite,
     required this.isSelectedParkingFavorite,
     required this.isSelectedHousingFavorite,
+    required this.selectedStoreSpendingSummary,
+    required this.selectedParkingSpendingSummary,
     required this.onStoreFavoritePressed,
     required this.onFacilityFavoritePressed,
     required this.onParkingFavoritePressed,
@@ -89,6 +94,8 @@ class SavingMapCanvas extends StatefulWidget {
   final bool isSelectedFacilityFavorite;
   final bool isSelectedParkingFavorite;
   final bool isSelectedHousingFavorite;
+  final PlaceExpenseSummary? selectedStoreSpendingSummary;
+  final PlaceExpenseSummary? selectedParkingSpendingSummary;
   final VoidCallback onStoreFavoritePressed;
   final VoidCallback onFacilityFavoritePressed;
   final VoidCallback onParkingFavoritePressed;
@@ -273,7 +280,8 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
     final parkingLot = widget.selectedParkingLot!;
     final point = _selectedParkingScreenPoint!;
     const cardWidth = 270.0;
-    const cardHeight = 158.0;
+    final cardHeight =
+        widget.selectedParkingSpendingSummary == null ? 158.0 : 184.0;
     return IgnorePointer(
       ignoring: false,
       child: LayoutBuilder(
@@ -303,6 +311,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
                   onFavoritePressed: widget.onParkingFavoritePressed,
                   onDirectionsPressed: widget.onParkingDirectionsPressed,
                   onTap: widget.onParkingCardTap,
+                  spendingSummary: widget.selectedParkingSpendingSummary,
                 ),
               ),
               Positioned(
@@ -328,7 +337,8 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
     final store = widget.selectedGoodPriceStore!;
     final point = _selectedStoreScreenPoint!;
     const cardWidth = 270.0;
-    const cardHeight = 158.0;
+    final cardHeight =
+        widget.selectedStoreSpendingSummary == null ? 158.0 : 184.0;
     return IgnorePointer(
       ignoring: false,
       child: LayoutBuilder(
@@ -358,6 +368,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
                   onFavoritePressed: widget.onStoreFavoritePressed,
                   onDirectionsPressed: widget.onDirectionsPressed,
                   onTap: widget.onGoodPriceStoreCardTap,
+                  spendingSummary: widget.selectedStoreSpendingSummary,
                 ),
               ),
               Positioned(
@@ -555,7 +566,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
         id: 'good-price-${store.id}',
         position: NLatLng(store.latitude!, store.longitude!),
         icon: icon,
-        size: const Size(44, 52),
+        size: _apiMarkerSize,
         caption: NOverlayCaption(text: store.name),
       );
       marker.setOnTapListener((_) {
@@ -574,7 +585,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
         id: 'public-facility-${facility.id}',
         position: NLatLng(facility.latitude!, facility.longitude!),
         icon: icon,
-        size: const Size(44, 52),
+        size: _apiMarkerSize,
         caption: NOverlayCaption(text: facility.name),
       );
       marker.setOnTapListener((_) {
@@ -593,7 +604,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
         id: 'public-parking-${parkingLot.id}',
         position: NLatLng(parkingLot.latitude!, parkingLot.longitude!),
         icon: icon,
-        size: const Size(44, 52),
+        size: _apiMarkerSize,
         caption: NOverlayCaption(text: parkingLot.name),
       );
       marker.setOnTapListener((_) {
@@ -617,7 +628,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
         id: 'housing-${entry.key.hashCode}',
         position: NLatLng(deal.latitude!, deal.longitude!),
         icon: icon,
-        size: const Size(44, 52),
+        size: _apiMarkerSize,
         caption: NOverlayCaption(text: deal.propertyName),
       );
       marker.setOnTapListener((_) => widget.onHousingDealTap(deal));
@@ -674,7 +685,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
       final style = GoodPriceStoreMarkerStyle.fromCategory(normalizedCategory);
       return NOverlayImage.fromWidget(
         widget: GoodPriceStoreMarkerIcon(style: style),
-        size: const Size(44, 52),
+        size: _apiMarkerSize,
         context: context,
       );
     });
@@ -686,7 +697,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
       final style = PublicFacilityMarkerStyle.fromCategory(normalizedCategory);
       return NOverlayImage.fromWidget(
         widget: PublicFacilityMarkerIcon(style: style),
-        size: const Size(44, 52),
+        size: _apiMarkerSize,
         context: context,
       );
     });
@@ -697,7 +708,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
       final style = HousingDealMarkerStyle.fromPropertyType(propertyType);
       return NOverlayImage.fromWidget(
         widget: HousingDealMarkerIcon(style: style),
-        size: const Size(44, 52),
+        size: _apiMarkerSize,
         context: context,
       );
     });
@@ -706,7 +717,7 @@ class _SavingMapCanvasState extends State<SavingMapCanvas> {
   Future<NOverlayImage> _getParkingMarkerIcon() {
     return _parkingMarkerIcon ??= NOverlayImage.fromWidget(
       widget: const PublicParkingMarkerIcon(),
-      size: const Size(44, 52),
+      size: _apiMarkerSize,
       context: context,
     );
   }

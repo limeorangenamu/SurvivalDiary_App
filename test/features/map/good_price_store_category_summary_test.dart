@@ -39,6 +39,13 @@ void main() {
       stores,
     );
   });
+
+  test('현재 화면에 업소가 없는 카테고리는 집계에서 제외한다', () {
+    final summaries = summarizeGoodPriceStoreCategories([_store('한식')]);
+
+    expect(summaries.map((summary) => summary.label), ['전체', '음식점']);
+    expect(summarizeGoodPriceStoreCategories(const []), isEmpty);
+  });
 }
 
 int _countOf(List<GoodPriceStoreCategorySummary> summaries, String label) {

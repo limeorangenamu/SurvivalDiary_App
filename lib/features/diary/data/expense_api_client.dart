@@ -34,7 +34,6 @@ class CreateExpenseRequest {
       'entryType': 'MANUAL',
     };
   }
-
 }
 
 class CreateAutoExpenseRequest {
@@ -151,6 +150,8 @@ class ExpenseApiClient {
             (item['categoryId'] as num).toInt(),
           ),
           memo: item['memo'] as String?,
+          entryType: _entryTypeFromApi(item['entryType']),
+          notificationSource: item['notificationSource'] as String?,
         );
       }).toList();
     } on FormatException {
@@ -307,6 +308,11 @@ ExpenseCategory _categoryFromDatabaseId(int categoryId) => switch (categoryId) {
       5 => ExpenseCategory.etc,
       6 => ExpenseCategory.leisure,
       _ => throw const FormatException(),
+    };
+
+ExpenseEntryType _entryTypeFromApi(Object? value) => switch (value) {
+      'AUTO' => ExpenseEntryType.auto,
+      _ => ExpenseEntryType.manual,
     };
 
 String _formatRequestDateTime(DateTime value) {

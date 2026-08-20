@@ -4,6 +4,8 @@ import '../core/theme/app_colors.dart';
 
 enum ExpenseCategory { food, cafe, transport, shopping, leisure, etc }
 
+enum ExpenseEntryType { manual, auto }
+
 extension ExpenseCategoryExtension on ExpenseCategory {
   String get label => switch (this) {
         ExpenseCategory.food => '식비',
@@ -129,6 +131,8 @@ class Expense {
     required this.date,
     required this.category,
     this.memo,
+    this.entryType = ExpenseEntryType.manual,
+    this.notificationSource,
   });
 
   final String id;
@@ -137,6 +141,8 @@ class Expense {
   final DateTime date;
   final ExpenseCategory category;
   final String? memo;
+  final ExpenseEntryType entryType;
+  final String? notificationSource;
 }
 
 class CategoryStat {

@@ -80,41 +80,41 @@ class GoodPriceStoreMarkerIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 44,
-      height: 52,
+      width: 33,
+      height: 39,
       child: Stack(
         alignment: Alignment.topCenter,
         children: [
           Positioned(
-            top: 31,
+            top: 23,
             child: Transform.rotate(
               angle: 0.785398,
               child: Container(
-                width: 15,
-                height: 15,
+                width: 11,
+                height: 11,
                 decoration: BoxDecoration(
                   color: style.color,
-                  border: Border.all(color: AppColors.surface, width: 2),
+                  border: Border.all(color: AppColors.surface, width: 1.5),
                 ),
               ),
             ),
           ),
           Container(
-            width: 42,
-            height: 42,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: style.color,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.surface, width: 2.5),
+              border: Border.all(color: AppColors.surface, width: 2),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.textPrimary.withValues(alpha: 0.25),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+                  blurRadius: 4.5,
+                  offset: const Offset(0, 1.5),
                 ),
               ],
             ),
-            child: Icon(style.icon, color: AppColors.surface, size: 23),
+            child: Icon(style.icon, color: AppColors.surface, size: 17),
           ),
         ],
       ),

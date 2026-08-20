@@ -43,6 +43,7 @@ class NotificationExpenseRepository extends ChangeNotifier {
   String? _errorMessage;
   String? _smsErrorMessage;
   bool _started = false;
+  bool _demoSeedRequested = false;
   bool _expenseAlertPermissionRequested = false;
 
   NotificationAccessStatus get accessStatus => _accessStatus;
@@ -73,7 +74,25 @@ class NotificationExpenseRepository extends ChangeNotifier {
             onError: _handlePlatformError,
           );
     }
+    await _seedDebugDemoExpenses();
     await refresh();
+  }
+
+  Future<void> _seedDebugDemoExpenses() async {
+    if (!kDebugMode || _demoSeedRequested) {
+      return;
+    }
+    _demoSeedRequested = true;
+    try {
+      await _methodChannel.invokeMethod<int>(
+        'seedDemoDetectedExpenses',
+        {'debug': true},
+      );
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
+      _demoSeedRequested = false;
+    }
   }
 
   Future<void> refresh() async {
@@ -279,6 +298,7 @@ class NotificationExpenseRepository extends ChangeNotifier {
     _errorMessage = null;
     _smsErrorMessage = null;
     _started = false;
+    _demoSeedRequested = false;
     _expenseAlertPermissionRequested = false;
   }
 }

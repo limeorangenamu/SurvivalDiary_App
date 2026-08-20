@@ -15,6 +15,28 @@ class LocationService {
   );
 
   Future<Position> getCurrentPosition() async {
+    await _ensureLocationAvailable();
+
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 10),
+      ),
+    );
+  }
+
+  Stream<Position> watchPosition() async* {
+    await _ensureLocationAvailable();
+
+    yield* Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    );
+  }
+
+  Future<void> _ensureLocationAvailable() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
     if (!serviceEnabled) {
@@ -34,13 +56,6 @@ class LocationService {
     if (permission == LocationPermission.deniedForever) {
       throw Exception('위치 권한이 영구적으로 거부되었어요. 설정에서 허용해주세요.');
     }
-
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 10),
-      ),
-    );
   }
 
   Future<CurrentRegion> getCurrentRegion(Position position) async {
