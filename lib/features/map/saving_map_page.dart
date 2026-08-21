@@ -2693,22 +2693,27 @@ class _MapBannerList extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = visibleOptions.length < maxColumns
-            ? visibleOptions.length
-            : maxColumns;
+        final columns = maxColumns.clamp(1, 2);
+        final rows = visibleOptions.length > columns ? 2 : 1;
         final bannerWidth = constraints.hasBoundedWidth
             ? (constraints.maxWidth - (columns - 1) * 8) / columns
             : 104.0;
-        return Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final option in visibleOptions)
-                buildBanner(option, bannerWidth),
-            ],
+        const bannerHeight = 56.0;
+        return SizedBox(
+          height: 6 + rows * bannerHeight + (rows - 1) * 8,
+          child: GridView.builder(
+            padding: const EdgeInsets.only(top: 6),
+            scrollDirection: Axis.vertical,
+            primary: false,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              mainAxisExtent: bannerHeight,
+            ),
+            itemCount: visibleOptions.length,
+            itemBuilder: (context, index) =>
+                buildBanner(visibleOptions[index], bannerWidth),
           ),
         );
       },
