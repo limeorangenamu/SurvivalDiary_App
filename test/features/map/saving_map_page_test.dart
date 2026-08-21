@@ -77,7 +77,7 @@ void main() {
     expect(canvas().housingDeals, isEmpty);
   });
 
-  testWidgets('MY 찜 분류 배너는 스크롤 없이 화면 안에서 줄바꿈된다', (tester) async {
+  testWidgets('MY 찜 분류 배너는 흰색 2x2 그리드로 세로 스크롤된다', (tester) async {
     FlutterSecureStorage.setMockInitialValues(_allFavoriteTypes());
     await tester.binding.setSurfaceSize(const Size(360, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -86,28 +86,58 @@ void main() {
 
     final categoryPanel = find.byKey(const ValueKey('map-category-panel'));
     expect(
-      find.descendant(of: categoryPanel, matching: find.byType(Wrap)),
+      find.descendant(of: categoryPanel, matching: find.byType(GridView)),
       findsOneWidget,
     );
-    expect(
-      find.descendant(
-        of: categoryPanel,
-        matching: find.byType(SingleChildScrollView),
-      ),
-      findsNothing,
+    final grid = tester.widget<GridView>(
+      find.descendant(of: categoryPanel, matching: find.byType(GridView)),
     );
+    expect(grid.scrollDirection, Axis.vertical);
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(delegate.crossAxisCount, 2);
+
     final panelRect = tester.getRect(categoryPanel);
     for (final key in const [
       'my-favorite-type-__all__',
       'my-favorite-type-good-price',
       'my-favorite-type-public-facility',
       'my-favorite-type-public-parking',
-      'my-favorite-type-housing',
     ]) {
       final bannerRect = tester.getRect(find.byKey(ValueKey(key)));
       expect(bannerRect.left, greaterThanOrEqualTo(panelRect.left));
       expect(bannerRect.right, lessThanOrEqualTo(panelRect.right));
     }
+
+    final unselectedBanner = find.byKey(
+      const ValueKey('my-favorite-type-public-facility'),
+    );
+    final container = tester.widget<AnimatedContainer>(
+      find.descendant(
+        of: unselectedBanner,
+        matching: find.byType(AnimatedContainer),
+      ),
+    );
+    final decoration = container.decoration! as BoxDecoration;
+    expect(decoration.color, AppColors.surface);
+    expect(decoration.boxShadow, isNotEmpty);
+
+    final scrollable = find.descendant(
+      of: categoryPanel,
+      matching: find.byType(Scrollable),
+    );
+    final position = tester.state<ScrollableState>(scrollable).position;
+    expect(position.maxScrollExtent, greaterThan(0));
+    await tester.drag(
+      find.descendant(of: categoryPanel, matching: find.byType(GridView)),
+      const Offset(0, -80),
+    );
+    await tester.pumpAndSettle();
+    expect(position.pixels, greaterThan(0));
+    expect(
+      find.byKey(const ValueKey('my-favorite-type-housing')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('주거지 데이터가 없으면 하단 분류 배너를 숨긴다', (tester) async {
