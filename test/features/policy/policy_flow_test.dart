@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:project_survival_diary/core/router/app_router.dart';
 import 'package:project_survival_diary/core/router/app_routes.dart';
-import 'package:project_survival_diary/core/theme/app_colors.dart';
 import 'package:project_survival_diary/core/theme/app_theme.dart';
 import 'package:project_survival_diary/data/mock_data.dart';
 import 'package:project_survival_diary/data/models.dart';
@@ -16,6 +15,7 @@ import 'package:project_survival_diary/features/policy/policy_detail_page.dart';
 import 'package:project_survival_diary/features/policy/policy_filter_page.dart';
 import 'package:project_survival_diary/features/policy/hidden_policies_page.dart';
 import 'package:project_survival_diary/features/policy/policy_list_page.dart';
+import 'package:project_survival_diary/shared/widgets/pill_chip.dart';
 
 void main() {
   late PolicyApiClient apiClient;
@@ -188,6 +188,13 @@ void main() {
       find.byKey(const ValueKey('policy-situation-job-seeking')),
     );
     await tester.pumpAndSettle();
+    final selectedSituationChip = tester.widget<PillChip>(
+      find.descendant(
+        of: find.byKey(const ValueKey('policy-situation-job-seeking')),
+        matching: find.byType(PillChip),
+      ),
+    );
+    expect(selectedSituationChip.selected, isTrue);
     await tester.tap(
       find.byKey(const ValueKey('policy-education-level-field')),
     );
@@ -256,14 +263,10 @@ void main() {
     expect(requestBodies.last['category'], 'HOUSING');
     expect(requestBodies.last.containsKey('age'), isFalse);
     expect(find.text('청년 월세 지원'), findsOneWidget);
-    final selectedChip = tester.widget<ChoiceChip>(
-      find.descendant(
-        of: find.byKey(const ValueKey('policy-category-housing')),
-        matching: find.byType(ChoiceChip),
-      ),
+    final selectedChip = tester.widget<PillChip>(
+      find.byKey(const ValueKey('policy-category-housing')),
     );
     expect(selectedChip.selected, isTrue);
-    expect(selectedChip.labelStyle?.color, AppColors.surface);
 
     await tester.enterText(
       find.byKey(const ValueKey('policy-keyword-field')),

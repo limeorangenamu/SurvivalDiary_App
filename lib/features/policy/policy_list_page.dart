@@ -9,6 +9,7 @@ import '../../core/utils/formatters.dart';
 import '../../data/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/empty_state_view.dart';
+import '../../shared/widgets/pill_chip.dart';
 import '../auth/auth_session.dart';
 import 'data/policy_api_client.dart';
 import 'data/policy_models.dart';
@@ -631,51 +632,25 @@ class _BriefingHeader extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              _CategoryChip(
+              PillChip(
                 key: const ValueKey('policy-category-all'),
                 label: '전체',
                 selected: category == null,
-                onSelected: () => onCategoryChanged(null),
+                onTap: () => onCategoryChanged(null),
               ),
               for (final value in PolicyCategory.values) ...[
                 const SizedBox(width: 8),
-                _CategoryChip(
+                PillChip(
                   key: ValueKey('policy-category-${value.name}'),
                   label: value.label,
                   selected: category == value,
-                  onSelected: () => onCategoryChanged(value),
+                  onTap: () => onCategoryChanged(value),
                 ),
               ],
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      labelStyle: AppTextStyles.caption.copyWith(
-        color: selected ? AppColors.surface : AppColors.textSecondary,
-        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-      ),
-      selected: selected,
-      onSelected: (_) => onSelected(),
     );
   }
 }
