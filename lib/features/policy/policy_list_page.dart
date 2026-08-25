@@ -562,15 +562,24 @@ class _BriefingHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final interestLabels = condition.interests
+        .map((interest) => interest.goalLabel)
+        .toList(growable: false);
+    final interestSummary = interestLabels.isEmpty
+        ? '전체 분야'
+        : interestLabels.length == 1
+            ? interestLabels.single
+            : '${interestLabels.first} 외 ${interestLabels.length - 1}개';
     final conditionLabel = [
       condition.region,
       condition.district ?? '전체',
       '만 ${condition.age}세',
+      if (condition.workStatus != null) condition.workStatus!.label,
       if (condition.jobSeeking == true) '구직 중',
-      if (condition.workStatus != null && condition.jobSeeking != true)
-        condition.workStatus!.label,
+      if (condition.incomeRange != null) condition.incomeRange!.label,
       if (condition.educationLevel != null) condition.educationLevel!.label,
       if (condition.enrollmentStatus != null) condition.enrollmentStatus!.label,
+      interestSummary,
     ].join(' · ');
 
     return Column(

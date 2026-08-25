@@ -104,6 +104,7 @@ void main() {
     ]);
     expect(find.text('놓치면 아쉬운 정책이 1개 있어요'), findsNothing);
     expect(find.textContaining('서울특별시 · 종로구 · 만 27세'), findsOneWidget);
+    expect(find.textContaining('중위소득 100% 이하'), findsOneWidget);
     expect(find.text('청년 일자리 지원'), findsOneWidget);
     expect(find.text('내게 추천'), findsOneWidget);
     expect(find.text('청년의 취업과 일자리 준비를 지원해요'), findsOneWidget);
@@ -164,8 +165,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('policy-setup-next')));
     await tester.pumpAndSettle();
 
-    expect(find.text('지금 어떤 상황에 가까운가요?'), findsOneWidget);
-    expect(find.text('여러 개를 선택할 수 있고, 잘 모르겠다면 건너뛰어도 괜찮아요.'), findsNothing);
+    expect(find.text('현재 상황을 알려주세요'), findsOneWidget);
+    expect(find.text('일하는 형태'), findsOneWidget);
+    expect(find.text('프리랜서'), findsOneWidget);
+    expect(find.text('창업 준비'), findsOneWidget);
   });
 
   testWidgets('3단계 조건 설정을 저장하고 개인 추천 목록을 연다', (tester) async {
@@ -185,16 +188,27 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(
+      find.byKey(const ValueKey('policy-work-status-prospectiveFounder')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
       find.byKey(const ValueKey('policy-situation-job-seeking')),
     );
     await tester.pumpAndSettle();
     final selectedSituationChip = tester.widget<PillChip>(
-      find.descendant(
-        of: find.byKey(const ValueKey('policy-situation-job-seeking')),
-        matching: find.byType(PillChip),
-      ),
+      find.byKey(const ValueKey('policy-situation-job-seeking')),
     );
     expect(selectedSituationChip.selected, isTrue);
+    await tester.tap(
+      find.byKey(const ValueKey('policy-detail-condition-tile')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('policy-income-range-field')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('중위소득 100% 이하').last);
+    await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const ValueKey('policy-education-level-field')),
     );
@@ -210,10 +224,16 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('policy-setup-next')));
     await tester.pumpAndSettle();
 
-    expect(find.text('조건 확인'), findsOneWidget);
-    expect(find.text('구직 중'), findsOneWidget);
-    expect(find.text('4년제 대학'), findsOneWidget);
-    expect(find.text('재학 중'), findsOneWidget);
+    expect(find.text('지금 어떤 도움이 필요한가요?'), findsOneWidget);
+    expect(find.text('전체 분야 보기'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey('policy-interest-employment')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('policy-interest-assetBuilding')),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('policy-recommend-button')));
     await tester.pumpAndSettle();
 
@@ -221,11 +241,12 @@ void main() {
       'age': 27,
       'regionCode': '11',
       'districtCode': '11110',
-      'workStatus': 'UNEMPLOYED',
+      'workStatus': 'PROSPECTIVE_FOUNDER',
       'jobSeeking': true,
+      'incomeRange': 'BELOW_100',
       'educationLevel': 'UNIVERSITY_4_YEAR',
       'enrollmentStatus': 'ENROLLED',
-      'interests': <dynamic>[],
+      'interests': ['EMPLOYMENT', 'ASSET_BUILDING'],
     });
     expect(capturedBodies.last, {'page': 1, 'size': 20});
     expect(find.byKey(const ValueKey('policy-recommended-section')),
@@ -601,7 +622,7 @@ PolicyApiClient _policyApiClient({
           'regionCode': body['regionCode'],
           'districtCode': body['districtCode'],
           'employmentStatus': null,
-          'incomeRange': null,
+          'incomeRange': body['incomeRange'],
           'category': null,
           'workStatus': body['workStatus'],
           'jobSeeking': body['jobSeeking'],
@@ -833,7 +854,7 @@ Map<String, dynamic> _savedPreferenceJson() {
     'regionCode': '11',
     'districtCode': '11110',
     'employmentStatus': 'JOB_SEEKING',
-    'incomeRange': null,
+    'incomeRange': 'BELOW_100',
     'category': null,
     'workStatus': 'UNEMPLOYED',
     'jobSeeking': true,

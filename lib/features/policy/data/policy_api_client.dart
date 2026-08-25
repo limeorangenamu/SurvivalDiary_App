@@ -371,6 +371,8 @@ class PolicyApiClient {
       if (condition.workStatus != null)
         'workStatus': _workStatusCode(condition.workStatus!),
       if (condition.jobSeeking != null) 'jobSeeking': condition.jobSeeking,
+      if (condition.incomeRange != null)
+        'incomeRange': _incomeRangeCode(condition.incomeRange!),
       if (condition.educationLevel != null)
         'educationLevel': _educationLevelCode(condition.educationLevel!),
       if (condition.enrollmentStatus != null)
@@ -423,6 +425,9 @@ class PolicyApiClient {
       if (condition.workStatus != null)
         'workStatus': _workStatusCode(condition.workStatus!),
       if (condition.jobSeeking != null) 'jobSeeking': condition.jobSeeking,
+      'incomeRange': condition.incomeRange == null
+          ? null
+          : _incomeRangeCode(condition.incomeRange!),
       if (condition.educationLevel != null)
         'educationLevel': _educationLevelCode(condition.educationLevel!),
       if (condition.enrollmentStatus != null)
@@ -441,6 +446,13 @@ class PolicyApiClient {
         PolicyWorkStatus.shortTermWorker => 'SHORT_TERM_WORKER',
         PolicyWorkStatus.farmer => 'FARMER',
         PolicyWorkStatus.other => 'OTHER',
+      };
+
+  String _incomeRangeCode(PolicyIncomeRange range) => switch (range) {
+        PolicyIncomeRange.below50 => 'BELOW_50',
+        PolicyIncomeRange.below100 => 'BELOW_100',
+        PolicyIncomeRange.below150 => 'BELOW_150',
+        PolicyIncomeRange.noLimit => 'NO_LIMIT',
       };
 
   String _educationLevelCode(PolicyEducationLevel level) => switch (level) {
