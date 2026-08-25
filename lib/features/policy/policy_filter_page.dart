@@ -7,6 +7,7 @@ import '../../data/mock_data.dart';
 import '../../data/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/option_picker_sheet.dart';
+import '../../shared/widgets/pill_chip.dart';
 import '../auth/auth_session.dart';
 import 'data/policy_api_client.dart';
 import 'data/policy_models.dart';
@@ -536,7 +537,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
               children: [
                 SizedBox(
                   width: itemWidth,
-                  height: 52,
+                  height: 40,
                   child: _SituationChip(
                     key: const ValueKey('policy-situation-employed'),
                     icon: Icons.work_outline_rounded,
@@ -547,7 +548,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
                 ),
                 SizedBox(
                   width: itemWidth,
-                  height: 52,
+                  height: 40,
                   child: _SituationChip(
                     key: const ValueKey('policy-situation-job-seeking'),
                     icon: Icons.search_rounded,
@@ -558,7 +559,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
                 ),
                 SizedBox(
                   width: constraints.maxWidth,
-                  height: 52,
+                  height: 40,
                   child: _SituationChip(
                     key: const ValueKey('policy-situation-none'),
                     icon: Icons.remove_circle_outline_rounded,
@@ -774,17 +775,11 @@ class _SituationChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilterChip(
-      avatar: Icon(
-        icon,
-        size: 18,
-        color: selected ? AppColors.primaryDeep : AppColors.textSecondary,
-      ),
-      label: Text(label),
+    return PillChip(
+      icon: icon,
+      label: label,
       selected: selected,
-      onSelected: onSelected,
-      showCheckmark: false,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      onTap: () => onSelected(!selected),
     );
   }
 }
