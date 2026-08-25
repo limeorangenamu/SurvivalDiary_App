@@ -183,14 +183,14 @@ enum PolicyWorkStatus {
 
 extension PolicyWorkStatusExtension on PolicyWorkStatus {
   String get label => switch (this) {
-        PolicyWorkStatus.employed => '재직자',
-        PolicyWorkStatus.selfEmployed => '자영업자',
-        PolicyWorkStatus.unemployed => '미취업자',
+        PolicyWorkStatus.employed => '재직 중',
+        PolicyWorkStatus.selfEmployed => '자영업',
+        PolicyWorkStatus.unemployed => '미취업',
         PolicyWorkStatus.freelancer => '프리랜서',
-        PolicyWorkStatus.dailyWorker => '일용근로자',
-        PolicyWorkStatus.prospectiveFounder => '예비창업자',
-        PolicyWorkStatus.shortTermWorker => '단기근로자',
-        PolicyWorkStatus.farmer => '영농종사자',
+        PolicyWorkStatus.dailyWorker => '일용 근로',
+        PolicyWorkStatus.prospectiveFounder => '창업 준비',
+        PolicyWorkStatus.shortTermWorker => '단기 근로',
+        PolicyWorkStatus.farmer => '농어업 종사',
         PolicyWorkStatus.other => '기타',
       };
 }
@@ -222,6 +222,17 @@ enum PolicyEnrollmentStatus {
   graduated,
   droppedOut,
   notApplicable,
+}
+
+enum PolicyIncomeRange { below50, below100, below150, noLimit }
+
+extension PolicyIncomeRangeExtension on PolicyIncomeRange {
+  String get label => switch (this) {
+        PolicyIncomeRange.below50 => '중위소득 50% 이하',
+        PolicyIncomeRange.below100 => '중위소득 100% 이하',
+        PolicyIncomeRange.below150 => '중위소득 150% 이하',
+        PolicyIncomeRange.noLimit => '소득 제한 없음',
+      };
 }
 
 extension PolicyEnrollmentStatusExtension on PolicyEnrollmentStatus {
@@ -273,6 +284,26 @@ extension PolicyInterestExtension on PolicyInterest {
         PolicyInterest.assetBuilding => '자산형성·금융',
         PolicyInterest.transport => '교통',
       };
+
+  String get goalLabel => switch (this) {
+        PolicyInterest.employment => '취업·이직 준비',
+        PolicyInterest.housing => '월세·주거 지원',
+        PolicyInterest.education => '교육·자격증',
+        PolicyInterest.welfareCulture => '생활·문화 지원',
+        PolicyInterest.participationRights => '청년 활동·권리',
+        PolicyInterest.assetBuilding => '저축·자산 형성',
+        PolicyInterest.transport => '교통비 지원',
+      };
+
+  IconData get icon => switch (this) {
+        PolicyInterest.employment => Icons.work_outline_rounded,
+        PolicyInterest.housing => Icons.home_outlined,
+        PolicyInterest.education => Icons.school_outlined,
+        PolicyInterest.welfareCulture => Icons.favorite_border_rounded,
+        PolicyInterest.participationRights => Icons.groups_outlined,
+        PolicyInterest.assetBuilding => Icons.savings_outlined,
+        PolicyInterest.transport => Icons.directions_bus_outlined,
+      };
 }
 
 class PolicyFilterCondition {
@@ -284,6 +315,7 @@ class PolicyFilterCondition {
     this.district,
     this.workStatus,
     this.jobSeeking,
+    this.incomeRange,
     this.educationLevel,
     this.enrollmentStatus,
     this.interests = const {},
@@ -297,6 +329,7 @@ class PolicyFilterCondition {
   final String? district;
   final PolicyWorkStatus? workStatus;
   final bool? jobSeeking;
+  final PolicyIncomeRange? incomeRange;
   final PolicyEducationLevel? educationLevel;
   final PolicyEnrollmentStatus? enrollmentStatus;
   final Set<PolicyInterest> interests;

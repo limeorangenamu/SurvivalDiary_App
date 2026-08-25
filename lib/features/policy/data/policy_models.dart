@@ -46,6 +46,7 @@ class PolicyPreference {
     required this.districtCode,
     required this.workStatus,
     required this.jobSeeking,
+    required this.incomeRange,
     required this.educationLevel,
     required this.enrollmentStatus,
     required this.interests,
@@ -88,6 +89,7 @@ class PolicyPreference {
         json['jobSeeking'],
         legacyEmploymentStatus: json['employmentStatus'],
       ),
+      incomeRange: _policyIncomeRange(json['incomeRange']),
       educationLevel: educationLevel,
       enrollmentStatus: enrollmentStatus,
       interests: interests,
@@ -100,6 +102,7 @@ class PolicyPreference {
   final String? districtCode;
   final PolicyWorkStatus? workStatus;
   final bool? jobSeeking;
+  final PolicyIncomeRange? incomeRange;
   final PolicyEducationLevel? educationLevel;
   final PolicyEnrollmentStatus? enrollmentStatus;
   final Set<PolicyInterest> interests;
@@ -551,6 +554,15 @@ PolicyEnrollmentStatus? _policyEnrollmentStatus(
       'NOT_STUDENT' ||
       'OTHER' =>
         PolicyEnrollmentStatus.notApplicable,
+      null => null,
+      _ => throw const FormatException(),
+    };
+
+PolicyIncomeRange? _policyIncomeRange(Object? value) => switch (value) {
+      'BELOW_50' => PolicyIncomeRange.below50,
+      'BELOW_100' => PolicyIncomeRange.below100,
+      'BELOW_150' => PolicyIncomeRange.below150,
+      'NO_LIMIT' => PolicyIncomeRange.noLimit,
       null => null,
       _ => throw const FormatException(),
     };

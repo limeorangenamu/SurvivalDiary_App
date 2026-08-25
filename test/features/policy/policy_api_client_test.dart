@@ -44,7 +44,7 @@ void main() {
     expect(preference.regionCode, isNull);
   });
 
-  test('기본 조건 저장 시 전체 선택 항목은 요청에서 생략한다', () async {
+  test('기본 조건 저장 시 비운 소득 조건을 null로 전송한다', () async {
     late http.Request capturedRequest;
     final client = PolicyApiClient(
       baseUrl: 'http://test.example',
@@ -81,11 +81,13 @@ void main() {
       'regionCode': '11',
       'workStatus': 'UNEMPLOYED',
       'jobSeeking': true,
+      'incomeRange': null,
       'interests': ['EMPLOYMENT', 'ASSET_BUILDING'],
     });
     expect(preference.saved, isTrue);
     expect(preference.workStatus, PolicyWorkStatus.unemployed);
     expect(preference.jobSeeking, isTrue);
+    expect(preference.incomeRange, isNull);
     expect(
       preference.interests,
       {PolicyInterest.employment, PolicyInterest.assetBuilding},
@@ -117,6 +119,7 @@ void main() {
         district: '강남구',
         workStatus: PolicyWorkStatus.unemployed,
         jobSeeking: true,
+        incomeRange: PolicyIncomeRange.below100,
         educationLevel: PolicyEducationLevel.universityFourYear,
         enrollmentStatus: PolicyEnrollmentStatus.graduated,
         category: PolicyCategory.housing,
@@ -135,6 +138,7 @@ void main() {
       'districtCode': '11680',
       'workStatus': 'UNEMPLOYED',
       'jobSeeking': true,
+      'incomeRange': 'BELOW_100',
       'educationLevel': 'UNIVERSITY_4_YEAR',
       'enrollmentStatus': 'GRADUATED',
       'interests': ['HOUSING', 'ASSET_BUILDING'],

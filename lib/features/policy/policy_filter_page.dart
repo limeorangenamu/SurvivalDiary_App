@@ -38,6 +38,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
   PolicyDistrictOption? _district;
   PolicyWorkStatus? _workStatus;
   bool? _jobSeeking;
+  PolicyIncomeRange? _incomeRange;
   PolicyEducationLevel? _educationLevel;
   PolicyEnrollmentStatus? _enrollmentStatus;
   Set<PolicyInterest> _savedInterests = const {};
@@ -139,10 +140,9 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
       district: district?.name,
       workStatus: preference.workStatus,
       jobSeeking: preference.jobSeeking,
+      incomeRange: preference.incomeRange,
       educationLevel: preference.educationLevel,
-      enrollmentStatus: preference.educationLevel == null
-          ? null
-          : preference.enrollmentStatus,
+      enrollmentStatus: preference.enrollmentStatus,
       interests: preference.interests,
     );
   }
@@ -157,6 +157,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
         .firstOrNull;
     _workStatus = condition.workStatus;
     _jobSeeking = condition.jobSeeking;
+    _incomeRange = condition.incomeRange;
     _educationLevel = condition.educationLevel;
     _enrollmentStatus = condition.enrollmentStatus;
     _savedInterests = condition.interests;
@@ -250,6 +251,29 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
     }
   }
 
+  Future<void> _pickIncomeRange() async {
+    final options = [
+      const _NullableOption<PolicyIncomeRange>(
+        value: null,
+        label: '잘 모르겠어요',
+      ),
+      for (final range in PolicyIncomeRange.values)
+        _NullableOption(value: range, label: range.label),
+    ];
+    final value = await _pick<_NullableOption<PolicyIncomeRange>>(
+      title: '소득 기준을 선택해 주세요',
+      options: options,
+      labelBuilder: (option) => option.label,
+      selected: options.firstWhere(
+        (option) => option.value == _incomeRange,
+        orElse: () => options.first,
+      ),
+    );
+    if (value != null && mounted) {
+      setState(() => _incomeRange = value.value);
+    }
+  }
+
   Future<void> _pickEnrollmentStatus() async {
     if (_educationLevel == null) {
       return;
@@ -300,34 +324,26 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
     }
   }
 
-  void _toggleEmployed() {
-    setState(() {
-      _workStatus = _workStatus == PolicyWorkStatus.employed
-          ? null
-          : PolicyWorkStatus.employed;
-    });
+  void _selectWorkStatus(PolicyWorkStatus? status) {
+    setState(() => _workStatus = _workStatus == status ? null : status);
   }
 
   void _toggleJobSeeking() {
+    setState(() => _jobSeeking = _jobSeeking == true ? null : true);
+  }
+
+  void _toggleInterest(PolicyInterest interest) {
     setState(() {
-      final selected = _jobSeeking == true;
-      _jobSeeking = selected ? null : true;
-      if (!selected && _workStatus == null) {
-        _workStatus = PolicyWorkStatus.unemployed;
+      final updated = {..._savedInterests};
+      if (!updated.add(interest)) {
+        updated.remove(interest);
       }
-      if (selected && _workStatus == PolicyWorkStatus.unemployed) {
-        _workStatus = null;
-      }
+      _savedInterests = updated;
     });
   }
 
-  void _clearSituation() {
-    setState(() {
-      _workStatus = null;
-      _jobSeeking = null;
-      _educationLevel = null;
-      _enrollmentStatus = null;
-    });
+  void _clearInterests() {
+    setState(() => _savedInterests = const {});
   }
 
   PolicyFilterCondition get _condition => PolicyFilterCondition(
@@ -338,6 +354,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
         district: _district?.name,
         workStatus: _workStatus,
         jobSeeking: _jobSeeking,
+        incomeRange: _incomeRange,
         educationLevel: _educationLevel,
         enrollmentStatus: _enrollmentStatus,
         interests: _savedInterests,
@@ -440,7 +457,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
                   child: switch (_step) {
                     0 => _buildRegionStep(),
                     1 => _buildSituationStep(),
-                    _ => _buildConfirmStep(),
+                    _ => _buildNeedsStep(),
                   },
                 ),
               ),
@@ -516,122 +533,136 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
   }
 
   Widget _buildSituationStep() {
-    final noSelection = _workStatus == null &&
-        _jobSeeking == null &&
-        _educationLevel == null &&
-        _enrollmentStatus == null;
+    final detailCount = [
+      _incomeRange,
+      _educationLevel,
+      _enrollmentStatus,
+    ].whereType<Object>().length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _StepLabel(step: 2),
         const SizedBox(height: 10),
-        const Text('지금 어떤 상황에 가까운가요?', style: AppTextStyles.title),
-        const SizedBox(height: 28),
-        LayoutBuilder(
+        const Text('현재 상황을 알려주세요', style: AppTextStyles.title),
+        const SizedBox(height: 8),
+        const Text(
+          '선택하지 않아도 전체 정책을 볼 수 있어요.',
+          style: AppTextStyles.bodyMuted,
+        ),
+        const SizedBox(height: 24),
+        const Text('일하는 형태', style: AppTextStyles.sectionTitle),
+        const SizedBox(height: 12),
+        Wrap(
           key: const ValueKey('policy-situation-options'),
-          builder: (context, constraints) {
-            final itemWidth = (constraints.maxWidth - 10) / 2;
-            return Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                SizedBox(
-                  width: itemWidth,
-                  height: 40,
-                  child: _SituationChip(
-                    key: const ValueKey('policy-situation-employed'),
-                    icon: Icons.work_outline_rounded,
-                    label: '재직 중',
-                    selected: _workStatus == PolicyWorkStatus.employed,
-                    onSelected: (_) => _toggleEmployed(),
-                  ),
-                ),
-                SizedBox(
-                  width: itemWidth,
-                  height: 40,
-                  child: _SituationChip(
-                    key: const ValueKey('policy-situation-job-seeking'),
-                    icon: Icons.search_rounded,
-                    label: '구직 중',
-                    selected: _jobSeeking == true,
-                    onSelected: (_) => _toggleJobSeeking(),
-                  ),
-                ),
-                SizedBox(
-                  width: constraints.maxWidth,
-                  height: 40,
-                  child: _SituationChip(
-                    key: const ValueKey('policy-situation-none'),
-                    icon: Icons.remove_circle_outline_rounded,
-                    label: '해당 없음',
-                    selected: noSelection,
-                    onSelected: (_) => _clearSituation(),
-                  ),
-                ),
-              ],
-            );
-          },
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final status in PolicyWorkStatus.values)
+              PillChip(
+                key: ValueKey('policy-work-status-${status.name}'),
+                label: status.label,
+                selected: _workStatus == status,
+                onTap: () => _selectWorkStatus(status),
+              ),
+            PillChip(
+              key: const ValueKey('policy-work-status-none'),
+              label: '선택 안 함',
+              selected: _workStatus == null,
+              onTap: () => _selectWorkStatus(null),
+            ),
+          ],
         ),
-        const SizedBox(height: 22),
-        _SetupField(
-          key: const ValueKey('policy-education-level-field'),
-          label: '교육 단계',
-          value: _educationLevel?.label,
-          hint: '예: 4년제 대학',
-          onTap: _pickEducationLevel,
+        const SizedBox(height: 20),
+        PillChip(
+          key: const ValueKey('policy-situation-job-seeking'),
+          icon: Icons.search_rounded,
+          label: '현재 일자리를 찾고 있어요',
+          selected: _jobSeeking == true,
+          onTap: _toggleJobSeeking,
         ),
-        const SizedBox(height: 14),
-        _SetupField(
-          key: const ValueKey('policy-enrollment-status-field'),
-          label: '현재 학적 상태',
-          value: _enrollmentStatus?.label,
-          hint: _educationLevel == null ? '교육 단계를 먼저 선택해 주세요.' : '예: 재학 중',
-          enabled: _educationLevel != null,
-          onTap: _pickEnrollmentStatus,
+        const SizedBox(height: 24),
+        Theme(
+          data: Theme.of(context).copyWith(
+            dividerColor: AppColors.surface.withValues(alpha: 0),
+          ),
+          child: ExpansionTile(
+            key: const ValueKey('policy-detail-condition-tile'),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(top: 8),
+            title: const Text('추천 정확도 높이기', style: AppTextStyles.sectionTitle),
+            subtitle: Text(
+              detailCount == 0
+                  ? '소득과 교육 정보는 선택사항이에요.'
+                  : '상세 조건 $detailCount개가 적용 중이에요.',
+              style: AppTextStyles.caption,
+            ),
+            children: [
+              _SetupField(
+                key: const ValueKey('policy-income-range-field'),
+                label: '소득 기준',
+                value: _incomeRange?.label,
+                hint: '잘 모르겠어요',
+                onTap: _pickIncomeRange,
+              ),
+              const SizedBox(height: 14),
+              _SetupField(
+                key: const ValueKey('policy-education-level-field'),
+                label: '교육 단계',
+                value: _educationLevel?.label,
+                hint: '선택하지 않음',
+                onTap: _pickEducationLevel,
+              ),
+              const SizedBox(height: 14),
+              _SetupField(
+                key: const ValueKey('policy-enrollment-status-field'),
+                label: '현재 학적 상태',
+                value: _enrollmentStatus?.label,
+                hint:
+                    _educationLevel == null ? '교육 단계를 먼저 선택해 주세요.' : '선택하지 않음',
+                enabled: _educationLevel != null,
+                onTap: _pickEnrollmentStatus,
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildConfirmStep() {
-    final labels = [
-      '만 ${_ageController.text}세',
-      _region?.name ?? '',
-      _district?.name ?? '전체 지역',
-      if (_workStatus != null) _workStatus!.label,
-      if (_jobSeeking == true) '구직 중',
-      if (_educationLevel != null) _educationLevel!.label,
-      if (_enrollmentStatus != null) _enrollmentStatus!.label,
-    ].where((label) => label.isNotEmpty).toList();
-
+  Widget _buildNeedsStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _StepLabel(step: 3),
         const SizedBox(height: 10),
-        const Text('조건 확인', style: AppTextStyles.title),
-        const SizedBox(height: 26),
-        AppCard(
-          color: AppColors.primarySoft,
-          borderColor: AppColors.primarySoft,
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final label in labels)
-                    Chip(
-                      label: Text(label),
-                      backgroundColor: AppColors.surface,
-                      side: BorderSide.none,
-                    ),
-                ],
+        const Text('지금 어떤 도움이 필요한가요?', style: AppTextStyles.title),
+        const SizedBox(height: 8),
+        const Text(
+          '여러 개를 선택할 수 있어요. 전체 보기를 선택하면 분야에 관계없이 추천해요.',
+          style: AppTextStyles.bodyMuted,
+        ),
+        const SizedBox(height: 24),
+        Wrap(
+          key: const ValueKey('policy-interest-options'),
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            PillChip(
+              key: const ValueKey('policy-interest-all'),
+              icon: Icons.apps_rounded,
+              label: '전체 분야 보기',
+              selected: _savedInterests.isEmpty,
+              onTap: _clearInterests,
+            ),
+            for (final interest in PolicyInterest.values)
+              PillChip(
+                key: ValueKey('policy-interest-${interest.name}'),
+                icon: interest.icon,
+                label: interest.goalLabel,
+                selected: _savedInterests.contains(interest),
+                onTap: () => _toggleInterest(interest),
               ),
-            ],
-          ),
+          ],
         ),
         if (_isSubmitting) ...[
           const SizedBox(height: 20),
@@ -755,31 +786,6 @@ class _SetupField extends StatelessWidget {
           style: value == null ? AppTextStyles.bodyMuted : AppTextStyles.body,
         ),
       ),
-    );
-  }
-}
-
-class _SituationChip extends StatelessWidget {
-  const _SituationChip({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final ValueChanged<bool> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return PillChip(
-      icon: icon,
-      label: label,
-      selected: selected,
-      onTap: () => onSelected(!selected),
     );
   }
 }
