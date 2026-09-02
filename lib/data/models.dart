@@ -409,6 +409,36 @@ class SavingPlace {
   final double longitude;
 }
 
+class SavingBadge {
+  const SavingBadge({
+    required this.code,
+    required this.label,
+    required this.emoji,
+    required this.thresholdAmount,
+    required this.savedAmount,
+    required this.earnedMonth,
+    required this.message,
+  });
+
+  factory SavingBadge.fromJson(Map<String, dynamic> json) => SavingBadge(
+        code: json['code'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        emoji: json['emoji'] as String? ?? '',
+        thresholdAmount: (json['thresholdAmount'] as num?)?.toInt() ?? 0,
+        savedAmount: (json['savedAmount'] as num?)?.toInt() ?? 0,
+        earnedMonth: json['earnedMonth'] as String? ?? '',
+        message: json['message'] as String? ?? '',
+      );
+
+  final String code;
+  final String label;
+  final String emoji;
+  final int thresholdAmount;
+  final int savedAmount;
+  final String earnedMonth;
+  final String message;
+}
+
 class CommunityPost {
   const CommunityPost({
     required this.id,
@@ -432,6 +462,11 @@ class CommunityPost {
     this.authorRole = 'USER',
     this.commentsDisabled = false,
     this.commentsHidden = false,
+    this.adminInquiry = false,
+    this.isSecret = false,
+    this.isAccessible = true,
+    this.isAnswered = false,
+    this.authorSavingBadge,
   });
 
   final String id;
@@ -455,6 +490,11 @@ class CommunityPost {
   final String authorRole;
   final bool commentsDisabled;
   final bool commentsHidden;
+  final bool adminInquiry;
+  final bool isSecret;
+  final bool isAccessible;
+  final bool isAnswered;
+  final SavingBadge? authorSavingBadge;
   bool get isAdminAuthor => authorRole == 'ADMIN';
 
   CommunityPost copyWith({
@@ -485,6 +525,11 @@ class CommunityPost {
       authorRole: authorRole,
       commentsDisabled: commentsDisabled,
       commentsHidden: commentsHidden,
+      adminInquiry: adminInquiry,
+      isSecret: isSecret,
+      isAccessible: isAccessible,
+      isAnswered: isAnswered,
+      authorSavingBadge: authorSavingBadge,
     );
   }
 }

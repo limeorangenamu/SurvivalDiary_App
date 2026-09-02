@@ -37,8 +37,10 @@ class _PostWritePageState extends State<PostWritePage> {
   String? _hashtagError;
   bool _commentsDisabled = false;
   bool _commentsHidden = false;
+  bool _adminInquiry = false;
+  bool _isSecret = false;
 
-  bool get _isQna => (widget.post?.category ?? widget.initialCategory) == '질문';
+  bool get _isQna => _category == '질문';
 
   @override
   void initState() {
@@ -52,6 +54,8 @@ class _PostWritePageState extends State<PostWritePage> {
     }
     _commentsDisabled = post.commentsDisabled;
     _commentsHidden = post.commentsHidden;
+    _adminInquiry = post.adminInquiry;
+    _isSecret = post.isSecret;
     try {
       _editorController.document =
           Document.fromJson(jsonDecode(post.contentJson ?? post.body));
@@ -130,6 +134,8 @@ class _PostWritePageState extends State<PostWritePage> {
       hashtags: _isQna ? const [] : _hashtags,
       commentsDisabled: _commentsDisabled,
       commentsHidden: _commentsHidden,
+      adminInquiry: _isQna && _adminInquiry,
+      secret: _isQna && _isSecret,
     );
     try {
       if (widget.post == null) {
@@ -313,6 +319,36 @@ class _PostWritePageState extends State<PostWritePage> {
                       ),
                     ),
                   ],
+                ],
+              ),
+            ),
+          ],
+          if (_isQna && AuthSession.instance.currentUser?.isAdmin != true) ...[
+            const SizedBox(height: 12),
+            _formSection(
+              label: '공개 설정',
+              child: Column(
+                children: [
+                  SwitchListTile.adaptive(
+                    key: const ValueKey('admin-inquiry-switch'),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('관리자에게 문의'),
+                    subtitle: const Text(
+                      '커뮤니티에는 공개되지 않으며 작성자와 관리자만 확인할 수 있어요.',
+                    ),
+                    value: _adminInquiry,
+                    onChanged: (value) => setState(() => _adminInquiry = value),
+                  ),
+                  SwitchListTile.adaptive(
+                    key: const ValueKey('secret-post-switch'),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('비밀글'),
+                    subtitle: const Text(
+                      '질문 목록에는 표시되지만 작성자와 관리자만 내용을 볼 수 있어요.',
+                    ),
+                    value: _isSecret,
+                    onChanged: (value) => setState(() => _isSecret = value),
+                  ),
                 ],
               ),
             ),

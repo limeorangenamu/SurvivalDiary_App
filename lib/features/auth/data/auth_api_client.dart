@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../../core/config/app_config.dart';
+import '../../../data/models.dart';
 import 'signup_request.dart';
 
 class AuthTokens {
@@ -42,6 +43,7 @@ class CurrentUser {
     required this.bio,
     required this.createdAt,
     this.role = 'USER',
+    this.savingBadge,
   });
 
   factory CurrentUser.fromJson(Map<String, dynamic> json) {
@@ -62,6 +64,9 @@ class CurrentUser {
       bio: json['bio'] as String? ?? '',
       createdAt: json['createdAt'] as String? ?? '',
       role: json['role'] as String? ?? 'USER',
+      savingBadge: json['savingBadge'] is Map<String, dynamic>
+          ? SavingBadge.fromJson(json['savingBadge'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -80,6 +85,7 @@ class CurrentUser {
   final String bio;
   final String createdAt;
   final String role;
+  final SavingBadge? savingBadge;
   bool get isAdmin => role == 'ADMIN';
 }
 

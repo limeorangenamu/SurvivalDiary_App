@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../core/router/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/formatters.dart';
+import '../../data/models.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/section_header.dart';
 import '../auth/auth_session.dart';
@@ -114,10 +116,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 isRefreshing: _isRefreshing,
               ),
               const SizedBox(height: 16),
+              if (user.savingBadge != null) ...[
+                _SavingBadgeCard(badge: user.savingBadge!),
+                const SizedBox(height: 16),
+              ],
               Row(
                 children: [
-                  Expanded(
-                    child: const Text(
+                  const Expanded(
+                    child: Text(
                       '절약하는 김씨님,\n오늘도 알뜰한 하루 보내세요!',
                       style: AppTextStyles.sectionTitle,
                     ),
@@ -196,6 +202,54 @@ class _ProfilePageState extends State<ProfilePage> {
   String _joinedDate(String value) {
     final date = DateTime.tryParse(value);
     return date == null ? '확인 불가' : '${date.year}.${date.month}.${date.day}';
+  }
+}
+
+class _SavingBadgeCard extends StatelessWidget {
+  const _SavingBadgeCard({required this.badge});
+
+  final SavingBadge badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: AppColors.primarySoft,
+              shape: BoxShape.circle,
+            ),
+            child: Text(badge.emoji, style: const TextStyle(fontSize: 28)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${badge.earnedMonth} 절약 뱃지 · ${badge.label}',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primaryDeep,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(badge.message, style: AppTextStyles.body),
+                const SizedBox(height: 2),
+                Text(
+                  '전월 대비 ${Formatters.amount(badge.savedAmount)} 절감',
+                  style: AppTextStyles.captionTiny,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -8,8 +8,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/models.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/saving_badge_chip.dart';
 import '../auth/auth_session.dart';
 import 'data/community_api_client.dart';
+import 'widgets/community_post_image_strip.dart';
 
 class PostDetailPage extends StatefulWidget {
   const PostDetailPage({super.key, required this.post});
@@ -59,6 +61,18 @@ class _PostDetailPageState extends State<PostDetailPage> {
       );
     } catch (_) {
       return Text(post.body, style: AppTextStyles.body);
+    }
+  }
+
+  bool get _hasQuillEmbeddedImage {
+    try {
+      final delta = jsonDecode(post.contentJson ?? '') as List<dynamic>;
+      return delta.whereType<Map<String, dynamic>>().any((operation) {
+        final insert = operation['insert'];
+        return insert is Map && insert['image'] is String;
+      });
+    } catch (_) {
+      return false;
     }
   }
 
@@ -260,11 +274,27 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              post.author,
-                              style: AppTextStyles.body.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    post.author,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTextStyles.body.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                if (post.category == '절약 인증' &&
+                                    post.authorSavingBadge != null) ...[
+                                  const SizedBox(width: 6),
+                                  SavingBadgeChip(
+                                    badge: post.authorSavingBadge!,
+                                    compact: true,
+                                  ),
+                                ],
+                              ],
                             ),
                             Text(
                               '${post.category} · ${post.timeAgo}',
@@ -279,36 +309,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   Text(post.title, style: AppTextStyles.title),
                   const SizedBox(height: 12),
                   _contentView(),
-                  if (post.imageUrls.isNotEmpty) ...[
+                  if (post.imageUrls.isNotEmpty && !_hasQuillEmbeddedImage) ...[
                     const SizedBox(height: 18),
-                    Container(
-                      height: 220,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceAlt,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Align(
-                        alignment: switch (post.imageAlignment) {
-                          'left' => Alignment.centerLeft,
-                          'right' => Alignment.centerRight,
-                          _ => Alignment.center,
-                        },
-                        child: SizedBox(
-                          width: 280,
-                          height: 220,
-                          child: Image.network(
-                            post.imageUrls.first,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.broken_image_outlined,
-                              size: 54,
-                              color: AppColors.textTertiary,
-                            ),
-                          ),
-                        ),
-                      ),
+                    CommunityPostImageStrip(
+                      imageUrls: post.imageUrls,
+                      height: 180,
                     ),
                   ],
                   const SizedBox(height: 16),

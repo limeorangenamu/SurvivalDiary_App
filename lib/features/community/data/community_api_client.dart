@@ -17,7 +17,9 @@ class CreateCommunityPostRequest {
       this.imageUrls = const [],
       this.imageAlignment = 'center',
       this.commentsDisabled = false,
-      this.commentsHidden = false});
+      this.commentsHidden = false,
+      this.adminInquiry = false,
+      this.secret = false});
   final String category;
   final String title;
   final String content;
@@ -26,6 +28,8 @@ class CreateCommunityPostRequest {
   final String imageAlignment;
   final bool commentsDisabled;
   final bool commentsHidden;
+  final bool adminInquiry;
+  final bool secret;
 
   Map<String, dynamic> toJson() => {
         'category': category,
@@ -36,6 +40,8 @@ class CreateCommunityPostRequest {
         'imageAlignment': imageAlignment,
         'commentsDisabled': commentsDisabled,
         'commentsHidden': commentsHidden,
+        'adminInquiry': adminInquiry,
+        'secret': secret,
       };
 }
 
@@ -53,6 +59,29 @@ class CommunityApiClient {
       if (category != null && category.isNotEmpty) 'category': category,
       'size': '50',
     });
+    final response = await _client.get(uri, headers: _headers(accessToken));
+    final data = _data(response);
+    final content = data['content'] as List<dynamic>? ?? const [];
+    return content.map((item) => _post(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<CommunityPost>> getFaqs({required String accessToken}) async {
+    final uri = Uri.parse('$_baseUrl/api/community/posts/faqs').replace(
+      queryParameters: {'size': '50'},
+    );
+    final response = await _client.get(uri, headers: _headers(accessToken));
+    final data = _data(response);
+    final content = data['content'] as List<dynamic>? ?? const [];
+    return content.map((item) => _post(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<CommunityPost>> getMyPosts({
+    required String accessToken,
+    String category = '질문',
+  }) async {
+    final uri = Uri.parse('$_baseUrl/api/community/posts/mine').replace(
+      queryParameters: {'category': category, 'size': '50'},
+    );
     final response = await _client.get(uri, headers: _headers(accessToken));
     final data = _data(response);
     final content = data['content'] as List<dynamic>? ?? const [];
@@ -176,9 +205,13 @@ class CommunityApiClient {
   }
 
   CommunityPost _post(Map<String, dynamic> json) {
+    final content = json['content'] as String? ?? '';
     final images = (json['imageUrls'] as List<dynamic>? ?? const [])
         .whereType<String>()
         .toList();
+    for (final image in _contentImages(content)) {
+      if (!images.contains(image)) images.add(image);
+    }
     return CommunityPost(
       id: '${json['postId']}',
       author: (json['nickname'] as String?)?.trim().isNotEmpty == true
@@ -188,8 +221,8 @@ class CommunityApiClient {
       timeAgo: _timeAgo(json['createdAt'] as String?),
       category: json['category'] as String? ?? '',
       title: json['title'] as String? ?? '',
-      body: _contentPreview(json['content'] as String? ?? ''),
-      contentJson: json['content'] as String? ?? '',
+      body: _contentPreview(content),
+      contentJson: content,
       hashtags: (json['hashtags'] as List<dynamic>? ?? const [])
           .whereType<String>()
           .toList(),
@@ -205,6 +238,15 @@ class CommunityApiClient {
       authorRole: json['authorRole'] as String? ?? 'USER',
       commentsDisabled: json['commentsDisabled'] as bool? ?? false,
       commentsHidden: json['commentsHidden'] as bool? ?? false,
+      adminInquiry: json['adminInquiry'] as bool? ?? false,
+      isSecret: json['secret'] as bool? ?? false,
+      isAccessible: json['accessible'] as bool? ?? true,
+      isAnswered: json['answered'] as bool? ?? false,
+      authorSavingBadge: json['authorSavingBadge'] is Map<String, dynamic>
+          ? SavingBadge.fromJson(
+              json['authorSavingBadge'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 
@@ -232,9 +274,53 @@ class CommunityApiClient {
           .join()
           .trim();
     } catch (_) {
-      return content;
+      final withoutImages = content.replaceAll(
+        RegExp(r'<img\b[^>]*>', caseSensitive: false),
+        '',
+      );
+      final withLineBreaks = withoutImages
+          .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+          .replaceAll(
+              RegExp(r'</(?:p|div|li|h[1-6])>', caseSensitive: false), '\n');
+      final plainText = withLineBreaks.replaceAll(RegExp(r'<[^>]+>'), ' ');
+      return _decodeHtmlEntities(plainText)
+          .replaceAll(RegExp(r'[ \t]+'), ' ')
+          .replaceAll(RegExp(r'\n\s*\n+'), '\n')
+          .trim();
     }
   }
+
+  List<String> _contentImages(String content) {
+    final images = <String>[];
+    try {
+      final delta = jsonDecode(content) as List<dynamic>;
+      for (final operation in delta.whereType<Map<String, dynamic>>()) {
+        final insert = operation['insert'];
+        if (insert is Map && insert['image'] is String) {
+          images.add(insert['image'] as String);
+        }
+      }
+    } catch (_) {
+      for (final match in RegExp(
+        r'''<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']''',
+        caseSensitive: false,
+      ).allMatches(content)) {
+        final source = match.group(1);
+        if (source != null && source.isNotEmpty) {
+          images.add(_decodeHtmlEntities(source));
+        }
+      }
+    }
+    return images;
+  }
+
+  String _decodeHtmlEntities(String value) => value
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'");
 
   String _timeAgo(String? raw) {
     final created = DateTime.tryParse(raw ?? '')?.toLocal();
