@@ -26,7 +26,7 @@ class _ProfileCollectionPageState extends State<ProfileCollectionPage> {
         'comment' => '내 댓글',
         'qna' => '나의 Q&A',
         _ => '북마크한 글',
-  };
+      };
 
   bool get _isQna => widget.type == 'qna';
 
@@ -43,15 +43,24 @@ class _ProfileCollectionPageState extends State<ProfileCollectionPage> {
       return;
     }
     try {
-      final posts = await _apiClient.getPosts(accessToken: token);
+      final results = await Future.wait([
+        _isQna
+            ? _apiClient.getMyPosts(accessToken: token)
+            : _apiClient.getPosts(accessToken: token),
+        if (_isQna) _apiClient.getFaqs(accessToken: token),
+      ]);
+      final posts = results.first;
+      final faqs = _isQna ? results.last : const <CommunityPost>[];
       if (!mounted) return;
       setState(() {
-        _allPosts = posts
-            .where((post) => post.category == '질문' && post.isAdminAuthor)
-            .toList();
+        _allPosts = faqs;
         _posts = switch (widget.type) {
-          'comment' => posts.where((post) => post.commentCount > 0 && post.isOwner).toList(),
-          'qna' => posts.where((post) => post.category == '질문' && post.isOwner).toList(),
+          'comment' => posts
+              .where((post) => post.commentCount > 0 && post.isOwner)
+              .toList(),
+          'qna' => posts
+              .where((post) => post.category == '질문' && post.isOwner)
+              .toList(),
           _ => posts.where((post) => post.isBookmarked).toList(),
         };
         _loading = false;
@@ -59,6 +68,16 @@ class _ProfileCollectionPageState extends State<ProfileCollectionPage> {
     } on CommunityApiException {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _openPost(CommunityPost post) {
+    if (!post.isAccessible) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('작성자와 관리자만 확인할 수 있는 글이에요.')),
+      );
+      return;
+    }
+    Navigator.pushNamed(context, AppRoutes.postDetail, arguments: post);
   }
 
   @override
@@ -79,38 +98,34 @@ class _ProfileCollectionPageState extends State<ProfileCollectionPage> {
           : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _posts.isEmpty
-              ? _EmptyCollection(title: _title)
-              : _isQna
-                  ? _QnaContent(myPosts: _posts, allPosts: _allPosts)
+          : _isQna
+              ? _QnaContent(myPosts: _posts, allPosts: _allPosts)
+              : _posts.isEmpty
+                  ? _EmptyCollection(title: _title)
                   : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                  itemCount: _posts.length,
-                  separatorBuilder: (_, __) => const Divider(height: 24),
-                  itemBuilder: (context, index) {
-                    final post = _posts[index];
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title:
-                          Text(post.title, style: AppTextStyles.sectionTitle),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          post.body,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.bodyMuted,
-                        ),
-                      ),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.postDetail,
-                        arguments: post,
-                      ),
-                    );
-                  },
-                ),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                      itemCount: _posts.length,
+                      separatorBuilder: (_, __) => const Divider(height: 24),
+                      itemBuilder: (context, index) {
+                        final post = _posts[index];
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(post.title,
+                              style: AppTextStyles.sectionTitle),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              post.body,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodyMuted,
+                            ),
+                          ),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: () => _openPost(post),
+                        );
+                      },
+                    ),
     );
   }
 }
@@ -125,7 +140,7 @@ class _QnaContent extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 100),
         children: [
-          Text('나의 Q&A', style: AppTextStyles.title),
+          const Text('나의 Q&A', style: AppTextStyles.title),
           const SizedBox(height: 10),
           if (myPosts.isEmpty)
             const Padding(
@@ -135,7 +150,7 @@ class _QnaContent extends StatelessWidget {
           else
             for (final post in myPosts) _QnaTile(post: post),
           const Divider(height: 44),
-          Text('자주 묻는 질문', style: AppTextStyles.title),
+          const Text('자주 묻는 질문', style: AppTextStyles.title),
           const SizedBox(height: 10),
           if (allPosts.isEmpty)
             const Padding(
@@ -156,8 +171,22 @@ class _QnaTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListTile(
         contentPadding: EdgeInsets.zero,
+        leading: post.adminInquiry || post.isSecret
+            ? Icon(
+                post.adminInquiry
+                    ? Icons.support_agent_rounded
+                    : Icons.lock_outline_rounded,
+                color: AppColors.primary,
+              )
+            : null,
         title: Text(post.title, style: AppTextStyles.sectionTitle),
-        subtitle: Text(post.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          post.adminInquiry
+              ? (post.isAnswered ? '관리자 답변 완료' : '관리자 답변 대기')
+              : post.body,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: () => Navigator.pushNamed(
           context,

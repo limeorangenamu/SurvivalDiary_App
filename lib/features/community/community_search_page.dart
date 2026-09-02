@@ -313,8 +313,7 @@ class _CompactSearchPost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: () =>
-            Navigator.pushNamed(context, AppRoutes.postDetail, arguments: post),
+        onTap: () => _openSearchPost(context, post),
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -336,8 +335,7 @@ class _DetailedSearchPost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: () =>
-            Navigator.pushNamed(context, AppRoutes.postDetail, arguments: post),
+        onTap: () => _openSearchPost(context, post),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -347,6 +345,16 @@ class _DetailedSearchPost extends StatelessWidget {
           ],
         ),
       );
+}
+
+void _openSearchPost(BuildContext context, CommunityPost post) {
+  if (!post.isAccessible) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('작성자와 관리자만 확인할 수 있는 글이에요.')),
+    );
+    return;
+  }
+  Navigator.pushNamed(context, AppRoutes.postDetail, arguments: post);
 }
 
 class _PostSummary extends StatelessWidget {

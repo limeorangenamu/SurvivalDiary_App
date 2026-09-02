@@ -6,7 +6,9 @@ import '../../core/theme/app_text_styles.dart';
 import '../../data/models.dart';
 import '../auth/auth_session.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/saving_badge_chip.dart';
 import 'data/community_api_client.dart';
+import 'widgets/community_post_image_strip.dart';
 
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key});
@@ -143,11 +145,11 @@ class _CommunityPageState extends State<CommunityPage>
                         height: 50,
                         margin: const EdgeInsets.only(top: 6, bottom: 14),
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.all(Radius.circular(28)),
                         ),
-                        child: Row(
+                        child: const Row(
                           children: [
                             Expanded(
                               child: Text(
@@ -155,7 +157,7 @@ class _CommunityPageState extends State<CommunityPage>
                                 style: AppTextStyles.bodyMuted,
                               ),
                             ),
-                            const Icon(
+                            Icon(
                               Icons.search_rounded,
                               color: AppColors.primaryDeep,
                             ),
@@ -408,7 +410,15 @@ class _PostCardState extends State<_PostCard> {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      onTap: widget.onTap,
+      onTap: () {
+        if (!post.isAccessible) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('작성자와 관리자만 확인할 수 있는 글이에요.')),
+          );
+          return;
+        }
+        widget.onTap();
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -427,11 +437,27 @@ class _PostCardState extends State<_PostCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      post.author,
-                      style: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            post.author,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (post.category == '절약 인증' &&
+                            post.authorSavingBadge != null) ...[
+                          const SizedBox(width: 6),
+                          SavingBadgeChip(
+                            badge: post.authorSavingBadge!,
+                            compact: true,
+                          ),
+                        ],
+                      ],
                     ),
                     Text(
                       '${post.category} · ${post.timeAgo}',
@@ -468,36 +494,29 @@ class _PostCardState extends State<_PostCard> {
             ],
           ),
           const SizedBox(height: 14),
-          Text(post.title, style: AppTextStyles.sectionTitle),
+          Row(
+            children: [
+              if (post.isSecret) ...[
+                const Icon(Icons.lock_outline_rounded, size: 17),
+                const SizedBox(width: 5),
+              ],
+              Expanded(
+                child: Text(post.title, style: AppTextStyles.sectionTitle),
+              ),
+            ],
+          ),
           const SizedBox(height: 6),
           Text(
-            post.body,
+            post.isAccessible ? post.body : '비밀글입니다.',
             style: AppTextStyles.bodyMuted,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
           if (post.hasImage) ...[
             const SizedBox(height: 12),
-            Container(
-              height: 128,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceAlt,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.image_outlined,
-                    size: 34,
-                    color: AppColors.textTertiary,
-                  ),
-                  SizedBox(height: 4),
-                  Text('이미지 자리표시자', style: AppTextStyles.captionTiny),
-                ],
-              ),
+            CommunityPostImageStrip(
+              imageUrls: post.imageUrls,
+              height: 112,
             ),
           ],
           const SizedBox(height: 11),
