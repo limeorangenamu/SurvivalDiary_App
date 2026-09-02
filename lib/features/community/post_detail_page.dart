@@ -311,9 +311,8 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   _contentView(),
                   if (post.imageUrls.isNotEmpty && !_hasQuillEmbeddedImage) ...[
                     const SizedBox(height: 18),
-                    CommunityPostImageStrip(
+                    CommunityPostImageGallery(
                       imageUrls: post.imageUrls,
-                      height: 180,
                     ),
                   ],
                   const SizedBox(height: 16),

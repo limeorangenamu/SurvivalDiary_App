@@ -42,10 +42,44 @@ class CommunityPostImageStrip extends StatelessWidget {
   }
 }
 
+class CommunityPostImageGallery extends StatelessWidget {
+  const CommunityPostImageGallery({
+    super.key,
+    required this.imageUrls,
+  });
+
+  final List<String> imageUrls;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrls.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < imageUrls.length; index++) ...[
+          if (index > 0) const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: _CommunityPostImage(
+              imageUrl: imageUrls[index],
+              fit: BoxFit.contain,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _CommunityPostImage extends StatelessWidget {
-  const _CommunityPostImage({required this.imageUrl});
+  const _CommunityPostImage({
+    required this.imageUrl,
+    this.fit = BoxFit.cover,
+  });
 
   final String imageUrl;
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
@@ -55,8 +89,8 @@ class _CommunityPostImage extends StatelessWidget {
         bytes,
         key: ValueKey(imageUrl),
         width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.cover,
+        height: fit == BoxFit.cover ? double.infinity : null,
+        fit: fit,
         alignment: Alignment.center,
         errorBuilder: _errorBuilder,
       );
@@ -66,8 +100,8 @@ class _CommunityPostImage extends StatelessWidget {
       _resolvedUrl(imageUrl),
       key: ValueKey(imageUrl),
       width: double.infinity,
-      height: double.infinity,
-      fit: BoxFit.cover,
+      height: fit == BoxFit.cover ? double.infinity : null,
+      fit: fit,
       alignment: Alignment.center,
       errorBuilder: _errorBuilder,
     );
