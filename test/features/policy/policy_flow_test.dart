@@ -655,6 +655,49 @@ void main() {
     expect(find.text('현재 불러온 정책은 모두 접수가 마감됐어요'), findsNothing);
   });
 
+  testWidgets('추가 페이지의 최신 마감본이 이전 상시 카드를 교체한다', (tester) async {
+    final client = _periodPolicyClient([
+      {
+        ..._periodPolicy('old-always', type: 'ALWAYS', endDate: null),
+        'canonicalPolicyKey': 'same-application',
+        'sourceUpdatedAt': '2026-07-02T18:09:55',
+      },
+    ], nextItems: [
+      {
+        ..._periodPolicy('new-closed', type: 'CLOSED', endDate: null),
+        'canonicalPolicyKey': 'same-application',
+        'sourceUpdatedAt': '2026-07-24T10:27:10',
+      },
+    ]);
+    await tester.pumpWidget(policyApp(PolicyListPage(
+      condition: _defaultCondition,
+      apiClient: client,
+      accessTokenProvider: () => 'test-access-token',
+      nowProvider: _testNow,
+    )));
+    await tester.pumpAndSettle();
+    expect(
+        find.byKey(const ValueKey('policy-card-old-always')), findsOneWidget);
+    expect(find.text('상시 등록 · 공고 확인'), findsOneWidget);
+
+    final loadMore = find.byKey(const ValueKey('policy-load-more'));
+    await tester.ensureVisible(loadMore);
+    await tester.tap(loadMore);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('policy-card-old-always')), findsNothing);
+    expect(find.byKey(const ValueKey('policy-card-new-closed')), findsNothing);
+
+    final sortMenu = find.byKey(const ValueKey('policy-sort-menu'));
+    await tester.ensureVisible(sortMenu);
+    await tester.tap(sortMenu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('마감정책 포함').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('policy-card-old-always')), findsNothing);
+    expect(
+        find.byKey(const ValueKey('policy-card-new-closed')), findsOneWidget);
+  });
+
   testWidgets('로그인 토큰이 없으면 서버 호출 없이 안내한다', (tester) async {
     var called = false;
     final client = PolicyApiClient(

@@ -32,6 +32,22 @@ void main() {
         return _success({
           'items': [
             _policy(
+              id: 'expired',
+              title: '어제 끝난 정책',
+              status: 'RECOMMENDED',
+              reason: null,
+              endDate: '2026-08-04',
+            ),
+            {
+              ..._policy(
+                id: 'closed',
+                title: '접수 마감 정책',
+                status: 'RECOMMENDED',
+                reason: null,
+              ),
+              'applicationPeriodType': 'CLOSED',
+            },
+            _policy(
               id: 'recommended',
               title: '부산 청년 월세 지원',
               status: 'RECOMMENDED',
@@ -76,6 +92,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('놓치면 아쉬운 정책'), findsOneWidget);
+    expect(find.text('어제 끝난 정책'), findsNothing);
+    expect(find.text('접수 마감 정책'), findsNothing);
     expect(find.text('부산 청년 월세 지원'), findsOneWidget);
     expect(find.text('청년 취업 준비 지원'), findsOneWidget);
     expect(find.text('D-5'), findsOneWidget);

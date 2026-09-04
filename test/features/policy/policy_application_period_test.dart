@@ -92,7 +92,7 @@ void main() {
 
   test('상시·마감·예산 소진 안내를 임의의 날짜로 바꾸지 않는다', () {
     final labels = {
-      PolicyApplicationPeriodType.always: '상시 신청',
+      PolicyApplicationPeriodType.always: '상시 등록 · 공고 확인',
       PolicyApplicationPeriodType.closed: '접수 마감',
       PolicyApplicationPeriodType.untilBudget: '예산 소진 시까지',
       PolicyApplicationPeriodType.unknown: '신청 기간 확인 필요',
@@ -130,5 +130,17 @@ void main() {
     for (final text in ['2026.02.30', '2026-13-01', '기관별 일정 확인 필요']) {
       expect(formatPolicyApplicationPeriodText(text), text);
     }
+  });
+
+  test('상시 유형과 확정 날짜가 함께 오면 날짜를 우선 표시한다', () {
+    expect(
+      formatPolicyApplicationPeriod(
+        type: PolicyApplicationPeriodType.always,
+        startDate: DateTime(2026, 5, 1),
+        endDate: DateTime(2026, 5, 5),
+        text: '상시',
+      ),
+      '26.05.01 ~ 26.05.05',
+    );
   });
 }

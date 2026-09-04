@@ -16,6 +16,7 @@ import 'data/policy_models.dart';
 import 'hidden_policies_page.dart';
 import 'policy_application_period.dart';
 import 'policy_text_formatter.dart';
+import 'policy_version_merger.dart';
 
 typedef PolicyAccessTokenProvider = String? Function();
 
@@ -44,6 +45,7 @@ class PolicyListPage extends StatefulWidget {
 class _PolicyListPageState extends State<PolicyListPage> {
   final _searchController = TextEditingController();
   final Set<String> _hiddenPolicyIds = {};
+  final Set<String> _hiddenCanonicalKeys = {};
 
   List<PolicySummary> _policies = [];
   Object? _error;
@@ -111,8 +113,8 @@ class _PolicyListPageState extends State<PolicyListPage> {
         return;
       }
       setState(() {
-        _policies = result.items
-            .where((policy) => !_hiddenPolicyIds.contains(policy.policyId))
+        _policies = mergePolicyVersions(result.items)
+            .where((policy) => !_isHidden(policy))
             .toList();
         _nextPage = result.nextPage;
         _loading = false;
@@ -155,13 +157,9 @@ class _PolicyListPageState extends State<PolicyListPage> {
         return;
       }
       setState(() {
-        final ids = _policies.map((policy) => policy.policyId).toSet();
-        for (final policy in result.items) {
-          if (!_hiddenPolicyIds.contains(policy.policyId) &&
-              ids.add(policy.policyId)) {
-            _policies.add(policy);
-          }
-        }
+        _policies = mergePolicyVersions([..._policies, ...result.items])
+            .where((policy) => !_isHidden(policy))
+            .toList();
         _nextPage = result.nextPage;
         _loadingMore = false;
       });
@@ -202,12 +200,19 @@ class _PolicyListPageState extends State<PolicyListPage> {
     unawaited(_reload());
   }
 
+  bool _isHidden(PolicySummary policy) =>
+      _hiddenPolicyIds.contains(policy.policyId) ||
+      _hiddenCanonicalKeys.contains(policy.canonicalPolicyKey);
+
   Future<void> _hidePolicy(PolicySummary policy) async {
-    if (_hiddenPolicyIds.contains(policy.policyId)) {
+    if (_isHidden(policy)) {
       return;
     }
     setState(() {
       _hiddenPolicyIds.add(policy.policyId);
+      if (policy.canonicalPolicyKey case final key?) {
+        _hiddenCanonicalKeys.add(key);
+      }
       _policies.removeWhere((item) => item.policyId == policy.policyId);
     });
 
@@ -222,6 +227,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
       }
       setState(() {
         _hiddenPolicyIds.remove(policy.policyId);
+        _hiddenCanonicalKeys.remove(policy.canonicalPolicyKey);
         if (_policies.every((item) => item.policyId != policy.policyId)) {
           _policies.add(policy);
         }
@@ -263,6 +269,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
       }
       setState(() {
         _hiddenPolicyIds.remove(policy.policyId);
+        _hiddenCanonicalKeys.remove(policy.canonicalPolicyKey);
         if (_policies.every((item) => item.policyId != policy.policyId)) {
           _policies.add(policy);
         }
@@ -290,6 +297,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
       return;
     }
     _hiddenPolicyIds.clear();
+    _hiddenCanonicalKeys.clear();
     await _reload();
   }
 

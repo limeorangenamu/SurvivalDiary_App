@@ -23,9 +23,21 @@ String formatPolicyApplicationPeriod({
   required DateTime? endDate,
   required String? text,
 }) {
+  if (type == PolicyApplicationPeriodType.closed) {
+    return '접수 마감';
+  }
+  // 구버전 서버가 상시 유형과 구체적인 날짜를 함께 보내도 날짜를 버리지 않는다.
+  if (startDate != null && endDate != null) {
+    final start = _shortDate(startDate);
+    final end = _shortDate(endDate);
+    return start == end ? start : '$start ~ $end';
+  }
+  if (endDate != null) {
+    return '${_shortDate(endDate)}까지';
+  }
   switch (type) {
     case PolicyApplicationPeriodType.always:
-      return '상시 신청';
+      return '상시 등록 · 공고 확인';
     case PolicyApplicationPeriodType.closed:
       return '접수 마감';
     case PolicyApplicationPeriodType.untilBudget:
@@ -33,16 +45,8 @@ String formatPolicyApplicationPeriod({
     case PolicyApplicationPeriodType.fixed:
     case PolicyApplicationPeriodType.unknown:
     case null:
-      if (startDate != null && endDate != null) {
-        final start = _shortDate(startDate);
-        final end = _shortDate(endDate);
-        return start == end ? start : '$start ~ $end';
-      }
       if (text != null && text.trim().isNotEmpty) {
         return formatPolicyApplicationPeriodText(text);
-      }
-      if (endDate != null) {
-        return '${_shortDate(endDate)}까지';
       }
       if (startDate != null) {
         return '${_shortDate(startDate)}부터';
