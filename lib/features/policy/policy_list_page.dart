@@ -14,6 +14,7 @@ import '../auth/auth_session.dart';
 import 'data/policy_api_client.dart';
 import 'data/policy_models.dart';
 import 'hidden_policies_page.dart';
+import 'policy_application_period.dart';
 import 'policy_text_formatter.dart';
 
 typedef PolicyAccessTokenProvider = String? Function();
@@ -24,6 +25,7 @@ class PolicyListPage extends StatefulWidget {
     required this.condition,
     PolicyApiClient? apiClient,
     PolicyAccessTokenProvider? accessTokenProvider,
+    this.nowProvider,
     this.onEditCondition,
   })  : apiClient = apiClient ?? PolicyApiClient(),
         accessTokenProvider =
@@ -32,6 +34,7 @@ class PolicyListPage extends StatefulWidget {
   final PolicyFilterCondition condition;
   final PolicyApiClient apiClient;
   final PolicyAccessTokenProvider accessTokenProvider;
+  final DateTime Function()? nowProvider;
   final VoidCallback? onEditCondition;
 
   @override
@@ -313,12 +316,9 @@ class _PolicyListPageState extends State<PolicyListPage> {
     final result = policies.toList();
     result.sort((a, b) {
       return switch (_sort) {
-        _PolicySort.recommendation =>
+        _PolicySort.recommendation ||
+        _PolicySort.includeClosed =>
           _recommendationRank(b).compareTo(_recommendationRank(a)),
-        _PolicySort.deadline => _compareNullableDate(
-            a.applicationEndDate,
-            b.applicationEndDate,
-          ),
         _PolicySort.support => _compareSupportAmount(a, b),
       };
     });
@@ -359,39 +359,36 @@ class _PolicyListPageState extends State<PolicyListPage> {
     return statusRank + policy.recommendationReasons.length;
   }
 
-  int _compareNullableDate(DateTime? a, DateTime? b) {
-    final today = DateUtils.dateOnly(DateTime.now());
-    final aGroup =
-        a == null ? 2 : (DateUtils.dateOnly(a).isBefore(today) ? 1 : 0);
-    final bGroup =
-        b == null ? 2 : (DateUtils.dateOnly(b).isBefore(today) ? 1 : 0);
-    if (aGroup != bGroup) {
-      return aGroup.compareTo(bGroup);
-    }
-    if (a == null || b == null) {
-      return 0;
-    }
-    return aGroup == 1 ? b.compareTo(a) : a.compareTo(b);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final now = widget.nowProvider?.call() ?? DateTime.now();
+    final visiblePolicies = _policies
+        .where(
+          (policy) =>
+              _sort == _PolicySort.includeClosed ||
+              !isPolicyApplicationClosed(
+                type: policy.applicationPeriodType,
+                endDate: policy.applicationEndDate,
+                now: now,
+              ),
+        )
+        .toList();
     final recommended = _sorted(
-      _policies.where(
+      visiblePolicies.where(
         (policy) =>
             policy.recommendationStatus ==
             PolicyRecommendationStatus.recommended,
       ),
     );
     final checkRequired = _sorted(
-      _policies.where(
+      visiblePolicies.where(
         (policy) =>
             policy.recommendationStatus ==
             PolicyRecommendationStatus.checkRequired,
       ),
     );
     final discover = _sorted(
-      _policies.where(
+      visiblePolicies.where(
         (policy) =>
             policy.recommendationStatus == PolicyRecommendationStatus.discover,
       ),
@@ -436,7 +433,24 @@ class _PolicyListPageState extends State<PolicyListPage> {
               const _PolicyLoading()
             else if (_error != null && _policies.isEmpty)
               _PolicyLoadError(error: _error, onRetry: _reload)
-            else if (_policies.isEmpty)
+            else if (visiblePolicies.isEmpty && _policies.isNotEmpty) ...[
+              _PolicySectionHeading(
+                title: _keyword.isEmpty ? '정책' : '“$_keyword” 검색 결과',
+                count: 0,
+                sort: _sort,
+                onSortChanged: (value) => setState(() => _sort = value),
+              ),
+              EmptyStateView(
+                icon: Icons.event_busy_outlined,
+                title: '현재 불러온 정책은 모두 접수가 마감됐어요',
+                description: _nextPage != null
+                    ? '아래에서 정책을 더 불러오거나 마감된 정책도 확인해 보세요.'
+                    : '마감된 정책도 포함하면 지난 지원 내용을 확인할 수 있어요.',
+                actionLabel: '마감정책 포함',
+                onAction: () =>
+                    setState(() => _sort = _PolicySort.includeClosed),
+              ),
+            ] else if (_policies.isEmpty)
               EmptyStateView(
                 icon: Icons.search_off_rounded,
                 title: _keyword.isEmpty ? '지금 보여드릴 정책이 없어요' : '검색 결과가 없어요',
@@ -454,9 +468,10 @@ class _PolicyListPageState extends State<PolicyListPage> {
                 title: '“$_keyword” 검색 결과',
                 sort: _sort,
                 onSortChanged: (value) => setState(() => _sort = value),
-                policies: _sorted(_policies),
+                policies: _sorted(visiblePolicies),
                 cardBuilder: (policy) => _PolicyCompactCard(
                   policy: policy,
+                  now: now,
                   showStatus: policy.recommendationStatus !=
                       PolicyRecommendationStatus.discover,
                   onHide: () => unawaited(_hidePolicy(policy)),
@@ -467,6 +482,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
               if (recommended.isNotEmpty)
                 _RecommendedSection(
                   condition: widget.condition,
+                  now: now,
                   policies: recommended,
                   sort: _sort,
                   onSortChanged: (value) => setState(() => _sort = value),
@@ -486,6 +502,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
                   policies: checkRequired,
                   cardBuilder: (policy) => _PolicyCompactCard(
                     policy: policy,
+                    now: now,
                     showStatus: true,
                     onHide: () => unawaited(_hidePolicy(policy)),
                     onTap: () => _openPolicy(policy),
@@ -507,6 +524,7 @@ class _PolicyListPageState extends State<PolicyListPage> {
                   policies: discover,
                   cardBuilder: (policy) => _PolicyCompactCard(
                     policy: policy,
+                    now: now,
                     showStatus: false,
                     onHide: () => unawaited(_hidePolicy(policy)),
                     onTap: () => _openPolicy(policy),
@@ -667,6 +685,7 @@ class _BriefingHeader extends StatelessWidget {
 class _RecommendedSection extends StatelessWidget {
   const _RecommendedSection({
     required this.condition,
+    required this.now,
     required this.policies,
     required this.sort,
     required this.onSortChanged,
@@ -675,6 +694,7 @@ class _RecommendedSection extends StatelessWidget {
   });
 
   final PolicyFilterCondition condition;
+  final DateTime now;
   final List<PolicySummary> policies;
   final _PolicySort sort;
   final ValueChanged<_PolicySort> onSortChanged;
@@ -696,6 +716,7 @@ class _RecommendedSection extends StatelessWidget {
         const SizedBox(height: 12),
         _PolicyHeroCard(
           condition: condition,
+          now: now,
           policy: policies.first,
           onHide: () => onHide(policies.first),
           onTap: () => onTap(policies.first),
@@ -704,6 +725,7 @@ class _RecommendedSection extends StatelessWidget {
           const SizedBox(height: 10),
           _PolicyCompactCard(
             policy: policy,
+            now: now,
             showStatus: true,
             onHide: () => onHide(policy),
             onTap: () => onTap(policy),
@@ -838,12 +860,14 @@ class _PolicySortMenu extends StatelessWidget {
 class _PolicyHeroCard extends StatelessWidget {
   const _PolicyHeroCard({
     required this.condition,
+    required this.now,
     required this.policy,
     required this.onHide,
     required this.onTap,
   });
 
   final PolicyFilterCondition condition;
+  final DateTime now;
   final PolicySummary policy;
   final VoidCallback onHide;
   final VoidCallback onTap;
@@ -880,8 +904,7 @@ class _PolicyHeroCard extends StatelessWidget {
                         const _StatusBadge(
                           status: PolicyRecommendationStatus.checkRequired,
                         ),
-                      if (_deadlineBadge(policy.applicationEndDate)
-                          case final label?)
+                      if (_deadlineBadge(policy, now) case final label?)
                         Text(
                           label,
                           style: AppTextStyles.caption.copyWith(
@@ -1024,12 +1047,14 @@ class _PolicyMatchSignalChips extends StatelessWidget {
 class _PolicyCompactCard extends StatelessWidget {
   const _PolicyCompactCard({
     required this.policy,
+    required this.now,
     required this.showStatus,
     required this.onHide,
     required this.onTap,
   });
 
   final PolicySummary policy;
+  final DateTime now;
   final bool showStatus;
   final VoidCallback onHide;
   final VoidCallback onTap;
@@ -1115,7 +1140,7 @@ class _PolicyCompactCard extends StatelessWidget {
                 Flexible(
                   child: _PolicyMetaText(
                     icon: Icons.schedule_rounded,
-                    label: _deadlineBadge(policy.applicationEndDate) ??
+                    label: _deadlineBadge(policy, now) ??
                         _applicationPeriodLabel(policy),
                     alignEnd: true,
                   ),
@@ -1322,12 +1347,12 @@ class _InlineError extends StatelessWidget {
   }
 }
 
-enum _PolicySort { recommendation, deadline, support }
+enum _PolicySort { recommendation, includeClosed, support }
 
 extension on _PolicySort {
   String get label => switch (this) {
         _PolicySort.recommendation => '추천순',
-        _PolicySort.deadline => '마감 임박순',
+        _PolicySort.includeClosed => '마감정책 포함',
         _PolicySort.support => '지원 금액순',
       };
 }
@@ -1389,25 +1414,27 @@ String _supportLabel(PolicySummary policy) {
 }
 
 String _applicationPeriodLabel(PolicySummary policy) =>
-    switch (policy.applicationPeriodType) {
-      PolicyApplicationPeriodType.always => '상시 신청',
-      PolicyApplicationPeriodType.closed => '접수 마감',
-      PolicyApplicationPeriodType.untilBudget => '예산 소진 시까지',
-      PolicyApplicationPeriodType.fixed ||
-      PolicyApplicationPeriodType.unknown ||
-      null =>
-        policy.applicationPeriodText ?? '기간 확인 필요',
-    };
+    formatPolicyApplicationPeriod(
+      type: policy.applicationPeriodType,
+      startDate: policy.applicationStartDate,
+      endDate: policy.applicationEndDate,
+      text: policy.applicationPeriodText,
+    );
 
-String? _deadlineBadge(DateTime? deadline) {
+String? _deadlineBadge(PolicySummary policy, DateTime now) {
+  final deadline = policy.applicationEndDate;
+  if (isPolicyApplicationClosed(
+    type: policy.applicationPeriodType,
+    endDate: deadline,
+    now: now,
+  )) {
+    return '접수 마감';
+  }
   if (deadline == null) {
     return null;
   }
-  final today = DateUtils.dateOnly(DateTime.now());
+  final today = DateUtils.dateOnly(now);
   final days = DateUtils.dateOnly(deadline).difference(today).inDays;
-  if (days < 0) {
-    return '마감';
-  }
   if (days == 0) {
     return '오늘 마감';
   }

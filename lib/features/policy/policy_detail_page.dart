@@ -10,6 +10,7 @@ import '../../shared/widgets/empty_state_view.dart';
 import '../auth/auth_session.dart';
 import 'data/policy_api_client.dart';
 import 'data/policy_models.dart';
+import 'policy_application_period.dart';
 import 'policy_text_formatter.dart';
 
 typedef PolicyDetailAccessTokenProvider = String? Function();
@@ -354,11 +355,18 @@ class _PolicyOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final supportAmount = policy.supportAmount;
-    final deadline = _deadlinePresentation(policy.applicationEndDate, now);
-    final periodLabel = normalizePolicyText(_applicationPeriodLabel(policy));
+    final deadline = _deadlinePresentation(policy, now);
+    final periodLabel = normalizePolicyText(formatPolicyApplicationPeriod(
+      type: policy.applicationPeriodType,
+      startDate: policy.applicationStartDate,
+      endDate: policy.applicationEndDate,
+      text: policy.applicationPeriodText,
+    ));
     final originalPeriod = policy.applicationPeriodText == null
         ? null
-        : normalizePolicyText(policy.applicationPeriodText!);
+        : formatPolicyApplicationPeriodText(
+            normalizePolicyText(policy.applicationPeriodText!),
+          );
     return AppCard(
       key: const ValueKey('policy-overview-card'),
       child: Column(
@@ -815,17 +823,6 @@ String _supportAmountTitle(PolicySupportAmountType? type) => switch (type) {
       PolicySupportAmountType.fixed || null => '지원 금액',
     };
 
-String _applicationPeriodLabel(PolicyDetail policy) =>
-    switch (policy.applicationPeriodType) {
-      PolicyApplicationPeriodType.always => '상시 신청',
-      PolicyApplicationPeriodType.closed => '접수 마감',
-      PolicyApplicationPeriodType.untilBudget => '예산 소진 시까지',
-      PolicyApplicationPeriodType.fixed ||
-      PolicyApplicationPeriodType.unknown ||
-      null =>
-        policy.applicationPeriodText ?? '신청 기간 확인 필요',
-    };
-
 String _applicationButtonLabel(PolicyOfficialLinkType type) => switch (type) {
       PolicyOfficialLinkType.applicationCandidate => '신청 페이지 확인',
       PolicyOfficialLinkType.loginRequired => '로그인 후 신청 확인',
@@ -835,22 +832,27 @@ String _applicationButtonLabel(PolicyOfficialLinkType type) => switch (type) {
     };
 
 _DeadlinePresentation? _deadlinePresentation(
-  DateTime? endDate,
+  PolicyDetail policy,
   DateTime now,
 ) {
-  if (endDate == null) {
-    return null;
-  }
-  final today = DateUtils.dateOnly(now);
-  final deadline = DateUtils.dateOnly(endDate);
-  final days = deadline.difference(today).inDays;
-  if (days < 0) {
+  final endDate = policy.applicationEndDate;
+  if (isPolicyApplicationClosed(
+    type: policy.applicationPeriodType,
+    endDate: endDate,
+    now: now,
+  )) {
     return const _DeadlinePresentation(
       label: '접수 마감',
       foreground: AppColors.danger,
       background: AppColors.dangerSoft,
     );
   }
+  if (endDate == null) {
+    return null;
+  }
+  final today = DateUtils.dateOnly(now);
+  final deadline = DateUtils.dateOnly(endDate);
+  final days = deadline.difference(today).inDays;
   if (days == 0) {
     return const _DeadlinePresentation(
       label: '오늘 마감',

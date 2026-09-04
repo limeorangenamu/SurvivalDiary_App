@@ -18,10 +18,12 @@ class PolicyFilterPage extends StatefulWidget {
     super.key,
     this.apiClient,
     this.accessTokenProvider,
+    this.nowProvider,
   });
 
   final PolicyApiClient? apiClient;
   final PolicyAccessTokenProvider? accessTokenProvider;
+  final DateTime Function()? nowProvider;
 
   @override
   State<PolicyFilterPage> createState() => _PolicyFilterPageState();
@@ -427,6 +429,7 @@ class _PolicyFilterPageState extends State<PolicyFilterPage> {
         condition: activeCondition,
         apiClient: _apiClient,
         accessTokenProvider: _accessTokenProvider,
+        nowProvider: widget.nowProvider,
         onEditCondition: _editCondition,
       );
     }

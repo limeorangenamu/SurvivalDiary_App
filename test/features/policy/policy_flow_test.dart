@@ -56,6 +56,7 @@ void main() {
   Widget filterPage({PolicyApiClient? client}) {
     return PolicyFilterPage(
       apiClient: client ?? apiClient,
+      nowProvider: _testNow,
       accessTokenProvider: () => 'test-access-token',
     );
   }
@@ -269,6 +270,7 @@ void main() {
       policyApp(
         PolicyListPage(
           condition: _defaultCondition,
+          nowProvider: _testNow,
           apiClient: client,
           accessTokenProvider: () => 'test-access-token',
         ),
@@ -308,6 +310,7 @@ void main() {
       policyApp(
         PolicyListPage(
           condition: _defaultCondition,
+          nowProvider: _testNow,
           apiClient: apiClient,
           accessTokenProvider: () => 'test-access-token',
         ),
@@ -328,6 +331,7 @@ void main() {
       policyApp(
         PolicyListPage(
           condition: _defaultCondition,
+          nowProvider: _testNow,
           apiClient: apiClient,
           accessTokenProvider: () => 'test-access-token',
         ),
@@ -356,6 +360,7 @@ void main() {
       policyApp(
         PolicyListPage(
           condition: _defaultCondition,
+          nowProvider: _testNow,
           apiClient: apiClient,
           accessTokenProvider: () => 'test-access-token',
         ),
@@ -390,6 +395,7 @@ void main() {
       policyApp(
         PolicyListPage(
           condition: _defaultCondition,
+          nowProvider: _testNow,
           apiClient: apiClient,
           accessTokenProvider: () => 'test-access-token',
         ),
@@ -406,6 +412,8 @@ void main() {
     expect(find.text('한눈에 보기'), findsOneWidget);
     expect(find.text('최대 지원액'), findsOneWidget);
     expect(find.text('D-26'), findsOneWidget);
+    expect(find.text('26.08.01 ~ 26.08.31'), findsOneWidget);
+    expect(find.textContaining('2026.08.01'), findsNothing);
     expect(find.text('신청 페이지 확인'), findsOneWidget);
     expect(find.text('최대 300만 원을 지원해요.'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -500));
@@ -419,6 +427,7 @@ void main() {
       policyApp(
         PolicyListPage(
           condition: _defaultCondition,
+          nowProvider: _testNow,
           apiClient: fallbackClient,
           accessTokenProvider: () => 'test-access-token',
         ),
@@ -446,6 +455,7 @@ void main() {
       policyApp(
         PolicyListPage(
           condition: _defaultCondition,
+          nowProvider: _testNow,
           apiClient: apiClient,
           accessTokenProvider: () => 'test-access-token',
         ),
@@ -525,6 +535,7 @@ void main() {
       policyApp(
         PolicyListPage(
           condition: _defaultCondition,
+          nowProvider: _testNow,
           apiClient: client,
           accessTokenProvider: () => 'test-access-token',
         ),
@@ -542,6 +553,108 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('기본 목록은 마감 정책을 숨기고 오늘 마감과 기간 미상은 유지한다', (tester) async {
+    final client = _periodPolicyClient([
+      _periodPolicy('expired', endDate: '2026-08-04'),
+      _periodPolicy('closed', type: 'CLOSED', endDate: null),
+      _periodPolicy('today', endDate: '2026-08-05'),
+      _periodPolicy('unknown', type: 'UNKNOWN', endDate: null),
+    ]);
+    await tester.pumpWidget(policyApp(PolicyListPage(
+      condition: _defaultCondition,
+      apiClient: client,
+      accessTokenProvider: () => 'test-access-token',
+      nowProvider: _testNow,
+    )));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('policy-card-expired')), findsNothing);
+    expect(find.byKey(const ValueKey('policy-card-closed')), findsNothing);
+    expect(find.byKey(const ValueKey('policy-card-today')), findsOneWidget);
+    expect(find.byKey(const ValueKey('policy-card-unknown')), findsOneWidget);
+    expect(find.text('다른 정책 2개'), findsOneWidget);
+    expect(find.text('오늘 마감'), findsOneWidget);
+  });
+
+  testWidgets('마감정책 포함은 검색에서도 추천순으로 표시하고 다른 정렬은 마감을 숨긴다', (tester) async {
+    final client = _periodPolicyClient([
+      _periodPolicy('open', status: 'CHECK_REQUIRED'),
+      _periodPolicy('expired', endDate: '2026-08-04', status: 'RECOMMENDED'),
+    ]);
+    await tester.pumpWidget(policyApp(PolicyListPage(
+      condition: _defaultCondition,
+      apiClient: client,
+      accessTokenProvider: () => 'test-access-token',
+      nowProvider: _testNow,
+    )));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('policy-keyword-field')),
+      '지원',
+    );
+    await tester
+        .tap(find.byKey(const ValueKey('policy-keyword-search-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('“지원” 검색 결과 1개'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('policy-sort-menu')));
+    await tester.pumpAndSettle();
+    expect(find.text('마감 임박순'), findsNothing);
+    await tester.tap(find.text('마감정책 포함').last);
+    await tester.pumpAndSettle();
+
+    final expired = find.byKey(const ValueKey('policy-card-expired'));
+    final open = find.byKey(const ValueKey('policy-card-open'));
+    expect(find.text('“지원” 검색 결과 2개'), findsOneWidget);
+    expect(expired, findsOneWidget);
+    expect(tester.getTopLeft(expired).dy, lessThan(tester.getTopLeft(open).dy));
+    expect(find.text('접수 마감'), findsOneWidget);
+
+    for (final label in ['지원 금액순', '추천순']) {
+      await tester.tap(find.byKey(const ValueKey('policy-sort-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label).last);
+      await tester.pumpAndSettle();
+      expect(expired, findsNothing);
+      expect(open, findsOneWidget);
+      expect(find.text('“지원” 검색 결과 1개'), findsOneWidget);
+    }
+  });
+
+  testWidgets('마감 정책만 있어도 포함 선택과 다음 페이지 조회를 사용할 수 있다', (tester) async {
+    final client = _periodPolicyClient(
+      [_periodPolicy('closed', type: 'CLOSED', endDate: null)],
+      nextItems: [_periodPolicy('next-open')],
+    );
+    await tester.pumpWidget(policyApp(PolicyListPage(
+      condition: _defaultCondition,
+      apiClient: client,
+      accessTokenProvider: () => 'test-access-token',
+      nowProvider: _testNow,
+    )));
+    await tester.pumpAndSettle();
+    expect(find.text('현재 불러온 정책은 모두 접수가 마감됐어요'), findsOneWidget);
+    expect(find.byKey(const ValueKey('policy-sort-menu')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('policy-sort-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('마감정책 포함').last);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('policy-card-closed')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('policy-sort-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('추천순').last);
+    await tester.pumpAndSettle();
+    final loadMore = find.byKey(const ValueKey('policy-load-more'));
+    await tester.ensureVisible(loadMore);
+    await tester.tap(loadMore);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('policy-card-closed')), findsNothing);
+    expect(find.byKey(const ValueKey('policy-card-next-open')), findsOneWidget);
+    expect(find.text('현재 불러온 정책은 모두 접수가 마감됐어요'), findsNothing);
+  });
+
   testWidgets('로그인 토큰이 없으면 서버 호출 없이 안내한다', (tester) async {
     var called = false;
     final client = PolicyApiClient(
@@ -556,6 +669,7 @@ void main() {
       policyApp(
         PolicyListPage(
           condition: _defaultCondition,
+          nowProvider: _testNow,
           apiClient: client,
           accessTokenProvider: () => null,
         ),
@@ -585,6 +699,45 @@ const _defaultCondition = PolicyFilterCondition(
   workStatus: PolicyWorkStatus.unemployed,
   jobSeeking: true,
 );
+
+DateTime _testNow() => DateTime(2026, 8, 5, 12);
+
+Map<String, dynamic> _periodPolicy(
+  String id, {
+  String type = 'FIXED',
+  String? endDate = '2026-08-31',
+  String status = 'DISCOVER',
+}) =>
+    _summaryJson(
+      policyId: id,
+      title: '$id 지원 정책',
+      applicationPeriodType: type,
+      applicationEndDate: endDate,
+      applicationPeriodText:
+          endDate == null ? '기간 확인 필요' : '2026.08.01~$endDate',
+      applicationStartDate: endDate == null ? null : '2026-08-01',
+      recommendationStatus: status,
+      recommendationReasons: const [],
+    );
+
+PolicyApiClient _periodPolicyClient(
+  List<Map<String, dynamic>> items, {
+  List<Map<String, dynamic>>? nextItems,
+}) =>
+    PolicyApiClient(
+      baseUrl: 'http://test.example',
+      client: MockClient((request) async {
+        expect(request.url.path, '/api/policies/recommendations');
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final firstPage = body['page'] == 1;
+        return _successResponse({
+          'items': firstPage ? items : nextItems ?? [],
+          'partialResult': firstPage && nextItems != null,
+          'checkedProviderPages': 1,
+          'nextPage': firstPage && nextItems != null ? 2 : null,
+        });
+      }),
+    );
 
 PolicyApiClient _policyApiClient({
   void Function(Map<String, dynamic> body)? onBody,
