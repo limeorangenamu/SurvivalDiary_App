@@ -234,6 +234,8 @@ class PolicySummary {
     required this.recommendationStatus,
     required this.recommendationReasons,
     this.matchSignals = const [],
+    this.canonicalPolicyKey,
+    this.sourceUpdatedAt,
   });
 
   factory PolicySummary.fromJson(Map<String, dynamic> json) {
@@ -267,6 +269,8 @@ class PolicySummary {
           ? eligibilityReasons
           : _stringList(json, 'recommendationReasons'),
       matchSignals: _policyMatchSignals(json['matchSignals']),
+      canonicalPolicyKey: _nullableString(json, 'canonicalPolicyKey'),
+      sourceUpdatedAt: _nullableTimestamp(json['sourceUpdatedAt']),
     );
   }
 
@@ -290,6 +294,8 @@ class PolicySummary {
   final PolicyRecommendationStatus recommendationStatus;
   final List<String> recommendationReasons;
   final List<PolicyMatchSignal> matchSignals;
+  final String? canonicalPolicyKey;
+  final DateTime? sourceUpdatedAt;
 }
 
 class PolicyDetail {
@@ -435,6 +441,9 @@ int? _nullableInt(Map<String, dynamic> json, String key) {
   }
   return value.toInt();
 }
+
+DateTime? _nullableTimestamp(Object? value) =>
+    value is String ? DateTime.tryParse(value.trim()) : null;
 
 DateTime? _nullableDate(Map<String, dynamic> json, String key) {
   final value = json[key];

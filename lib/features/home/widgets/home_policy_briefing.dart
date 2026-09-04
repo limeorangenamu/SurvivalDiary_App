@@ -11,7 +11,9 @@ import '../../../shared/widgets/section_header.dart';
 import '../../auth/auth_session.dart';
 import '../../policy/data/policy_api_client.dart';
 import '../../policy/data/policy_models.dart';
+import '../../policy/policy_application_period.dart';
 import '../../policy/policy_text_formatter.dart';
+import '../../policy/policy_version_merger.dart';
 
 typedef HomePolicyAccessTokenProvider = String? Function();
 typedef HomePolicyNowProvider = DateTime Function();
@@ -136,7 +138,14 @@ class _HomePolicyBriefingState extends State<HomePolicyBriefing>
     }
   }
 
-  List<PolicySummary> _selectPreviewPolicies(List<PolicySummary> items) {
+  List<PolicySummary> _selectPreviewPolicies(List<PolicySummary> sourceItems) {
+    final items = mergePolicyVersions(sourceItems)
+        .where((policy) => !isPolicyApplicationClosed(
+              type: policy.applicationPeriodType,
+              endDate: policy.applicationEndDate,
+              now: _today,
+            ))
+        .toList();
     final selected = <PolicySummary>[];
     final selectedIds = <String>{};
 

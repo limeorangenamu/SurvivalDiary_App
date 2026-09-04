@@ -394,6 +394,15 @@ class _PolicyOverviewCard extends StatelessWidget {
             description: periodLabel == originalPeriod ? null : originalPeriod,
             badge: deadline,
           ),
+          if (policy.applicationPeriodType ==
+                  PolicyApplicationPeriodType.always &&
+              policy.applicationEndDate == null) ...[
+            const SizedBox(height: 8),
+            const Text(
+              '제공처에 상시로 등록된 정보예요. 현재 모집 여부와 회차별 신청기간은 연결된 공고에서 확인해 주세요.',
+              style: AppTextStyles.caption,
+            ),
+          ],
           const Divider(height: 24),
           _OverviewRow(
             icon: Icons.person_outline_rounded,
